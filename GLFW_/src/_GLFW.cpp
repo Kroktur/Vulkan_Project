@@ -6,7 +6,7 @@ KGR::_GLFW::_GLFW(int width, int height, const char* title, int windowHint, int 
 	, m_height(height)
 {
 	glfwInit();
-	SetHint(windowHint, windowValue);
+	SetHint(windowHint, windowValue); // NOT THE RIGHT THING TO DO !! NEED TO CHANGE THIS ASAP
 	m_window = glfwCreateWindow(width, height, title, nullptr, nullptr);
 	if (!m_window)
 		throw std::runtime_error("Failed to creare the window");
