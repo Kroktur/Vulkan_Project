@@ -146,16 +146,20 @@ vk::raii::Device CreateDevice(vk::raii::PhysicalDevice& physicalDevice, uint32_t
 
 vk::raii::SwapchainKHR CreateSwapchain(vk::raii::PhysicalDevice& physicalDevice, vk::raii::Device& device, vk::raii::SurfaceKHR& surface, GLFWwindow* window)
 {
+
 	auto surfaceCaps = physicalDevice.getSurfaceCapabilitiesKHR(surface);
 	auto availableFormats = physicalDevice.getSurfaceFormatsKHR(surface);
 	auto availablePresentModes = physicalDevice.getSurfacePresentModesKHR(surface);
 
+
+	// we found the optimal surface format 
 	auto swapSurfaceFormat = ([](const decltype(availableFormats)& formats) {
 		for (const auto& availableFormat : formats)
 			if (availableFormat.format == vk::Format::eB8G8R8A8Srgb && availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
 				return availableFormat;
 		return formats[0];
 		})(availableFormats);
+
 
 	auto swapExtent = ([&window](const vk::SurfaceCapabilitiesKHR& capabilities) {
 		if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
@@ -293,7 +297,7 @@ int main()
 	glfwInit();
 	// GLFW Hint
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 	// Create a window
 	auto window = glfwCreateWindow(1280, 720, "Gaming Campus goes Vulkan", nullptr, nullptr);
 
@@ -310,16 +314,23 @@ int main()
 	auto surface = CreateGlfwWindowSurface(instance, window);
 	// Create the Device the context of gpu
 	auto device = CreateDevice(physicalDevice, graphicsQueueFamily);
+
+	// get the graphic queue from the device and queue index
 	auto graphicsQueue = vk::raii::Queue(device, graphicsQueueFamily, 0);
+	// Create the SwapChain
 	auto swapchain = CreateSwapchain(physicalDevice, device, surface, window);
+
+	// get the swapChained Images
 	auto swapchainImages = swapchain.getImages();
 
+	// Create the right CommandPool with auto reset buffer
 	auto poolInfo = vk::CommandPoolCreateInfo{
 		.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
 		.queueFamilyIndex = graphicsQueueFamily
 	};
 	auto commandPool = vk::raii::CommandPool(device, poolInfo);
 
+	// for each image create frameData
 	auto frameData = swapchainImages | std::views::transform([&](const vk::Image&) {
 		vk::CommandBufferAllocateInfo allocInfo{
 			.commandPool = commandPool,
@@ -329,33 +340,31 @@ int main()
 
 		return FrameData{
 			.presentCompleteSemaphore = vk::raii::Semaphore(device, vk::SemaphoreCreateInfo()),
-			.renderFinishedSemaphore = vk::raii::Semaphore(device, vk::SemaphoreCreateInfo())
+			.renderFinishedSemaphore = vk::raii::Semaphore(device, vk::SemaphoreCreateInfo()),
+			.commandBuffer = std::move(vk::raii::CommandBuffers(device, allocInfo).front())
 		};
 		}) | std::ranges::to<std::vector>();
 
-	for (auto& fd : frameData)
-	{
-		vk::CommandBufferAllocateInfo allocInfo{
-			.commandPool = commandPool,
-			.level = vk::CommandBufferLevel::ePrimary,
-			.commandBufferCount = 1
-		};
-
-		fd.commandBuffer = std::move(vk::raii::CommandBuffers(device, allocInfo).front());
-	}
 
 	uint32_t currentFrame = 0;
 	vk::raii::Fence drawFence = vk::raii::Fence(device, { .flags = vk::FenceCreateFlagBits::eSignaled });
 
 	do
 	{
+		// poll Events 
 		glfwPollEvents();
+		// Get the index of the images 
 		auto  currentImageIndex = AcquireNextImage(device, swapchain, frameData[currentFrame].presentCompleteSemaphore, drawFence);
+		// Get the images from the index 
 		auto& currentImage = swapchainImages[currentImageIndex];
 
-		auto& cb = frameData[currentFrame].commandBuffer;
+		// get the current buffer
+		auto& cb = frameData[currentImageIndex].commandBuffer;
+
+		// start the buffer
 		cb.begin(vk::CommandBufferBeginInfo{ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
 
+		// DO your action
 		auto clearRange = vk::ImageSubresourceRange{
 			.aspectMask = vk::ImageAspectFlagBits::eColor,
 			.levelCount = vk::RemainingMipLevels,
@@ -364,17 +373,22 @@ int main()
 
 		Transition(cb, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, currentImage, false, true);
 		cb.clearColorImage(currentImage, vk::ImageLayout::eTransferDstOptimal, vk::ClearColorValue(0.1f, 0.2f, 0.3f, 1.0f), clearRange);
+		// last transition to present 
 		Transition(cb, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR, currentImage, false, false);
 		cb.end();
 
-		Submit(graphicsQueue, cb, frameData[currentFrame].presentCompleteSemaphore, frameData[currentFrame].renderFinishedSemaphore, drawFence);
+		// Submit the frame to the queue ask a draw 
+		Submit(graphicsQueue, cb, frameData[currentFrame].presentCompleteSemaphore, frameData[currentImageIndex].renderFinishedSemaphore, drawFence);
 
-		Present(frameData[currentFrame].renderFinishedSemaphore, graphicsQueue, swapchain, currentImageIndex);
-		++currentFrame %= frameData.size();
+		// when ready frame on screen
+		Present(frameData[currentImageIndex].renderFinishedSemaphore, graphicsQueue, swapchain, currentImageIndex);
+
+		currentFrame = currentImageIndex;
+
 	} while (!glfwWindowShouldClose(window));
 
-	device.waitIdle();
 
+	device.waitIdle();
 	drawFence.clear();
 	frameData.clear();
 	commandPool.clear();
@@ -385,6 +399,7 @@ int main()
 	surface.clear();
 	physicalDevice.clear();
 	instance.clear();
+
 	glfwDestroyWindow(window);
 	glfwTerminate();
 }

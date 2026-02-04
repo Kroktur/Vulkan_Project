@@ -55,6 +55,11 @@ source_group(
 # set(MYLIB ${CMAKE_CURRENT_SOURCE_DIR}/YourlibFolderPath)
 # set(MYLIB_HEADER ${MYLIB}/includeFolder)
 # set(MYLIB_LIB ${MYLIB}/libFolder)
+find_package(glfw3 CONFIG REQUIRED)
+set(VulkanSDK_DIR $ENV{VULKAN_SDK})
+set(VukanHeader ${VulkanSDK_DIR}/Include)
+set(VulkanLib ${VulkanSDK_DIR}/Lib)
+
 
 # # Debug
 # file(COPY "${MYLIB_LIB}/Yourlib.dll"
@@ -81,6 +86,8 @@ target_include_directories(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
+    glfw
+    ${VulkanLib}/vulkan-1.lib
   # YourLib
   # ${MYLIB_LIB}/YourLib.lib
     PRIVATE
