@@ -289,17 +289,16 @@ void Transition(vk::raii::CommandBuffer& cb, vk::ImageLayout from, vk::ImageLayo
 
 int main()
 {
-	VKToto();
-	GameToto();
-	GLFWToto();
+	KGR::_GLFW windowTest(1280, 720, "Toto", GLFW_CLIENT_API, GLFW_NO_API);
+	auto window = windowTest.GetNativeWindow();
 
-	// GLFW init
-	glfwInit();
-	// GLFW Hint
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-	// Create a window
-	auto window = glfwCreateWindow(1280, 720, "Gaming Campus goes Vulkan", nullptr, nullptr);
+	//// GLFW init
+	//glfwInit();
+	//// GLFW Hint
+	//glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	//glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+	//// Create a window
+	//auto window = glfwCreateWindow(1280, 720, "Gaming Campus goes Vulkan", nullptr, nullptr);
 
 	// Create The Vulkan Instance 
 	auto instance = InitInstance();
@@ -385,7 +384,7 @@ int main()
 
 		currentFrame = currentImageIndex;
 
-	} while (!glfwWindowShouldClose(window));
+	} while (!windowTest.ShouldClose());
 
 
 	device.waitIdle();
@@ -400,6 +399,5 @@ int main()
 	physicalDevice.clear();
 	instance.clear();
 
-	glfwDestroyWindow(window);
 	glfwTerminate();
 }
