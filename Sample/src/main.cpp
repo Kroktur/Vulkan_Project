@@ -1,15 +1,4 @@
-﻿#define NOMINMAX
-#define VK_USE_PLATFORM_WIN32_KHR
-#define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
-#include <vulkan/vulkan_raii.hpp>
-#include <vma/vk_mem_alloc.h>
-
-#define GLFW_INCLUDE_VULKAN
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3.h>
-#include <GLFW/glfw3native.h>
-
-#include <ranges>
+﻿#include "AllFiles.h"
 
 const std::vector<char const*> validationLayers = {
 	"VK_LAYER_KHRONOS_validation"
@@ -296,6 +285,10 @@ void Transition(vk::raii::CommandBuffer& cb, vk::ImageLayout from, vk::ImageLayo
 
 int main()
 {
+	VKToto();
+	GameToto();
+	GLFWToto();
+
 	// GLFW init
 	glfwInit();
 	// GLFW Hint
