@@ -287,117 +287,38 @@ void Transition(vk::raii::CommandBuffer& cb, vk::ImageLayout from, vk::ImageLayo
 	cb.pipelineBarrier2(dependencyInfo);
 }
 
+bool f11_pressed(GLFWwindow* window)
+{
+	return glfwGetKey(window, GLFW_KEY_F11) == GLFW_PRESS;
+}
+
 int main()
 {
-	KGR::_GLFW windowTest(1280, 720, "Toto", GLFW_CLIENT_API, GLFW_NO_API);
-	auto window = windowTest.GetNativeWindow();
+	KGR::_GLFW myWindow;
+	KGR::_GLFW::Init();
+	KGR::_GLFW::AddHint(GLFW_CLIENT_API, GLFW_NO_API);
+	KGR::_GLFW::AddHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-	//// GLFW init
-	//glfwInit();
-	//// GLFW Hint
-	//glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	//glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-	//// Create a window
-	//auto window = glfwCreateWindow(1280, 720, "Gaming Campus goes Vulkan", nullptr, nullptr);
-
-	// Create The Vulkan Instance 
-	auto instance = InitInstance();
-	// Get The Physical Device Alias Gpu
-	auto physicalDevice = FetchPhysicalDevice(instance);
-	if (physicalDevice == nullptr)
-		throw std::runtime_error("Unable to fetch physical device");
-	// Get The Right Family Queue
-	auto graphicsQueueFamily = GetGraphicsQueueFamily(physicalDevice);
-
-	// Create The Surface
-	auto surface = CreateGlfwWindowSurface(instance, window);
-	// Create the Device the context of gpu
-	auto device = CreateDevice(physicalDevice, graphicsQueueFamily);
-
-	// get the graphic queue from the device and queue index
-	auto graphicsQueue = vk::raii::Queue(device, graphicsQueueFamily, 0);
-	// Create the SwapChain
-	auto swapchain = CreateSwapchain(physicalDevice, device, surface, window);
-
-	// get the swapChained Images
-	auto swapchainImages = swapchain.getImages();
-
-	// Create the right CommandPool with auto reset buffer
-	auto poolInfo = vk::CommandPoolCreateInfo{
-		.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-		.queueFamilyIndex = graphicsQueueFamily
-	};
-	auto commandPool = vk::raii::CommandPool(device, poolInfo);
-
-	// for each image create frameData
-	auto frameData = swapchainImages | std::views::transform([&](const vk::Image&) {
-		vk::CommandBufferAllocateInfo allocInfo{
-			.commandPool = commandPool,
-			.level = vk::CommandBufferLevel::ePrimary,
-			.commandBufferCount = 1
-		};
-
-		return FrameData{
-			.presentCompleteSemaphore = vk::raii::Semaphore(device, vk::SemaphoreCreateInfo()),
-			.renderFinishedSemaphore = vk::raii::Semaphore(device, vk::SemaphoreCreateInfo()),
-			.commandBuffer = std::move(vk::raii::CommandBuffers(device, allocInfo).front())
-		};
-		}) | std::ranges::to<std::vector>();
-
-
-	uint32_t currentFrame = 0;
-	vk::raii::Fence drawFence = vk::raii::Fence(device, { .flags = vk::FenceCreateFlagBits::eSignaled });
+	myWindow.CreateMyWindow({ 200, 100 }, "GC goes Vulkan", nullptr,nullptr);
 
 	do
 	{
-		// poll Events 
-		glfwPollEvents();
-		// Get the index of the images 
-		auto  currentImageIndex = AcquireNextImage(device, swapchain, frameData[currentFrame].presentCompleteSemaphore, drawFence);
-		// Get the images from the index 
-		auto& currentImage = swapchainImages[currentImageIndex];
+		KGR::_GLFW::PollEvent();
+		if (f11_pressed(&myWindow.GetWindow()) && myWindow.IsState<KGR::WinState::Windowed>())
+		{
+			auto monitor = myWindow.GetMonitor<KGR::MonitorType::Current>();
+			myWindow.SetWindowState(KGR::WinState::FullScreen, &monitor);
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+		else if (f11_pressed(&myWindow.GetWindow()) && myWindow.IsState<KGR::WinState::FullScreen>())
+		{
+			myWindow.SetWindowState(KGR::WinState::Windowed);
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
 
-		// get the current buffer
-		auto& cb = frameData[currentImageIndex].commandBuffer;
+		myWindow.UpdateParameters();
+	} while (!myWindow.ShouldClose());
 
-		// start the buffer
-		cb.begin(vk::CommandBufferBeginInfo{ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
-
-		// DO your action
-		auto clearRange = vk::ImageSubresourceRange{
-			.aspectMask = vk::ImageAspectFlagBits::eColor,
-			.levelCount = vk::RemainingMipLevels,
-			.layerCount = vk::RemainingArrayLayers
-		};
-
-		Transition(cb, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, currentImage, false, true);
-		cb.clearColorImage(currentImage, vk::ImageLayout::eTransferDstOptimal, vk::ClearColorValue(0.1f, 0.2f, 0.3f, 1.0f), clearRange);
-		// last transition to present 
-		Transition(cb, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR, currentImage, false, false);
-		cb.end();
-
-		// Submit the frame to the queue ask a draw 
-		Submit(graphicsQueue, cb, frameData[currentFrame].presentCompleteSemaphore, frameData[currentImageIndex].renderFinishedSemaphore, drawFence);
-
-		// when ready frame on screen
-		Present(frameData[currentImageIndex].renderFinishedSemaphore, graphicsQueue, swapchain, currentImageIndex);
-
-		currentFrame = currentImageIndex;
-
-	} while (!windowTest.ShouldClose());
-
-
-	device.waitIdle();
-	drawFence.clear();
-	frameData.clear();
-	commandPool.clear();
-	swapchainImages.clear();
-	swapchain.clear();
-	graphicsQueue.clear();
-	device.clear();
-	surface.clear();
-	physicalDevice.clear();
-	instance.clear();
-
-	glfwTerminate();
+	myWindow.DestroyMyWindow();
+	myWindow.Destroy();
 }
