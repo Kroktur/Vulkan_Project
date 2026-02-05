@@ -1,6 +1,1 @@
 #pragma once
-
-void GameToto()
-{
-
-}
