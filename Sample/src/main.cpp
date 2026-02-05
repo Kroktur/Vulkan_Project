@@ -10,6 +10,280 @@
 #include <GLFW/glfw3native.h>
 
 #include <ranges>
+#include <thread>
+
+#include <glm/glm.hpp>
+
+
+namespace KGR
+{
+	enum class WnState
+	{
+		Error,
+		Windowed,
+		FullScreen
+	};
+	 struct WnInfo
+	{
+		 glm::ivec2 pos ={0,0};
+		 bool posUpdated = false;
+
+		 glm::ivec2 size = { 0,0 };
+		 bool sizeUpdated = false;
+		 WnState state = WnState::Error;
+	};
+	enum class MonitorState
+	{
+		Primary,
+		Current
+	};
+	struct Monitor
+	{
+		GLFWmonitor* glfwMonitor = nullptr;
+	};
+	struct GLFW
+	{
+		
+		GLFW()
+		: m_window(nullptr)
+		,m_lasWindowedPos(0,0)
+		,m_lasWindowedSize(0,0)
+		{}
+		static void Init()
+		{
+			glfwInit();
+			glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+			glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+		}
+		static void Destruct()
+		{
+			glfwTerminate();
+		}
+		static void PollEvent()
+		{
+			glfwPollEvents();
+		}
+
+		const GLFWwindow& GetWindow() const 
+		{
+			return *m_window;
+		}
+		GLFWwindow& GetWindow()
+		{
+			return *m_window;
+		}
+
+		void CreateMyWindow(glm::ivec2 size,const char* name, Monitor monitor, GLFWwindow* share)
+		{
+			if (!IsState<WnState::Error>())
+				DestroyMyWindow();
+
+			m_info.state = monitor.glfwMonitor == nullptr ? WnState::Windowed : WnState::FullScreen;
+			m_window = glfwCreateWindow(size.x,size.y, name, monitor.glfwMonitor, share);
+
+			glfwSetWindowUserPointer(m_window, this);
+			glfwSetWindowPosCallback(m_window,&GLFW::PosCallBack);
+			glfwSetWindowSizeCallback(m_window, &GLFW::SizeCallBack);
+
+			glfwGetWindowPos(m_window, &m_info.pos.x, &m_info.pos.y);
+			glfwGetWindowSize(m_window, &m_info.size.x, &m_info.size.y);
+		}
+		void DestroyMyWindow()
+		{
+			if (!IsState<WnState::Error>())
+				glfwDestroyWindow(m_window);
+
+			m_window = nullptr;
+			m_info.state = WnState::Error;
+
+			m_info.size = {0,0};
+			m_info.pos  = {0,0};
+		}
+		bool ShouldClose() const
+		{
+			if (IsState<WnState::Error>())
+				throw std::runtime_error("invalid Window");
+			return glfwWindowShouldClose(m_window);
+		}
+
+		glm::ivec2 GetPos() const
+		{
+			return m_info.pos;
+		}
+		glm::ivec2 GetSize() const
+		{
+			return m_info.size;
+		}
+
+		void SetSize(glm::ivec2 size)
+		{
+			if (!IsState<WnState::Windowed>())
+				throw std::runtime_error("resize only on window mode");
+
+			glfwSetWindowSize(m_window, size.x, size.y);
+		}
+		void SetPos(glm::ivec2 pos)
+		{
+			if (!IsState<WnState::Windowed>())
+				throw std::runtime_error("repos only on window mode");
+
+			glfwSetWindowPos(m_window, pos.x, pos.y);
+		}
+
+		void Update()
+		{
+			m_info.sizeUpdated = false;
+			m_info.posUpdated = false;
+		}
+
+		bool PosUpdated() const
+		{
+			return m_info.posUpdated;
+		}
+		bool SizeUpdated() const
+		{
+			return m_info.sizeUpdated;
+		}
+
+		template<WnState state>
+		bool IsState() const
+		{
+			return m_info.state == state;
+		}
+		void SetWindowState(WnState state, Monitor monitor = Monitor{})
+		{
+			switch (state)
+			{
+			case WnState::Windowed:
+				{
+					Windowed();
+					break;
+				}
+			case WnState::FullScreen:
+				{
+
+					FullScreen(monitor);
+					break;
+				}
+			case WnState::Error:
+				{
+				throw std::runtime_error("invalid Window");
+				}
+			}
+		}
+
+
+		template<MonitorState state>
+		Monitor GetMonitor() const
+		{
+			if constexpr (state == MonitorState::Primary)
+			{
+				return { glfwGetPrimaryMonitor() };
+			}
+			else
+			{
+				int count = 0;
+				GLFWmonitor** monitors = glfwGetMonitors(&count);
+
+				int finalIndex = 0;
+				float minDist = std::numeric_limits<float>::max();
+
+				glm::vec2 windowMidPoint = m_info.pos + m_info.size / 2 ;
+
+				for (int i = 0 ; i < count; ++i)
+				{
+					GLFWmonitor* current = monitors[i];
+					glm::ivec2 monitorPos;
+					glfwGetMonitorPos(current,&monitorPos.x, &monitorPos.y);
+					glm::vec2 monitorPosF = { monitorPos.x,monitorPos.y };
+					const GLFWvidmode* mode = glfwGetVideoMode(current);
+					glm::vec2 monitorSize = { mode->width,mode->height };
+					glm::vec2 monitorMidPoint = monitorPosF + monitorSize /2.0f;
+					// TODO length squared ?? where in glm or maybe dot product ?
+					float dist = glm::length(windowMidPoint - monitorMidPoint);
+					if (dist < minDist)
+					{
+						minDist = dist;
+						finalIndex = i;
+					}
+				}
+				return Monitor{ monitors[finalIndex] };
+			}
+		}
+	private:
+		static void PosCallBack(GLFWwindow* window, int posX,int posY)
+		{
+			auto user = static_cast<GLFW*>(glfwGetWindowUserPointer(window));
+			user->m_info.pos.x = posX;
+			user->m_info.pos.y = posY;
+			user->m_info.posUpdated = true;
+		}
+		static void SizeCallBack(GLFWwindow* window, int width, int height)
+		{
+			auto user = static_cast<GLFW*>(glfwGetWindowUserPointer(window));
+			user->m_info.size.x = width;
+			user->m_info.size.y = height;
+			user->m_info.sizeUpdated = true;
+		}
+
+		void Windowed()
+		{
+			if (IsState<WnState::Windowed>())
+				return;
+
+			m_info.state = WnState::Windowed;
+
+			glfwSetWindowMonitor(
+				m_window,
+				nullptr,
+				m_lasWindowedPos.x,
+				m_lasWindowedPos.y,
+				m_lasWindowedSize.x,
+				m_lasWindowedSize.y,
+				0
+			);
+
+		}
+		void FullScreen(Monitor monitor)
+		{
+			if (IsState<WnState::FullScreen>())
+				return;
+
+			if (!monitor.glfwMonitor)
+				throw std::runtime_error("invalid monitor");
+
+			m_info.state = WnState::FullScreen;
+
+			m_lasWindowedPos = m_info.pos;
+			m_lasWindowedSize = m_info.size;
+			;
+			const GLFWvidmode* mode = glfwGetVideoMode(monitor.glfwMonitor);
+
+			glfwSetWindowMonitor(
+				m_window,
+				monitor.glfwMonitor,
+				0, 0,
+				mode->width,
+				mode->height,
+				mode->refreshRate
+			);
+		}
+		
+		GLFWwindow* m_window;
+		WnInfo m_info;
+
+		glm::ivec2 m_lasWindowedPos = { 0,0 };
+		glm::ivec2 m_lasWindowedSize = { 0,0 };
+	};
+}
+
+
+
+bool f11_pressed(GLFWwindow* window) {
+	return glfwGetKey(window, GLFW_KEY_F11) == GLFW_PRESS;
+}
+
+
 
 const std::vector<char const*> validationLayers = {
 	"VK_LAYER_KHRONOS_validation"
@@ -300,102 +574,113 @@ void Transition(vk::raii::CommandBuffer& cb, vk::ImageLayout from, vk::ImageLayo
 
 int main()
 {
-	// GLFW init
-	glfwInit();
-	// GLFW Hint
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+	KGR::GLFW myWindow;
+	// GLFW ini
+	KGR::GLFW::Init();
 	// Create a window
-	auto window = glfwCreateWindow(1280, 720, "Gaming Campus goes Vulkan", nullptr, nullptr);
+	myWindow.CreateMyWindow({ 200, 100 }, "Gaming Campus goes Vulkan", KGR::Monitor{}, nullptr);
 
-	// Create The Vulkan Instance 
-	auto instance = InitInstance();
-	// Get The Physical Device Alias Gpu
-	auto physicalDevice = FetchPhysicalDevice(instance);
-	if (physicalDevice == nullptr)
-		throw std::runtime_error("Unable to fetch physical device");
-	// Get The Right Family Queue
-	auto graphicsQueueFamily = GetGraphicsQueueFamily(physicalDevice);
+	//// Create The Vulkan Instance 
+	//auto instance = InitInstance();
+	//// Get The Physical Device Alias Gpu
+	//auto physicalDevice = FetchPhysicalDevice(instance);
+	//if (physicalDevice == nullptr)
+	//	throw std::runtime_error("Unable to fetch physical device");
+	//// Get The Right Family Queue
+	//auto graphicsQueueFamily = GetGraphicsQueueFamily(physicalDevice);
 
-	// Create The Surface
-	auto surface = CreateGlfwWindowSurface(instance, window);
-	// Create the Device the context of gpu
-	auto device = CreateDevice(physicalDevice, graphicsQueueFamily);
+	//// Create The Surface
+	//auto surface = CreateGlfwWindowSurface(instance, &myWindow.GetWindow());
+	//// Create the Device the context of gpu
+	//auto device = CreateDevice(physicalDevice, graphicsQueueFamily);
 
-	// get the graphic queue from the device and queue index
-	auto graphicsQueue = vk::raii::Queue(device, graphicsQueueFamily, 0);
-	// Create the SwapChain
-	auto swapchain = CreateSwapchain(physicalDevice, device, surface, window);
+	//// get the graphic queue from the device and queue index
+	//auto graphicsQueue = vk::raii::Queue(device, graphicsQueueFamily, 0);
+	//// Create the SwapChain
+	//auto swapchain = CreateSwapchain(physicalDevice, device, surface, &myWindow.GetWindow());
 
-	// get the swapChained Images
-	auto swapchainImages = swapchain.getImages();
+	//// get the swapChained Images
+	//auto swapchainImages = swapchain.getImages();
 
-	// Create the right CommandPool with auto reset buffer
-	auto poolInfo = vk::CommandPoolCreateInfo{
-		.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-		.queueFamilyIndex = graphicsQueueFamily
-	};
-	auto commandPool = vk::raii::CommandPool(device, poolInfo);
+	//// Create the right CommandPool with auto reset buffer
+	//auto poolInfo = vk::CommandPoolCreateInfo{
+	//	.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+	//	.queueFamilyIndex = graphicsQueueFamily
+	//};
+	//auto commandPool = vk::raii::CommandPool(device, poolInfo);
 
-	// for each image create frameData
-	auto frameData = swapchainImages | std::views::transform([&](const vk::Image&) {
-		vk::CommandBufferAllocateInfo allocInfo{
-			.commandPool = commandPool,
-			.level = vk::CommandBufferLevel::ePrimary,
-			.commandBufferCount = 1
-		};
+	//// for each image create frameData
+	//auto frameData = swapchainImages | std::views::transform([&](const vk::Image&) {
+	//	vk::CommandBufferAllocateInfo allocInfo{
+	//		.commandPool = commandPool,
+	//		.level = vk::CommandBufferLevel::ePrimary,
+	//		.commandBufferCount = 1
+	//	};
 
-		return FrameData{
-			.presentCompleteSemaphore = vk::raii::Semaphore(device, vk::SemaphoreCreateInfo()),
-			.renderFinishedSemaphore = vk::raii::Semaphore(device, vk::SemaphoreCreateInfo()),
-			.commandBuffer = std::move(vk::raii::CommandBuffers(device, allocInfo).front())
-		};
-		}) | std::ranges::to<std::vector>();
+	//	return FrameData{
+	//		.presentCompleteSemaphore = vk::raii::Semaphore(device, vk::SemaphoreCreateInfo()),
+	//		.renderFinishedSemaphore = vk::raii::Semaphore(device, vk::SemaphoreCreateInfo()),
+	//		.commandBuffer = std::move(vk::raii::CommandBuffers(device, allocInfo).front())
+	//	};
+	//	}) | std::ranges::to<std::vector>();
 
 
-	uint32_t currentFrame = 0;
-	vk::raii::Fence drawFence = vk::raii::Fence(device, { .flags = vk::FenceCreateFlagBits::eSignaled });
+	//uint32_t currentFrame = 0;
+	//vk::raii::Fence drawFence = vk::raii::Fence(device, { .flags = vk::FenceCreateFlagBits::eSignaled });
 
 	do
 	{
-		// poll Events 
-		glfwPollEvents();
-		// Get the index of the images 
-		auto  currentImageIndex = AcquireNextImage(device, swapchain, frameData[currentFrame].presentCompleteSemaphore, drawFence);
-		// Get the images from the index 
-		auto& currentImage = swapchainImages[currentImageIndex];
+		// poll Events
+		KGR::GLFW::PollEvent();
+		if (f11_pressed(&myWindow.GetWindow()) && myWindow.IsState<KGR::WnState::Windowed>())
+		{
+			auto monitor = myWindow.GetMonitor<KGR::MonitorState::Current>();
+			myWindow.SetWindowState(KGR::WnState::FullScreen, monitor);
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+		else if (f11_pressed(&myWindow.GetWindow()) && myWindow.IsState<KGR::WnState::FullScreen>())
+		{
+			myWindow.SetWindowState(KGR::WnState::Windowed);
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+		}
+		myWindow.Update();
 
-		// get the current buffer
-		auto& cb = frameData[currentImageIndex].commandBuffer;
+		//// Get the index of the images 
+		//auto  currentImageIndex = AcquireNextImage(device, swapchain, frameData[currentFrame].presentCompleteSemaphore, drawFence);
+		//// Get the images from the index 
+		//auto& currentImage = swapchainImages[currentImageIndex];
 
-		// start the buffer
-		cb.begin(vk::CommandBufferBeginInfo{ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+		//// get the current buffer
+		//auto& cb = frameData[currentImageIndex].commandBuffer;
 
-		// DO your action
-		auto clearRange = vk::ImageSubresourceRange{
-			.aspectMask = vk::ImageAspectFlagBits::eColor,
-			.levelCount = vk::RemainingMipLevels,
-			.layerCount = vk::RemainingArrayLayers
-		};
+		//// start the buffer
+		//cb.begin(vk::CommandBufferBeginInfo{ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
 
-		Transition(cb, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, currentImage, false, true);
-		cb.clearColorImage(currentImage, vk::ImageLayout::eTransferDstOptimal, vk::ClearColorValue(0.1f, 0.2f, 0.3f, 1.0f), clearRange);
-		// last transition to present 
-		Transition(cb, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR, currentImage, false, false);
-		cb.end();
+		//// DO your action
+		//auto clearRange = vk::ImageSubresourceRange{
+		//	.aspectMask = vk::ImageAspectFlagBits::eColor,
+		//	.levelCount = vk::RemainingMipLevels,
+		//	.layerCount = vk::RemainingArrayLayers
+		//};
 
-		// Submit the frame to the queue ask a draw 
-		Submit(graphicsQueue, cb, frameData[currentFrame].presentCompleteSemaphore, frameData[currentImageIndex].renderFinishedSemaphore, drawFence);
+		//Transition(cb, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, currentImage, false, true);
+		//cb.clearColorImage(currentImage, vk::ImageLayout::eTransferDstOptimal, vk::ClearColorValue(0.1f, 0.2f, 0.3f, 1.0f), clearRange);
+		//// last transition to present 
+		//Transition(cb, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR, currentImage, false, false);
+		//cb.end();
 
-		// when ready frame on screen
-		Present(frameData[currentImageIndex].renderFinishedSemaphore, graphicsQueue, swapchain, currentImageIndex);
+		//// Submit the frame to the queue ask a draw 
+		//Submit(graphicsQueue, cb, frameData[currentFrame].presentCompleteSemaphore, frameData[currentImageIndex].renderFinishedSemaphore, drawFence);
 
-		currentFrame = currentImageIndex;
+		//// when ready frame on screen
+		//Present(frameData[currentImageIndex].renderFinishedSemaphore, graphicsQueue, swapchain, currentImageIndex);
 
-	} while (!glfwWindowShouldClose(window));
+		//currentFrame = currentImageIndex;
+
+	} while (!myWindow.ShouldClose());
 
 
-	device.waitIdle();
+	/*device.waitIdle();
 	drawFence.clear();
 	frameData.clear();
 	commandPool.clear();
@@ -405,8 +690,8 @@ int main()
 	device.clear();
 	surface.clear();
 	physicalDevice.clear();
-	instance.clear();
+	instance.clear();*/
 
-	glfwDestroyWindow(window);
+	myWindow.DestroyMyWindow();
 	glfwTerminate();
 }
