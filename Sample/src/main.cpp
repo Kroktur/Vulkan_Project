@@ -317,6 +317,7 @@ int main()
 		}
 
 		myWindow.UpdateParameters();
+
 	} while (!myWindow.ShouldClose());
 
 	myWindow.DestroyMyWindow();
