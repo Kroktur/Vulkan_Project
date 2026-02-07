@@ -86,7 +86,7 @@ void KGR::_GLFW::SetSize(glm::ivec2 size)
 
 void KGR::_GLFW::SetPos(glm::ivec2 pos)
 {
-	if (!IsState<WinState::Error>())
+	if (IsState<WinState::Error>())
 		throw std::runtime_error("Repositioning only on window mode");
 
 	glfwSetWindowPos(m_window, pos.x, pos.y);
