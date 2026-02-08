@@ -20,13 +20,13 @@ namespace KGR
 	{
 	public:
 		_Vulkan();
-		void Init(_GLFW* window);
+		void Init(_GLFW::Window* window);
 
 		void InitInstance();
 		void CreatePhysicalDevice();
-		void CreateSurface(_GLFW* window);
+		void CreateSurface(_GLFW::Window* window);
 		void CreateDevice();
-		void CreateSwapchain(_GLFW* window);
+		void CreateSwapchain(_GLFW::Window* window);
 		void CreateCommandResources();
 		void CreateObjects();
 
