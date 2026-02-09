@@ -755,8 +755,8 @@
 
 
 #include <iostream>
-#include "Entities.h"
-#include "Registry.h"
+#include "RTTI/Entities.h"
+#include "RTTI/Registry.h"
 
 // Basic Component Class 
 struct PosComponent
@@ -816,7 +816,7 @@ int main()
 	// GOOD PRACTICE create a filter for system 
 	auto filter = registry.GetFilter<PosComponent>();
 	// How to use filter for system 
-	for (auto& e : filter.GetEntities())
+	for (auto& e : filter)
 	{
 		auto& posComp = filter.GetComponent<PosComponent>(e);
 	}
@@ -834,6 +834,11 @@ int main()
 	
 
 	auto view = registry.GetAnyComponentsView<PosComponent, VelComponent>();
+
+	for (auto& e : view)
+	{
+		
+	}
 	std::cout << "\n" << view.Size();
 	// Delete an entity ( auto remove components ) 
 	registry.DestroyEntity(e1);

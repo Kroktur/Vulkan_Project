@@ -7,10 +7,20 @@ namespace KGR
 {
 	namespace ECS
 	{
-
+		/**
+		 * 
+		 * @brief forward declaration of the registry
+		 * @tparam Type the type entity for the sparse must be arithmetic
+		 * @tparam offset same as sparse parameter
+		 */
 		template<typename Type, size_t offset > requires (std::is_arithmetic_v<Type>)
 		struct Registry;
 
+		/**
+		 * @brief a view is a container of entity that match the type requirement only created by the registry
+		 * @tparam Type the type entity for the sparse must be arithmetic
+		 * @tparam offset same as sparse parameter
+		 */
 		template<typename Type, size_t offset = 100> requires (std::is_arithmetic_v<Type>)
 		class View
 		{
@@ -20,12 +30,43 @@ namespace KGR
 			using const_iterator = typename  std::vector<type>::const_iterator;
 			friend Registry<Type, offset>;
 
+			/**
+			 * @brief return all the entities
+			 * @return vector of entity
+			 */
 			const std::vector<type>& GetEntities() const;
+			/**
+			 * @brief return the size of the entity vector
+			 * @return size_t
+			 */
 			size_t Size() const;
+			/**
+			 * 
+			 * @return 
+			 */
+			 /**
+			  * @brief return the first iterator for range-based loop
+			  * @return iterator
+			  */
 			iterator begin();
+
+			/**
+			 * @brief return the first iterator const for range-based loop
+			 * @return const iterator
+			 */
+			 const_iterator begin() const;
+
+			/**
+			 * @brief return the last + 1 iterator for range-based loop
+			 * @return iterator
+			 */
 			iterator end();
-			const_iterator begin() const;
-			const_iterator end() const;
+
+			/**
+			 * @brief return the last + 1 iterator const for range-based loop
+			 * @return const iterator
+			 */
+			 const_iterator end() const;
 
 		private:
 			void AddEntity(const type& t);

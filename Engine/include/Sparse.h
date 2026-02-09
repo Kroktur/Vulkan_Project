@@ -8,8 +8,8 @@
 /**
  * @brief Sparse storage for arithmetic type.
  *
- * @tparam Type   type of entity (must be arithmetic).
- * @tparam offset Growth offset when resizing .
+ * @tparam Type   type of entity (must be arithmetic)
+ * @tparam offset Growth offset when resizing
  */
 template<typename Type,size_t offset = 100> requires (std::is_arithmetic_v<Type>)
 struct Sparse_Storage
