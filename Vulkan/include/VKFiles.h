@@ -10,6 +10,8 @@
 	You only need to include this file in your .cpp.
 */
 
+#include <ranges>
+
 #include "GLFWFiles.h"
 #include "VK.h"
 

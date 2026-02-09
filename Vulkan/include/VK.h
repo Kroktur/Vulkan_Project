@@ -8,18 +8,136 @@ using ui32t = uint32_t;
 
 namespace KGR
 {
-	struct FrameData
+	namespace _Vulkan
 	{
-		Semaphore presentCompleteSemaphore = nullptr;
-		Semaphore renderFinishedSemaphore = nullptr;
-		CommandBuffer commandBuffer = nullptr;
-		Fence perFrameFence = nullptr;
-	};
+		inline static Context vkContext;
 
-	class _Vulkan
+		struct FrameData
+		{
+			Semaphore presentCompleteSemaphore = nullptr;
+			Semaphore renderFinishedSemaphore = nullptr;
+			CommandBuffer commandBuffer = nullptr;
+			Fence perFrameFence = nullptr;
+		};
+
+		struct _AppInfo
+		{
+			_AppInfo();
+			vk::ApplicationInfo& GetInfo();
+
+		private:
+			vk::ApplicationInfo m_Info;
+			const char* appName = "Basic_Api";
+			const char* engineName = "None";
+			std::uint32_t engineVersion = VK_MAKE_VERSION(1, 0, 0);
+			std::uint32_t appVersion = VK_MAKE_VERSION(1, 0, 0);
+			std::uint32_t version = vk::ApiVersion14;
+		};
+
+		struct _Instance
+		{
+			_Instance() = default;
+			_Instance(_AppInfo&& info);
+
+			void AddLayer(const char* layer);
+			Instance& GetInstance();
+			const Instance& GetInstance() const;
+			void Clear();
+
+		private:
+			std::vector<char const*> m_validationLayers;
+			_AppInfo m_info;
+			Instance m_instance = nullptr;
+		};
+
+		struct _PhysicalDevice
+		{
+			_PhysicalDevice() = default;
+			_PhysicalDevice(_Instance* instance);
+
+			PhysicalDevice& GetDevice();
+			const PhysicalDevice& GetDevice() const;
+			void Clear();
+			ui32t GraphicsQueueIndex() const;
+
+		private:
+			ui32t m_queueIndex;
+			PhysicalDevice m_device = nullptr;
+		};
+
+		struct _Surface
+		{
+			_Surface() = default;
+			_Surface(_Instance* instance, _GLFW::Window* window);
+			SurfaceKHR& GetSurface();
+			const SurfaceKHR& GetSurface() const;
+			void Clear();
+
+		private:
+			SurfaceKHR m_surface = nullptr;
+		};
+
+		struct _Device
+		{
+			_Device() = default;
+			_Device(_PhysicalDevice* device, ui32t count = 1);
+			Device& GetDevice();
+			const Device& GetDevice() const;
+			void Clear();
+			void WaitIdle();
+
+		private:
+			Device m_device = nullptr;
+		};
+
+		struct _Queue
+		{
+			_Queue() = default;
+			_Queue(_Device* device, _PhysicalDevice* pDevice, ui32t index = 0);
+			Queue& GetQueue();
+			const Queue& GetQueue() const;
+			void Clear();
+
+		private:
+			Queue m_queue = nullptr;
+		};
+
+		struct _Swapchain
+		{
+			_Swapchain() = default;
+			_Swapchain(_PhysicalDevice* pDevice,
+				_Device* device,
+				_Surface* surface,
+				_GLFW::Window* window,
+				ui32t imageCount = 3,
+				_Swapchain* old = nullptr);
+
+			SwapchainKHR& GetSwapchain();
+			const SwapchainKHR& GetSwapchain() const;
+			void Clear();
+
+		private:
+			SwapchainKHR m_chain = nullptr;
+		};
+
+		struct _VkImages
+		{
+			_VkImages() = default;
+			_VkImages(_Swapchain* swapchain);
+
+			std::vector<vk::Image>& GetImages();
+			const std::vector<vk::Image>& GetImages() const;
+			void Clear();
+
+		private:
+			std::vector<vk::Image> m_images;
+		};
+	}
+
+	class TMP_Vulkan
 	{
 	public:
-		_Vulkan();
+		TMP_Vulkan();
 		void Init(_GLFW::Window* window);
 
 		void InitInstance();
@@ -87,7 +205,7 @@ namespace KGR
 		std::unique_ptr<CommandPool> m_commandPool;
 
 		std::vector<vk::Image> m_scImages;
-		std::vector<FrameData> m_frameData;
+		std::vector<KGR::_Vulkan::FrameData> m_frameData;
 
 		vk::ApplicationInfo m_appInfo;
 		vk::InstanceCreateInfo m_instanceCreateInfo;
@@ -107,4 +225,6 @@ namespace KGR
 
 		std::vector<PhysicalDevice> m_devices;
 	};
+
+	
 }

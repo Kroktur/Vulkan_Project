@@ -1,7 +1,351 @@
 #include "VKFiles.h"
 #include "VK.h"
 
-KGR::_Vulkan::_Vulkan()
+// STRUCT APPLICATION INFO
+KGR::_Vulkan::_AppInfo::_AppInfo()
+{
+	m_Info = vk::ApplicationInfo
+	{
+		.pApplicationName = appName,
+		.applicationVersion = appVersion,
+		.pEngineName = engineName,
+		.engineVersion = engineVersion,
+		.apiVersion = version
+	};
+}
+
+vk::ApplicationInfo& KGR::_Vulkan::_AppInfo::GetInfo()
+{
+	return m_Info;
+}
+
+
+// STRUCT INSTANCE
+KGR::_Vulkan::_Instance::_Instance(_AppInfo&& info)
+	: m_info(std::move(info))
+{
+	std::vector<char const*> requiredLayers;
+	requiredLayers.assign(m_validationLayers.begin(), m_validationLayers.end());
+
+	const auto layerProperties = vkContext.enumerateInstanceLayerProperties();
+	if (std::ranges::any_of(requiredLayers, [&layerProperties](auto const& requiredLayer) { return std::ranges::none_of(layerProperties, [requiredLayer](auto const& layerProperty) { return strcmp(layerProperty.layerName, requiredLayer) == 0; }); }))
+		throw std::runtime_error("One or more required layers are not supported !");
+
+	uint32_t glfwExtensionCount = 0;
+	auto     glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+	auto     extensionProperties = vkContext.enumerateInstanceExtensionProperties();
+
+	std::vector<const char*> activeExtensions;
+	for (uint32_t i = 0; i < glfwExtensionCount; ++i)
+		activeExtensions.push_back(glfwExtensions[i]);
+
+	for (uint32_t i = 0; i < glfwExtensionCount; ++i)
+		if (std::ranges::none_of(extensionProperties, [glfwExtension = glfwExtensions[i]](auto const& extensionProperty) { return strcmp(extensionProperty.extensionName, glfwExtension) == 0; }))
+			throw std::runtime_error("Required GLFW extensions not supported");
+
+	m_info = _AppInfo();
+
+	auto instanceCreateInfo = vk::InstanceCreateInfo
+	{
+		.pApplicationInfo = &m_info.GetInfo(),
+		.enabledLayerCount = static_cast<uint32_t>(requiredLayers.size()),
+		.ppEnabledLayerNames = requiredLayers.data(),
+		.enabledExtensionCount = uint32_t(activeExtensions.size()),
+		.ppEnabledExtensionNames = activeExtensions.data()
+	};
+	m_instance = Instance(vkContext, instanceCreateInfo);
+}
+
+void KGR::_Vulkan::_Instance::AddLayer(const char* layer)
+{
+	m_validationLayers.push_back(layer);
+}
+
+Instance& KGR::_Vulkan::_Instance::GetInstance()
+{
+	return m_instance;
+}
+
+const Instance& KGR::_Vulkan::_Instance::GetInstance() const
+{
+	return m_instance;
+}
+
+void KGR::_Vulkan::_Instance::Clear()
+{
+	m_instance.clear();
+}
+
+// STRUCT PHYSICAL DEVICE
+KGR::_Vulkan::_PhysicalDevice::_PhysicalDevice(_Instance* instance)
+{
+	auto devices = instance->GetInstance().enumeratePhysicalDevices();
+	if (devices.empty())
+		throw std::runtime_error("Unable to fetch physical device");
+
+	PhysicalDevice* selectedDevice = nullptr;
+
+	for (auto& d : devices)
+	{
+		auto dProperties = d.getProperties();
+
+		if (dProperties.apiVersion < VK_API_VERSION_1_4)
+			continue;
+
+		if (dProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)
+		{
+			selectedDevice = &d;
+			break;
+		}
+
+		if (!selectedDevice)
+			selectedDevice = &d;
+	}
+
+	if (!selectedDevice)
+		throw std::runtime_error("No suitable phyisical device found");
+
+	m_device = PhysicalDevice(std::move(*selectedDevice));
+
+	std::vector<vk::QueueFamilyProperties> queueFamilyProperties = m_device.getQueueFamilyProperties();
+	auto graphicsQueueFamilyProperty = std::find_if(
+		queueFamilyProperties.begin(),
+		queueFamilyProperties.end(),
+		[](vk::QueueFamilyProperties const& qfp) { return qfp.queueFlags & vk::QueueFlagBits::eGraphics; }
+	);
+	m_queueIndex = static_cast<uint32_t>(std::distance(queueFamilyProperties.begin(), graphicsQueueFamilyProperty));
+}
+
+PhysicalDevice& KGR::_Vulkan::_PhysicalDevice::GetDevice()
+{
+	return m_device;
+}
+
+const PhysicalDevice& KGR::_Vulkan::_PhysicalDevice::GetDevice() const
+{
+	return m_device;
+}
+
+void KGR::_Vulkan::_PhysicalDevice::Clear()
+{
+	m_device.clear();
+}
+
+ui32t KGR::_Vulkan::_PhysicalDevice::GraphicsQueueIndex() const
+{
+	return m_queueIndex;
+}
+
+// STRUCT SURFACE
+KGR::_Vulkan::_Surface::_Surface(_Instance* instance, _GLFW::Window* window)
+{
+	VkSurfaceKHR _surface;
+	if (glfwCreateWindowSurface(*instance->GetInstance(), &window->GetWindow(), nullptr, &_surface) != VK_SUCCESS)
+		throw std::runtime_error("Failed to create GLFW window surface");
+
+	m_surface = SurfaceKHR(instance->GetInstance(), _surface);
+}
+
+SurfaceKHR& KGR::_Vulkan::_Surface::GetSurface()
+{
+	return m_surface;
+}
+
+const SurfaceKHR& KGR::_Vulkan::_Surface::GetSurface() const
+{
+	return m_surface;
+}
+
+void KGR::_Vulkan::_Surface::Clear()
+{
+	m_surface.clear();
+}
+
+// STRUCT DEVICE
+KGR::_Vulkan::_Device::_Device(_PhysicalDevice* device, ui32t count)
+{
+	float queuePriority = 0.0f;
+	std::vector<vk::QueueFamilyProperties> queueFamilyProperties = device->GetDevice().getQueueFamilyProperties();
+	auto deviceQueueCreateInfo = vk::DeviceQueueCreateInfo
+	{
+		.queueFamilyIndex = device->GraphicsQueueIndex(),
+		.queueCount = count,
+		.pQueuePriorities = &queuePriority
+	};
+
+	vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features> featureChain = {
+		{.features = {.samplerAnisotropy = true } },
+		{.bufferDeviceAddress = true },
+		{.synchronization2 = true, .dynamicRendering = true },
+	};
+
+	std::vector<const char*> deviceExtensions =
+	{
+		vk::KHRSwapchainExtensionName,
+		vk::KHRSpirv14ExtensionName,
+		vk::KHRSynchronization2ExtensionName
+	};
+
+	vk::DeviceCreateInfo deviceCreateInfo
+	{
+		.pNext = &featureChain.get<vk::PhysicalDeviceFeatures2>(),
+		.queueCreateInfoCount = 1,
+		.pQueueCreateInfos = &deviceQueueCreateInfo,
+		.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size()),
+		.ppEnabledExtensionNames = deviceExtensions.data()
+	};
+
+	m_device = Device(device->GetDevice(), deviceCreateInfo);
+}
+
+Device& KGR::_Vulkan::_Device::GetDevice()
+{
+	return m_device;
+}
+
+const Device& KGR::_Vulkan::_Device::GetDevice() const
+{
+	return m_device;
+}
+
+void KGR::_Vulkan::_Device::Clear()
+{
+	m_device.clear();
+}
+
+void KGR::_Vulkan::_Device::WaitIdle()
+{
+	m_device.waitIdle();
+}
+
+// STRUCT QUEUE
+KGR::_Vulkan::_Queue::_Queue(_Device* device, _PhysicalDevice* pDevice, ui32t index)
+{
+	m_queue = Queue(device->GetDevice(), pDevice->GraphicsQueueIndex(), index);
+}
+
+Queue& KGR::_Vulkan::_Queue::GetQueue()
+{
+	return m_queue;
+}
+
+const Queue& KGR::_Vulkan::_Queue::GetQueue() const
+{
+	return m_queue;
+}
+
+void KGR::_Vulkan::_Queue::Clear()
+{
+	m_queue.clear();
+}
+
+
+// STRUCT SWAPCHAIN
+KGR::_Vulkan::_Swapchain::_Swapchain(_PhysicalDevice* pDevice,
+	_Device* device,
+	_Surface* surface,
+	_GLFW::Window* window,
+	ui32t imageCount,
+	_Swapchain* old)
+{
+	auto surfaceCaps = pDevice->GetDevice().getSurfaceCapabilitiesKHR(surface->GetSurface());
+	auto availableFormats = pDevice->GetDevice().getSurfaceFormatsKHR(surface->GetSurface());
+	auto availablePresentModes = pDevice->GetDevice().getSurfacePresentModesKHR(surface->GetSurface());
+
+	auto swapSurfaceFormat = ([](const decltype(availableFormats)& formats)
+		{
+			for (const auto& availableFormat : formats)
+				if (availableFormat.format == vk::Format::eB8G8R8A8Srgb && availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
+					return availableFormat;
+
+			return formats[0];
+		})(availableFormats);
+
+	auto swapExtent = ([&window](const vk::SurfaceCapabilitiesKHR& capabilities) {
+		if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+			return capabilities.currentExtent;
+
+		int width, height;
+		glfwGetFramebufferSize(&window->GetWindow(), &width, &height);
+
+		return vk::Extent2D
+		{
+			std::clamp<uint32_t>(width,  capabilities.minImageExtent.width,  capabilities.maxImageExtent.width),
+			std::clamp<uint32_t>(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
+		};
+		})(surfaceCaps);
+
+	auto swapPresentMode = ([](const decltype(availablePresentModes)& modes)
+		{
+			for (const auto& availablePresentMode : modes)
+				if (availablePresentMode == vk::PresentModeKHR::eFifoRelaxed)
+					return availablePresentMode;
+
+			return vk::PresentModeKHR::eFifo;
+		})(availablePresentModes);
+
+	auto minImageCount = std::clamp(imageCount, surfaceCaps.minImageCount, surfaceCaps.maxImageCount);
+
+	auto swapchainCreateInfo = vk::SwapchainCreateInfoKHR
+	{
+		.flags = vk::SwapchainCreateFlagsKHR(0),
+		.surface = surface->GetSurface(),
+		.minImageCount = minImageCount,
+		.imageFormat = swapSurfaceFormat.format,
+		.imageColorSpace = swapSurfaceFormat.colorSpace,
+		.imageExtent = swapExtent,
+		.imageArrayLayers = 1,
+		.imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst,
+		.imageSharingMode = vk::SharingMode::eExclusive,
+		.preTransform = surfaceCaps.currentTransform,
+		.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
+		.presentMode = swapPresentMode,
+		.clipped = true,
+		.oldSwapchain = old == nullptr ? nullptr : *old->GetSwapchain()
+	};
+
+	m_chain = SwapchainKHR(device->GetDevice(), swapchainCreateInfo);
+}
+
+void KGR::_Vulkan::_Swapchain::Clear()
+{
+	m_chain.clear();
+}
+
+SwapchainKHR& KGR::_Vulkan::_Swapchain::GetSwapchain()
+{
+	return m_chain;
+}
+
+const SwapchainKHR& KGR::_Vulkan::_Swapchain::GetSwapchain() const
+{
+	return m_chain;
+}
+
+// STRUCT VKIMAGES
+KGR::_Vulkan::_VkImages::_VkImages(_Swapchain* swapchain)
+{
+	m_images = swapchain->GetSwapchain().getImages();
+}
+
+std::vector<vk::Image>& KGR::_Vulkan::_VkImages::GetImages()
+{
+	return m_images;
+}
+
+const std::vector<vk::Image>& KGR::_Vulkan::_VkImages::GetImages() const
+{
+	return m_images;
+}
+
+void KGR::_Vulkan::_VkImages::Clear()
+{
+	m_images.clear();
+}
+
+
+// CLASS VULKAN
+KGR::TMP_Vulkan::TMP_Vulkan()
 	: m_graphicsQueueFamily(0)
 	, m_currentFrame(0)
 	, m_currentImageIndex(0)
@@ -10,7 +354,7 @@ KGR::_Vulkan::_Vulkan()
 {
 }
 
-void KGR::_Vulkan::Init(_GLFW::Window* window)
+void KGR::TMP_Vulkan::Init(_GLFW::Window* window)
 {
 	InitInstance();
 	CreatePhysicalDevice();
@@ -21,7 +365,7 @@ void KGR::_Vulkan::Init(_GLFW::Window* window)
 	CreateObjects();
 }
 
-void KGR::_Vulkan::InitInstance()
+void KGR::TMP_Vulkan::InitInstance()
 {
 	m_appInfo = 
 	{
@@ -51,7 +395,7 @@ void KGR::_Vulkan::InitInstance()
 	m_instance = std::make_unique<Instance>(m_vkContext, m_instanceCreateInfo);
 }
 
-void KGR::_Vulkan::CreatePhysicalDevice()
+void KGR::TMP_Vulkan::CreatePhysicalDevice()
 {
 	m_devices = m_instance->enumeratePhysicalDevices();
 	if (m_devices.empty())
@@ -82,7 +426,7 @@ void KGR::_Vulkan::CreatePhysicalDevice()
 	m_physicalDevice = std::make_unique<PhysicalDevice>(std::move(*selectedDevice));
 }
 
-void KGR::_Vulkan::CreateSurface(_GLFW::Window* window)
+void KGR::TMP_Vulkan::CreateSurface(_GLFW::Window* window)
 {
 	VkSurfaceKHR tmpSurface;
 	if (glfwCreateWindowSurface(**m_instance, &window->GetWindow(), nullptr, &tmpSurface)
@@ -92,7 +436,7 @@ void KGR::_Vulkan::CreateSurface(_GLFW::Window* window)
 	m_surface = std::make_unique<SurfaceKHR>(*m_instance, tmpSurface);
 }
 
-void KGR::_Vulkan::CreateDevice()
+void KGR::TMP_Vulkan::CreateDevice()
 {
 	m_graphicsQueueFamily = FindGraphicsQueueFamily();
 
@@ -131,7 +475,7 @@ void KGR::_Vulkan::CreateDevice()
 	m_graphicsQueue = std::make_unique<Queue>(*m_device, m_graphicsQueueFamily, 0);
 }
 
-void KGR::_Vulkan::CreateSwapchain(_GLFW::Window* window)
+void KGR::TMP_Vulkan::CreateSwapchain(_GLFW::Window* window)
 {
 	auto surfaceCaps = m_physicalDevice->getSurfaceCapabilitiesKHR(**m_surface);
 	auto availableFormats = m_physicalDevice->getSurfaceFormatsKHR(**m_surface);
@@ -193,7 +537,7 @@ void KGR::_Vulkan::CreateSwapchain(_GLFW::Window* window)
 	m_scImages = m_swapchain->getImages();
 }
 
-void KGR::_Vulkan::CreateCommandResources()
+void KGR::TMP_Vulkan::CreateCommandResources()
 {
 	auto poolInfo = vk::CommandPoolCreateInfo
 	{
@@ -204,13 +548,13 @@ void KGR::_Vulkan::CreateCommandResources()
 	m_commandPool = std::make_unique<CommandPool>(*m_device, poolInfo);
 }
 
-void KGR::_Vulkan::CreateObjects()
+void KGR::TMP_Vulkan::CreateObjects()
 {
 	m_frameData.clear();
 
 	for (size_t i = 0; i < m_scImages.size(); ++i)
 	{
-		FrameData frame;
+		KGR::_Vulkan::FrameData frame;
 		frame.presentCompleteSemaphore = Semaphore(*m_device, vk::SemaphoreCreateInfo());
 		frame.renderFinishedSemaphore = Semaphore(*m_device, vk::SemaphoreCreateInfo());
 		frame.perFrameFence = Fence(*m_device, vk::FenceCreateInfo
@@ -234,7 +578,7 @@ void KGR::_Vulkan::CreateObjects()
 	}
 }
 
-void KGR::_Vulkan::TransitionToTransferDst(CommandBuffer& cb, vk::Image& image)
+void KGR::TMP_Vulkan::TransitionToTransferDst(CommandBuffer& cb, vk::Image& image)
 {
 	TransitionImage
 	(
@@ -251,7 +595,7 @@ void KGR::_Vulkan::TransitionToTransferDst(CommandBuffer& cb, vk::Image& image)
 	);
 }
 
-void KGR::_Vulkan::TransitionToPresent(CommandBuffer& cb, vk::Image& image)
+void KGR::TMP_Vulkan::TransitionToPresent(CommandBuffer& cb, vk::Image& image)
 {
 	TransitionImage
 	(
@@ -268,7 +612,7 @@ void KGR::_Vulkan::TransitionToPresent(CommandBuffer& cb, vk::Image& image)
 	);
 }
 
-ui32t KGR::_Vulkan::AcquireNextImage(ui32t frameIndex)
+ui32t KGR::TMP_Vulkan::AcquireNextImage(ui32t frameIndex)
 {
 	vk::Result waitResult = m_device->waitForFences
 	(
@@ -304,7 +648,7 @@ ui32t KGR::_Vulkan::AcquireNextImage(ui32t frameIndex)
 	return imageIndex;
 }
 
-void KGR::_Vulkan::SubmitCommands(ui32t frameIndex)
+void KGR::TMP_Vulkan::SubmitCommands(ui32t frameIndex)
 {
 	vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
 
@@ -322,7 +666,7 @@ void KGR::_Vulkan::SubmitCommands(ui32t frameIndex)
 	m_graphicsQueue->submit(submitInfo, *m_frameData[frameIndex].perFrameFence);
 }
 
-void KGR::_Vulkan::Present(ui32t frameIndex, ui32t imageIndex)
+void KGR::TMP_Vulkan::Present(ui32t frameIndex, ui32t imageIndex)
 {
 	const auto presentInfo = vk::PresentInfoKHR
 	{
@@ -337,12 +681,12 @@ void KGR::_Vulkan::Present(ui32t frameIndex, ui32t imageIndex)
 		throw std::runtime_error("Failed to present");
 }
 
-void KGR::_Vulkan::WaitIdle()
+void KGR::TMP_Vulkan::WaitIdle()
 {
 	m_device->waitIdle();
 }
 
-void KGR::_Vulkan::Cleanup()
+void KGR::TMP_Vulkan::Cleanup()
 {
 	m_frameData.clear();
 	m_commandPool.reset();
@@ -355,42 +699,42 @@ void KGR::_Vulkan::Cleanup()
 	m_instance.reset();
 }
 
-Instance& KGR::_Vulkan::GetInstance()
+Instance& KGR::TMP_Vulkan::GetInstance()
 {
 	return *m_instance;
 }
 
-Device& KGR::_Vulkan::GetDevice()
+Device& KGR::TMP_Vulkan::GetDevice()
 {
 	return *m_device;
 }
 
-CommandBuffer& KGR::_Vulkan::GetCommandBuffer(ui32t frameIndex)
+CommandBuffer& KGR::TMP_Vulkan::GetCommandBuffer(ui32t frameIndex)
 {
 	return m_frameData[frameIndex].commandBuffer;
 }
 
-std::vector<vk::Image>& KGR::_Vulkan::GetSCImages()
+std::vector<vk::Image>& KGR::TMP_Vulkan::GetSCImages()
 {
 	return m_scImages;
 }
 
-ui32t KGR::_Vulkan::GetFrameCount() const
+ui32t KGR::TMP_Vulkan::GetFrameCount() const
 {
 	return static_cast<ui32t>(m_frameData.size());
 }
 
-ui32t KGR::_Vulkan::GetCurrentImageIndex() const
+ui32t KGR::TMP_Vulkan::GetCurrentImageIndex() const
 {
 	return m_currentImageIndex;
 }
 
-vk::Image& KGR::_Vulkan::GetCurrentImage()
+vk::Image& KGR::TMP_Vulkan::GetCurrentImage()
 {
 	return m_scImages[m_currentImageIndex];
 }
 
-void KGR::_Vulkan::CheckLayerProperties()
+void KGR::TMP_Vulkan::CheckLayerProperties()
 {
 	const auto layerProperties = m_vkContext.enumerateInstanceLayerProperties();
 	if (std::ranges::any_of(m_requiredLayers, [&layerProperties](auto const& requiredLayer)
@@ -403,19 +747,19 @@ void KGR::_Vulkan::CheckLayerProperties()
 		throw std::runtime_error("One or more required layers are not supported !");
 }
 
-void KGR::_Vulkan::GetExtensions()
+void KGR::TMP_Vulkan::GetExtensions()
 {
 	m_glfwExtensions = glfwGetRequiredInstanceExtensions(&m_glfwExtensionCount);
 	m_extensionProperties = m_vkContext.enumerateInstanceExtensionProperties();
 }
 
-void KGR::_Vulkan::AddExtensions()
+void KGR::TMP_Vulkan::AddExtensions()
 {
 	for (ui32t i = 0; i < m_glfwExtensionCount; ++i)
 		m_activeExtensions.push_back(m_glfwExtensions[i]);
 }
 
-void KGR::_Vulkan::VerifyExtensions()
+void KGR::TMP_Vulkan::VerifyExtensions()
 {
 	for (ui32t i = 0; i < m_glfwExtensionCount; ++i)
 		if (std::ranges::none_of(m_extensionProperties, [glfwExtension = m_glfwExtensions[i]](auto const& extensionProperty)
@@ -425,7 +769,7 @@ void KGR::_Vulkan::VerifyExtensions()
 			throw std::runtime_error("Required GLFW extensions not supported");
 }
 
-ui32t KGR::_Vulkan::FindGraphicsQueueFamily()
+ui32t KGR::TMP_Vulkan::FindGraphicsQueueFamily()
 {
 	std::vector<vk::QueueFamilyProperties> queueFamilyProperties = m_physicalDevice->getQueueFamilyProperties();
 	auto graphicsQueueFamilyProperty = std::find_if
@@ -442,7 +786,7 @@ ui32t KGR::_Vulkan::FindGraphicsQueueFamily()
 								graphicsQueueFamilyProperty));
 }
 
-void KGR::_Vulkan::TransitionImage(
+void KGR::TMP_Vulkan::TransitionImage(
 	CommandBuffer& cb,
 	vk::Image& image,
 	vk::ImageLayout oldLayout,
@@ -488,12 +832,12 @@ void KGR::_Vulkan::TransitionImage(
 	cb.pipelineBarrier2(dependencyInfo);
 }
 
-vk::PhysicalDeviceType KGR::_Vulkan::GetGPU()
+vk::PhysicalDeviceType KGR::TMP_Vulkan::GetGPU()
 {
 	return vk::PhysicalDeviceType::eDiscreteGpu;
 }
 
-CommandBuffer& KGR::_Vulkan::Begin()
+CommandBuffer& KGR::TMP_Vulkan::Begin()
 {
 	AcquireNextImage(m_currentFrame);
 
@@ -503,7 +847,7 @@ CommandBuffer& KGR::_Vulkan::Begin()
 	return cb;
 }
 
-void KGR::_Vulkan::End()
+void KGR::TMP_Vulkan::End()
 {
 	m_frameData[m_currentFrame].commandBuffer.end();
 	SubmitCommands(m_currentFrame);

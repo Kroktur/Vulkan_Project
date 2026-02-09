@@ -64,8 +64,10 @@
 #include <GLFW/glfw3native.h>
 
 #include <ranges>
+#include "AllFiles.h"
 
-const std::vector<char const*> validationLayers = {
+const std::vector<char const*> validationLayers = 
+{
 	"VK_LAYER_KHRONOS_validation"
 };
 
@@ -664,7 +666,8 @@ int main()
 	glfwInit();
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-	auto window = glfwCreateWindow(1280, 720, "Gaming Campus goes Vulkan", nullptr, nullptr);
+	KGR::_GLFW::Window window;
+	window.CreateMyWindow({ 1280, 720 }, "Test", nullptr, nullptr);
 
 	_Vulkan::AppInfo info{};
 	auto instance = _Vulkan::Instance{ std::move(info),std::vector<const char*>{"VK_LAYER_KHRONOS_validation"} };
@@ -729,7 +732,7 @@ int main()
 			swapchainImages = (&swapchain);
 		}
 		++currentFrame %= frameData.size();
-	} while (!glfwWindowShouldClose(window));
+	} while (!glfwWindowShouldClose(&window.GetWindow()));
 
 
 	device.WaitIdle();
@@ -744,7 +747,7 @@ int main()
 	surface.Clear();
 	physicalDevice.Clear();
 	instance.Clear();
-	glfwDestroyWindow(window);
+	glfwDestroyWindow(&window.GetWindow());
 	glfwTerminate();
 }
 
