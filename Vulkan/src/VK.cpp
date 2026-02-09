@@ -2,7 +2,7 @@
 #include "VK.h"
 
 // STRUCT APPLICATION INFO
-KGR::_Vulkan::_AppInfo::_AppInfo()
+void KGR::_Vulkan::_AppInfo::Create()
 {
 	m_Info = vk::ApplicationInfo
 	{
@@ -19,10 +19,31 @@ vk::ApplicationInfo& KGR::_Vulkan::_AppInfo::GetInfo()
 	return m_Info;
 }
 
+// STRUCT FENCE
+KGR::_Vulkan::_Fence::_Fence(_Device* device)
+{
+	m_fence = Fence(device->GetDevice(), { .flags = vk::FenceCreateFlagBits::eSignaled });
+}
+
+Fence& KGR::_Vulkan::_Fence::GetFence()
+{
+	return m_fence;
+}
+
+const Fence& KGR::_Vulkan::_Fence::GetFence() const
+{
+	return m_fence;
+}
+
+void KGR::_Vulkan::_Fence::Clear()
+{
+	m_fence.clear();
+}
 
 // STRUCT INSTANCE
-KGR::_Vulkan::_Instance::_Instance(_AppInfo&& info)
+KGR::_Vulkan::_Instance::_Instance(_AppInfo&& info, std::vector<char const*> validationLayers)
 	: m_info(std::move(info))
+	, m_validationLayers(validationLayers)
 {
 	std::vector<char const*> requiredLayers;
 	requiredLayers.assign(m_validationLayers.begin(), m_validationLayers.end());
@@ -43,7 +64,7 @@ KGR::_Vulkan::_Instance::_Instance(_AppInfo&& info)
 		if (std::ranges::none_of(extensionProperties, [glfwExtension = glfwExtensions[i]](auto const& extensionProperty) { return strcmp(extensionProperty.extensionName, glfwExtension) == 0; }))
 			throw std::runtime_error("Required GLFW extensions not supported");
 
-	m_info = _AppInfo();
+	m_info.Create();
 
 	auto instanceCreateInfo = vk::InstanceCreateInfo
 	{
@@ -53,6 +74,7 @@ KGR::_Vulkan::_Instance::_Instance(_AppInfo&& info)
 		.enabledExtensionCount = uint32_t(activeExtensions.size()),
 		.ppEnabledExtensionNames = activeExtensions.data()
 	};
+
 	m_instance = Instance(vkContext, instanceCreateInfo);
 }
 
@@ -343,6 +365,81 @@ void KGR::_Vulkan::_VkImages::Clear()
 	m_images.clear();
 }
 
+// STRUCT COMMAND POOL
+KGR::_Vulkan::_CommandPool::_CommandPool(_PhysicalDevice* pDevice, _Device* device)
+{
+	auto poolInfo = vk::CommandPoolCreateInfo
+	{
+		.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
+		.queueFamilyIndex = pDevice->GraphicsQueueIndex()
+	};
+
+	m_pool = CommandPool(device->GetDevice(), poolInfo);
+}
+
+CommandPool& KGR::_Vulkan::_CommandPool::GetPool()
+{
+	return m_pool;
+}
+
+const CommandPool& KGR::_Vulkan::_CommandPool::GetPool() const
+{
+	return m_pool;
+}
+
+void KGR::_Vulkan::_CommandPool::Clear()
+{
+	m_pool.clear();
+}
+
+// STRUCT COMMAND BUFFER
+KGR::_Vulkan::_CommandBuffer::_CommandBuffer(_Device* device, _CommandPool* pool)
+{
+	vk::CommandBufferAllocateInfo allocInfo
+	{
+		.commandPool = pool->GetPool(),
+		.level = vk::CommandBufferLevel::ePrimary,
+		.commandBufferCount = 1
+	};
+
+	m_buffer = std::move(CommandBuffers(device->GetDevice(), allocInfo).front());
+}
+
+CommandBuffer& KGR::_Vulkan::_CommandBuffer::GetBuffer()
+{
+	return m_buffer;
+}
+
+const CommandBuffer& KGR::_Vulkan::_CommandBuffer::GetBuffer() const
+{
+	return m_buffer;
+}
+
+void KGR::_Vulkan::_CommandBuffer::Clear()
+{
+	m_buffer.clear();
+}
+
+// STRUCT SEMAPHORE
+KGR::_Vulkan::_Semaphore::_Semaphore(_Device* device)
+{
+	m_semaphore = Semaphore(device->GetDevice(), vk::SemaphoreCreateInfo());
+}
+
+Semaphore& KGR::_Vulkan::_Semaphore::GetSemaphore()
+{
+	return m_semaphore;
+}
+
+const Semaphore& KGR::_Vulkan::_Semaphore::GetSemaphore() const
+{
+	return m_semaphore;
+}
+
+void KGR::_Vulkan::_Semaphore::Clear()
+{
+	m_semaphore.clear();
+}
 
 // CLASS VULKAN
 KGR::TMP_Vulkan::TMP_Vulkan()
@@ -554,7 +651,7 @@ void KGR::TMP_Vulkan::CreateObjects()
 
 	for (size_t i = 0; i < m_scImages.size(); ++i)
 	{
-		KGR::_Vulkan::FrameData frame;
+		KGR::_Vulkan::_FrameData frame;
 		frame.presentCompleteSemaphore = Semaphore(*m_device, vk::SemaphoreCreateInfo());
 		frame.renderFinishedSemaphore = Semaphore(*m_device, vk::SemaphoreCreateInfo());
 		frame.perFrameFence = Fence(*m_device, vk::FenceCreateInfo
@@ -612,7 +709,7 @@ void KGR::TMP_Vulkan::TransitionToPresent(CommandBuffer& cb, vk::Image& image)
 	);
 }
 
-ui32t KGR::TMP_Vulkan::AcquireNextImage(ui32t frameIndex)
+i32t KGR::TMP_Vulkan::AcquireNextImage(ui32t frameIndex)
 {
 	vk::Result waitResult = m_device->waitForFences
 	(
@@ -842,7 +939,7 @@ CommandBuffer& KGR::TMP_Vulkan::Begin()
 	AcquireNextImage(m_currentFrame);
 
 	auto& cb = m_frameData[m_currentFrame].commandBuffer;
-	cb.begin(vk::CommandBufferBeginInfo{});
+	cb.(vk::CommandBufferBeginInfo{});
 
 	return cb;
 }

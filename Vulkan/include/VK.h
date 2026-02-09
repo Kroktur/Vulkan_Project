@@ -5,6 +5,7 @@
 
 using namespace vk::raii;
 using ui32t = uint32_t;
+using i32t = int32_t;
 
 namespace KGR
 {
@@ -12,32 +13,33 @@ namespace KGR
 	{
 		inline static Context vkContext;
 
-		struct FrameData
+		struct _FrameData
 		{
-			Semaphore presentCompleteSemaphore = nullptr;
-			Semaphore renderFinishedSemaphore = nullptr;
-			CommandBuffer commandBuffer = nullptr;
-			Fence perFrameFence = nullptr;
+			_Semaphore presentCompleteSemaphore;
+			_Semaphore renderFinishedSemaphore;
+			_CommandBuffer commandBuffer;
+			_Fence perFrameFence;
 		};
 
 		struct _AppInfo
 		{
-			_AppInfo();
-			vk::ApplicationInfo& GetInfo();
-
-		private:
-			vk::ApplicationInfo m_Info;
 			const char* appName = "Basic_Api";
 			const char* engineName = "None";
 			std::uint32_t engineVersion = VK_MAKE_VERSION(1, 0, 0);
 			std::uint32_t appVersion = VK_MAKE_VERSION(1, 0, 0);
 			std::uint32_t version = vk::ApiVersion14;
+
+			void Create();
+			vk::ApplicationInfo& GetInfo();
+
+		private:
+			vk::ApplicationInfo m_Info;
 		};
 
 		struct _Instance
 		{
 			_Instance() = default;
-			_Instance(_AppInfo&& info);
+			_Instance(_AppInfo&& info, std::vector<char const*> validationLayers);
 
 			void AddLayer(const char* layer);
 			Instance& GetInstance();
@@ -132,6 +134,58 @@ namespace KGR
 		private:
 			std::vector<vk::Image> m_images;
 		};
+
+		struct _CommandPool
+		{
+			_CommandPool() = default;
+			_CommandPool(_PhysicalDevice* pDevice, _Device* device);
+
+			CommandPool& GetPool();
+			const CommandPool& GetPool() const;
+			void Clear();
+
+		private:
+			CommandPool m_pool = nullptr;
+		};
+
+		struct _CommandBuffer
+		{
+			_CommandBuffer() = default;
+			_CommandBuffer(_Device* device, _CommandPool* pool);
+
+			CommandBuffer& GetBuffer();
+			const CommandBuffer& GetBuffer() const;
+			void Clear();
+
+		private:
+			CommandBuffer m_buffer = nullptr;
+		};
+
+		struct _Semaphore
+		{
+			_Semaphore() = default;
+			_Semaphore(_Device* device);
+
+			Semaphore& GetSemaphore();
+			const Semaphore& GetSemaphore() const;
+			void Clear();
+
+		private:
+			Semaphore m_semaphore = nullptr;
+		};
+
+		struct _Fence
+		{
+			_Fence() = default;
+			_Fence(_Device* device);
+
+			Fence& GetFence();
+			const Fence& GetFence() const;
+			void Clear();
+
+		private:
+			Fence m_fence = nullptr;
+		};
 	}
 
 	class TMP_Vulkan
@@ -151,7 +205,7 @@ namespace KGR
 		void TransitionToTransferDst(CommandBuffer& cb, vk::Image& image);
 		void TransitionToPresent(CommandBuffer& cb, vk::Image& image);
 
-		ui32t AcquireNextImage(ui32t frameIndex);
+		i32t AcquireNextImage(ui32t frameIndex);
 		void SubmitCommands(ui32t frameIndex);
 		void Present(ui32t frameIndex, ui32t imageIndex);
 
@@ -205,7 +259,7 @@ namespace KGR
 		std::unique_ptr<CommandPool> m_commandPool;
 
 		std::vector<vk::Image> m_scImages;
-		std::vector<KGR::_Vulkan::FrameData> m_frameData;
+		std::vector<KGR::_Vulkan::_FrameData> m_frameData;
 
 		vk::ApplicationInfo m_appInfo;
 		vk::InstanceCreateInfo m_instanceCreateInfo;
