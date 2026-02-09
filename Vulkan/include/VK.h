@@ -193,7 +193,6 @@ namespace KGR
 	public:
 		Core_Vulkan();
 		void Init(_GLFW::Window* window);
-
 		void InitInstance();
 		void CreatePhysicalDevice();
 		void CreateSurface(_GLFW::Window* window);
