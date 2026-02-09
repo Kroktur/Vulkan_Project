@@ -1,9 +1,11 @@
 #pragma once
 #include "InputManager.h"
+#include "SAT.h"
+#include "glm/glm.hpp"
 #include <GLFW/glfw3.h>
 #include <iostream>
 
-void GameToto()
+void TestInput()
 {
     glfwInit();
 
@@ -51,4 +53,125 @@ void GameToto()
     }
 
     glfwTerminate();
+}
+
+void TestCollision1()
+{
+    OBB3D box1(
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(1.0f, 1.0f, 1.0f),
+        glm::vec3(1, 0, 0),
+        glm::vec3(0, 1, 0),
+        glm::vec3(0, 0, 1)
+    );
+
+    float angle = glm::radians(45.0f);
+    glm::vec3 axisX = glm::normalize(glm::vec3(std::cos(angle), 0, std::sin(angle)));
+    glm::vec3 axisY = glm::vec3(0, 1, 0);
+    glm::vec3 axisZ = glm::normalize(glm::cross(axisX, axisY));
+
+    OBB3D box2(
+        glm::vec3(1.5f, 0.0f, 0.0f),
+        glm::vec3(1.0f, 1.0f, 1.0f),
+        axisX,
+        axisY,
+        axisZ
+    );
+
+    Collision3D result = SeparatingAxisTheorem::CheckCollisionOBB3D(box1, box2);
+
+    if (result.IsColliding())
+    {
+        std::cout << "Collision detected!\n";
+        std::cout << "Penetration: " << result.GetPenetration() << "\n";
+        std::cout << "Normal: "
+            << result.GetCollisionNormal().x << ", "
+            << result.GetCollisionNormal().y << ", "
+            << result.GetCollisionNormal().z << "\n";
+    }
+    else
+    {
+        std::cout << "No collision.\n";
+    }
+}
+
+void TestCollision2()
+{
+    OBB3D box1(
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(1.0f, 1.0f, 1.0f),
+        glm::vec3(1, 0, 0),
+        glm::vec3(0, 1, 0),
+        glm::vec3(0, 0, 1)
+    );
+
+    float angle = glm::radians(45.0f);
+    glm::vec3 axisX = glm::normalize(glm::vec3(std::cos(angle), 0, std::sin(angle)));
+    glm::vec3 axisY = glm::vec3(0, 1, 0);
+    glm::vec3 axisZ = glm::normalize(glm::cross(axisX, axisY));
+
+    OBB3D box2(
+        glm::vec3(5.0f, 0.0f, 0.0f),
+        glm::vec3(1.0f, 1.0f, 1.0f),
+        axisX,
+        axisY,
+        axisZ
+    );
+
+    Collision3D result = SeparatingAxisTheorem::CheckCollisionOBB3D(box1, box2);
+
+    if (result.IsColliding())
+    {
+        std::cout << "Collision detected!\n";
+        std::cout << "Penetration: " << result.GetPenetration() << "\n";
+        std::cout << "Normal: "
+            << result.GetCollisionNormal().x << ", "
+            << result.GetCollisionNormal().y << ", "
+            << result.GetCollisionNormal().z << "\n";
+    }
+    else
+    {
+        std::cout << "No collision.\n";
+    }
+}
+
+void TestCollision3()
+{
+    OBB3D box1(
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(1.0f, 1.0f, 1.0f),
+        glm::vec3(1, 0, 0),
+        glm::vec3(0, 1, 0),
+        glm::vec3(0, 0, 1)
+    );
+
+    float angle = glm::radians(45.0f);
+    glm::vec3 axisX = glm::normalize(glm::vec3(std::cos(angle), 0, std::sin(angle)));
+    glm::vec3 axisY = glm::vec3(0, 1, 0);
+    glm::vec3 axisZ = glm::normalize(glm::cross(axisX, axisY));
+
+    OBB3D box2(
+        glm::vec3(2.0f, 0.0f, 0.0f),
+        glm::vec3(1.0f, 1.0f, 1.0f),
+        axisX,
+        axisY,
+        axisZ
+    );
+
+
+    Collision3D result = SeparatingAxisTheorem::CheckCollisionOBB3D(box1, box2);
+
+    if (result.IsColliding())
+    {
+        std::cout << "Collision detected!\n";
+        std::cout << "Penetration: " << result.GetPenetration() << "\n";
+        std::cout << "Normal: "
+            << result.GetCollisionNormal().x << ", "
+            << result.GetCollisionNormal().y << ", "
+            << result.GetCollisionNormal().z << "\n";
+    }
+    else
+    {
+        std::cout << "No collision.\n";
+    }
 }
