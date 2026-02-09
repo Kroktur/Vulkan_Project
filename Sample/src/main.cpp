@@ -64,374 +64,12 @@
 #include <GLFW/glfw3native.h>
 
 #include <ranges>
+#include "AllFiles.h"
 
-const std::vector<char const*> validationLayers = {
+const std::vector<char const*> validationLayers = 
+{
 	"VK_LAYER_KHRONOS_validation"
 };
-
-
-
-
-namespace _Vulkan
-{
-	inline static vk::raii::Context gVkRaiiContext;
-	struct AppInfo
-	{
-		const char* appName = "Basic_Api";
-		const char* engineName = "None";
-		std::uint32_t engineVersion = VK_MAKE_VERSION(1, 0, 0);
-		std::uint32_t appVersion = VK_MAKE_VERSION(1, 0, 0);
-		std::uint32_t version = vk::ApiVersion14;
-		vk::ApplicationInfo& GetInfo()
-		{
-			return m_Info;
-		}
-		void  Create()  
-		{
-			m_Info = vk::ApplicationInfo{
-			.pApplicationName = appName,
-			.applicationVersion = appVersion,
-			.pEngineName = engineName,
-			.engineVersion = engineVersion,
-			.apiVersion = version
-			};
-		}
-	private:
-		vk::ApplicationInfo m_Info;
-	};
-
-	struct Instance
-	{
-		Instance( AppInfo&& info) : m_info(std::move(info)){}
-		void AddLayer(const char* layer)
-		{
-			m_validationLayers.push_back(layer);
-		}
-		void Create()
-		{
-			std::vector<char const*> requiredLayers;
-			requiredLayers.assign(m_validationLayers.begin(), m_validationLayers.end());
-
-			const auto layerProperties = gVkRaiiContext.enumerateInstanceLayerProperties();
-			if (std::ranges::any_of(requiredLayers, [&layerProperties](auto const& requiredLayer) { return std::ranges::none_of(layerProperties, [requiredLayer](auto const& layerProperty) { return strcmp(layerProperty.layerName, requiredLayer) == 0; }); }))
-				throw std::runtime_error("One or more required layers are not supported !");
-
-			uint32_t glfwExtensionCount = 0;
-			auto     glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-			auto     extensionProperties = gVkRaiiContext.enumerateInstanceExtensionProperties();
-
-			std::vector<const char*> activeExtensions;
-			for (uint32_t i = 0; i < glfwExtensionCount; ++i)
-				activeExtensions.push_back(glfwExtensions[i]);
-
-			for (uint32_t i = 0; i < glfwExtensionCount; ++i)
-				if (std::ranges::none_of(extensionProperties, [glfwExtension = glfwExtensions[i]](auto const& extensionProperty) { return strcmp(extensionProperty.extensionName, glfwExtension) == 0; }))
-					throw std::runtime_error("Required GLFW extensions not supported");
-
-			m_info.Create();
-
-			auto instanceCreateInfo = vk::InstanceCreateInfo{
-				.pApplicationInfo = &m_info.GetInfo(),
-				.enabledLayerCount = static_cast<uint32_t>(requiredLayers.size()),
-				.ppEnabledLayerNames = requiredLayers.data(),
-				.enabledExtensionCount = uint32_t(activeExtensions.size()),
-				.ppEnabledExtensionNames = activeExtensions.data()
-			};
-			m_instance = std::make_unique<vk::raii::Instance>(gVkRaiiContext, instanceCreateInfo);
-		}
-		vk::raii::Instance& GetInstance()
-		{
-			return *m_instance;
-		}
-		const vk::raii::Instance& GetInstance() const
-		{
-			return *m_instance	;
-		}
-		void Clear()
-		{
-			m_instance->clear();
-		}
-	private :
-		std::vector<char const*> m_validationLayers;
-		AppInfo m_info;
-		std::unique_ptr<vk::raii::Instance> m_instance;
-	};
-
-	struct PhysicDevice
-	{
-		void Create(Instance* instance)
-		{
-			auto devices = instance->GetInstance().enumeratePhysicalDevices();
-			if (devices.empty())
-				throw std::runtime_error("Unable to fetch physical device");
-
-			vk::raii::PhysicalDevice* selectedDevice = nullptr;
-
-			for (auto& d : devices)
-			{
-				auto dProperties = d.getProperties();
-
-				if (dProperties.apiVersion < VK_API_VERSION_1_4)
-					continue;
-
-				if (dProperties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu)
-				{
-					selectedDevice = &d;
-					break;
-				}
-
-				if (!selectedDevice)
-					selectedDevice = &d;
-			}
-
-			if (!selectedDevice)
-				throw std::runtime_error("No suitable phyisical device found");
-
-			m_device = std::make_unique<vk::raii::PhysicalDevice>(std::move(*selectedDevice));
-
-
-
-			std::vector<vk::QueueFamilyProperties> queueFamilyProperties = m_device->getQueueFamilyProperties();
-			auto graphicsQueueFamilyProperty = std::find_if(
-				queueFamilyProperties.begin(),
-				queueFamilyProperties.end(),
-				[](vk::QueueFamilyProperties const& qfp) { return qfp.queueFlags & vk::QueueFlagBits::eGraphics; }
-			);
-			m_queueIndex = static_cast<uint32_t>(std::distance(queueFamilyProperties.begin(), graphicsQueueFamilyProperty));
-		}
-		vk::raii::PhysicalDevice& GetDevice()
-		{
-			return *m_device;
-		}
-		const vk::raii::PhysicalDevice& GetDevice() const
-		{
-			return *m_device;
-		}
-		void Clear()
-		{
-			m_device->clear();
-		}
-		std::uint32_t GraphicsQueueIndex() const
-		{
-			return m_queueIndex;
-		}
-
-	private:
-		std::uint32_t m_queueIndex;
-		std::unique_ptr<vk::raii::PhysicalDevice> m_device;
-	};
-
-	struct Surface
-	{
-		void Create(Instance* instance, GLFWwindow* window)
-		{
-			VkSurfaceKHR _surface;
-			if (glfwCreateWindowSurface(*instance->GetInstance(), window, nullptr, &_surface) != VK_SUCCESS)
-				throw std::runtime_error("Failed to create GLFW window surface");
-			 m_surface = std::make_unique<vk::raii::SurfaceKHR>(instance->GetInstance(), _surface);
-		}
-		vk::raii::SurfaceKHR& GetSurface()
-		{
-			return *m_surface;
-		}
-		const vk::raii::SurfaceKHR& GetSurface() const
-		{
-			return *m_surface;
-		}
-		void Clear()
-		{
-			m_surface->clear();
-		}
-	private:
-		std::unique_ptr<vk::raii::SurfaceKHR> m_surface;
-	};
-
-	struct Device
-	{
-
-		void Create(PhysicDevice* device,std::uint32_t count = 1)
-		{
-			float queuePriority = 0.0f;
-			std::vector<vk::QueueFamilyProperties> queueFamilyProperties = device->GetDevice().getQueueFamilyProperties();
-			auto deviceQueueCreateInfo = vk::DeviceQueueCreateInfo{
-				.queueFamilyIndex = device->GraphicsQueueIndex(),
-				.queueCount = count,
-				.pQueuePriorities = &queuePriority
-			};
-
-			vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features> featureChain = {
-				{.features = {.samplerAnisotropy = true } },
-				{.bufferDeviceAddress = true },
-				{.synchronization2 = true, .dynamicRendering = true },
-			};
-
-			std::vector<const char*> deviceExtensions = {
-				vk::KHRSwapchainExtensionName,
-				vk::KHRSpirv14ExtensionName,
-				vk::KHRSynchronization2ExtensionName
-			};
-
-			vk::DeviceCreateInfo deviceCreateInfo{
-				.pNext = &featureChain.get<vk::PhysicalDeviceFeatures2>(),
-				.queueCreateInfoCount = 1,
-				.pQueueCreateInfos = &deviceQueueCreateInfo,
-				.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size()),
-				.ppEnabledExtensionNames = deviceExtensions.data()
-			};
-
-			m_device = std::make_unique< vk::raii::Device>(device->GetDevice(), deviceCreateInfo);
-		}
-
-		vk::raii::Device& GetDevice()
-		{
-			return *m_device;
-		}
-
-		const vk::raii::Device& GetDevice() const 
-		{
-			return *m_device;
-		}
-
-		void Clear()
-		{
-			m_device->clear();
-		}
-		void WaitIdle()
-		{
-			m_device->waitIdle();
-		}
-	private:
-		std::unique_ptr<vk::raii::Device> m_device;
-	};
-
-
-	struct Queue
-	{
-	public:
-		void Create(Device* device, PhysicDevice* phisicalD, std::uint32_t index = 0)
-		{
-			m_queue = std::make_unique<vk::raii::Queue>(device->GetDevice(),phisicalD->GraphicsQueueIndex(),index);
-		}
-		vk::raii::Queue& GetQueue()
-		{
-			return *m_queue;
-		}
-		const vk::raii::Queue& GetQueue() const
-		{
-			return *m_queue;
-		}
-		void Clear()
-		{
-			m_queue->clear();
-		}
-		
-	private:
-		std::unique_ptr<vk::raii::Queue> m_queue;
-	};
-
-
-	struct SwapChain
-	{
-	public:
-
-		void Create(PhysicDevice* phDevice,Device* device,Surface* surface, GLFWwindow* window , uint32_t ImageCount = 3,SwapChain* old = nullptr)
-		{
-			auto surfaceCaps = phDevice->GetDevice().getSurfaceCapabilitiesKHR(surface->GetSurface());
-			auto availableFormats = phDevice->GetDevice().getSurfaceFormatsKHR(surface->GetSurface());
-			auto availablePresentModes = phDevice->GetDevice().getSurfacePresentModesKHR(surface->GetSurface());
-
-			auto swapSurfaceFormat = ([](const decltype(availableFormats)& formats) {
-				for (const auto& availableFormat : formats)
-					if (availableFormat.format == vk::Format::eB8G8R8A8Srgb && availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
-						return availableFormat;
-				return formats[0];
-				})(availableFormats);
-
-			auto swapExtent = ([&window](const vk::SurfaceCapabilitiesKHR& capabilities) {
-				if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
-					return capabilities.currentExtent;
-
-				int width, height;
-				glfwGetFramebufferSize(window, &width, &height);
-
-				return vk::Extent2D{
-					std::clamp<uint32_t>(width,  capabilities.minImageExtent.width,  capabilities.maxImageExtent.width),
-					std::clamp<uint32_t>(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
-				};
-				})(surfaceCaps);
-
-			auto swapPresentMode = ([](const decltype(availablePresentModes)& modes) {
-				for (const auto& availablePresentMode : modes)
-					if (availablePresentMode == vk::PresentModeKHR::eFifoRelaxed)
-						return availablePresentMode;
-				return vk::PresentModeKHR::eFifo;
-				})(availablePresentModes);
-
-			auto minImageCount = std::clamp(ImageCount, surfaceCaps.minImageCount, surfaceCaps.maxImageCount);
-
-			auto swapchainCreateInfo = vk::SwapchainCreateInfoKHR{
-				.flags = vk::SwapchainCreateFlagsKHR(0),
-				.surface = surface->GetSurface(),
-				.minImageCount = minImageCount,
-				.imageFormat = swapSurfaceFormat.format,
-				.imageColorSpace = swapSurfaceFormat.colorSpace,
-				.imageExtent = swapExtent,
-				.imageArrayLayers = 1,
-				.imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst,
-				.imageSharingMode = vk::SharingMode::eExclusive,
-				.preTransform = surfaceCaps.currentTransform,
-				.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
-				.presentMode = swapPresentMode,
-				.clipped = true,
-				.oldSwapchain = old == nullptr ? nullptr : *old->GetSwapChain()
-			};
-
-			m_chain = vk::raii::SwapchainKHR(device->GetDevice(), swapchainCreateInfo);
-		}
-		void Clear()
-		{
-			m_chain.clear();
-		}
-		vk::raii::SwapchainKHR& GetSwapChain()
-		{
-			return m_chain;
-		}
-		const vk::raii::SwapchainKHR& GetSwapChain() const
-		{
-			return m_chain;
-		}
-	private:
-	  vk::raii::SwapchainKHR m_chain = nullptr;
-	};
-
-	struct VkImages
-	{
-	public:
-		void Create(SwapChain* chain)
-		{
-			m_images = chain->GetSwapChain().getImages();
-		}
-		std::vector<vk::Image>& GetImages()
-		{
-			return m_images;
-		}
-		const std::vector<vk::Image>& GetImages() const
-		{
-			return m_images;
-		}
-		void Clear()
-		{
-			m_images.clear();
-		}
-	private:
-		std::vector<vk::Image> m_images;
-	};
-}
-
-
-
-
-
 
 
 struct FrameData
@@ -548,39 +186,33 @@ int main()
 	glfwInit();
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-	auto window = glfwCreateWindow(1280, 720, "Gaming Campus goes Vulkan", nullptr, nullptr);
+	KGR::_GLFW::Window window;
+	window.CreateMyWindow({ 1280, 720 }, "Test", nullptr, nullptr);
 
-	_Vulkan::AppInfo info{};
+	KGR::_Vulkan::_AppInfo info{};
 	
-
-	auto instance = _Vulkan::Instance{std::move(info)};
+	auto instance = KGR::_Vulkan::_Instance{std::move(info)};
 	instance.AddLayer("VK_LAYER_KHRONOS_validation");
-	instance.Create();
 
-
-	auto physicalDevice = _Vulkan::PhysicDevice{};
-	physicalDevice.Create(&instance);
+	auto physicalDevice = KGR::_Vulkan::_PhysicalDevice{};
 
 	auto graphicsQueueFamily = physicalDevice.GraphicsQueueIndex();
-	auto surface = _Vulkan::Surface{};
-	surface.Create(&instance, window);
-	auto device = _Vulkan::Device{};
-	device.Create(&physicalDevice);
-	auto graphicsQueue = _Vulkan::Queue{};
-	graphicsQueue.Create(&device, &physicalDevice);
-	auto swapchain = _Vulkan::SwapChain{};
-	swapchain.Create(&physicalDevice, &device, &surface, window);
-	auto swapchainImages = _Vulkan::VkImages{};
-	swapchainImages.Create(&swapchain);
+	auto surface = KGR::_Vulkan::_Surface{};
+	auto device = KGR::_Vulkan::_Device{};
+	auto graphicsQueue = KGR::_Vulkan::_Queue{};
+	auto swapchain = KGR::_Vulkan::_Swapchain{};
+	auto swapchainImages = KGR::_Vulkan::_VkImages{};
 
-	auto poolInfo = vk::CommandPoolCreateInfo{
+	auto poolInfo = vk::CommandPoolCreateInfo
+	{
 		.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
 		.queueFamilyIndex = graphicsQueueFamily
 	};
 	auto commandPool = vk::raii::CommandPool(device.GetDevice(), poolInfo);
 
 	auto frameData = swapchainImages.GetImages() | std::views::transform([&](const vk::Image&) {
-		vk::CommandBufferAllocateInfo allocInfo{
+		vk::CommandBufferAllocateInfo allocInfo
+		{
 			.commandPool = commandPool,
 			.level = vk::CommandBufferLevel::ePrimary,
 			.commandBufferCount = 1
@@ -609,13 +241,11 @@ int main()
 	do
 	{
 		glfwPollEvents();
-		auto  currentImageIndex = AcquireNextImage(device.GetDevice(), swapchain.GetSwapChain(), frameData[currentFrame].presentCompleteSemaphore, drawFence);
+		auto  currentImageIndex = AcquireNextImage(device.GetDevice(), swapchain.GetSwapchain(), frameData[currentFrame].presentCompleteSemaphore, drawFence);
 
 		if (currentImageIndex == -1)
 		{
-			swapchain.Create(&physicalDevice, &device, &surface, window, 3, &swapchain);
-			currentImageIndex = AcquireNextImage(device.GetDevice(), swapchain.GetSwapChain(), frameData[currentFrame].presentCompleteSemaphore, drawFence);
-			swapchainImages.Create(&swapchain);
+			currentImageIndex = AcquireNextImage(device.GetDevice(), swapchain.GetSwapchain(), frameData[currentFrame].presentCompleteSemaphore, drawFence);
 		}
 
 		auto& currentImage = swapchainImages.GetImages()[currentImageIndex];
@@ -636,16 +266,13 @@ int main()
 
 		Submit(graphicsQueue.GetQueue(), cb, frameData[currentFrame].presentCompleteSemaphore, frameData[currentFrame].renderFinishedSemaphore, drawFence);
 
-		auto reult = Present(frameData[currentFrame].renderFinishedSemaphore, graphicsQueue.GetQueue(), swapchain.GetSwapChain(), currentImageIndex);
+		auto reult = Present(frameData[currentFrame].renderFinishedSemaphore, graphicsQueue.GetQueue(), swapchain.GetSwapchain(), currentImageIndex);
 
 		if (reult == -1)
 		{
-			swapchain.Create(&physicalDevice, &device, &surface, window, 3, &swapchain);
-
-			swapchainImages.Create(&swapchain);
 		}
 		++currentFrame %= frameData.size();
-	} while (!glfwWindowShouldClose(window));
+	} while (!glfwWindowShouldClose(&window.GetWindow()));
 
 	device.WaitIdle();
 
@@ -659,7 +286,7 @@ int main()
 	surface.Clear();
 	physicalDevice.Clear();
 	instance.Clear();
-	glfwDestroyWindow(window);
+	glfwDestroyWindow(&window.GetWindow());
 	glfwTerminate();
 }
 
