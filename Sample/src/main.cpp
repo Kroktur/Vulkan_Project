@@ -59,6 +59,7 @@
 
 #define GLFW_INCLUDE_VULKAN
 #define GLFW_EXPOSE_NATIVE_WIN32
+#include <iostream>
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
 
@@ -158,8 +159,6 @@ namespace _Vulkan
 
 	struct PhysicDevice
 	{
-		
-		
 		void Create(Instance* instance)
 		{
 			auto devices = instance->GetInstance().enumeratePhysicalDevices();
@@ -329,66 +328,111 @@ namespace _Vulkan
 	private:
 		std::unique_ptr<vk::raii::Queue> m_queue;
 	};
-}
 
 
+	struct SwapChain
+	{
+	public:
 
+		void Create(PhysicDevice* phDevice,Device* device,Surface* surface, GLFWwindow* window , uint32_t ImageCount = 3,SwapChain* old = nullptr)
+		{
+			auto surfaceCaps = phDevice->GetDevice().getSurfaceCapabilitiesKHR(surface->GetSurface());
+			auto availableFormats = phDevice->GetDevice().getSurfaceFormatsKHR(surface->GetSurface());
+			auto availablePresentModes = phDevice->GetDevice().getSurfacePresentModesKHR(surface->GetSurface());
 
+			auto swapSurfaceFormat = ([](const decltype(availableFormats)& formats) {
+				for (const auto& availableFormat : formats)
+					if (availableFormat.format == vk::Format::eB8G8R8A8Srgb && availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
+						return availableFormat;
+				return formats[0];
+				})(availableFormats);
 
-vk::raii::SwapchainKHR CreateSwapchain(vk::raii::PhysicalDevice& physicalDevice, vk::raii::Device& device, vk::raii::SurfaceKHR& surface, GLFWwindow* window)
-{
-	auto surfaceCaps = physicalDevice.getSurfaceCapabilitiesKHR(surface);
-	auto availableFormats = physicalDevice.getSurfaceFormatsKHR(surface);
-	auto availablePresentModes = physicalDevice.getSurfacePresentModesKHR(surface);
+			auto swapExtent = ([&window](const vk::SurfaceCapabilitiesKHR& capabilities) {
+				if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+					return capabilities.currentExtent;
 
-	auto swapSurfaceFormat = ([](const decltype(availableFormats)& formats) {
-		for (const auto& availableFormat : formats)
-			if (availableFormat.format == vk::Format::eB8G8R8A8Srgb && availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
-				return availableFormat;
-		return formats[0];
-		})(availableFormats);
+				int width, height;
+				glfwGetFramebufferSize(window, &width, &height);
 
-	auto swapExtent = ([&window](const vk::SurfaceCapabilitiesKHR& capabilities) {
-		if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
-			return capabilities.currentExtent;
+				return vk::Extent2D{
+					std::clamp<uint32_t>(width,  capabilities.minImageExtent.width,  capabilities.maxImageExtent.width),
+					std::clamp<uint32_t>(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
+				};
+				})(surfaceCaps);
 
-		int width, height;
-		glfwGetFramebufferSize(window, &width, &height);
+			auto swapPresentMode = ([](const decltype(availablePresentModes)& modes) {
+				for (const auto& availablePresentMode : modes)
+					if (availablePresentMode == vk::PresentModeKHR::eFifoRelaxed)
+						return availablePresentMode;
+				return vk::PresentModeKHR::eFifo;
+				})(availablePresentModes);
 
-		return vk::Extent2D{
-			std::clamp<uint32_t>(width,  capabilities.minImageExtent.width,  capabilities.maxImageExtent.width),
-			std::clamp<uint32_t>(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
-		};
-		})(surfaceCaps);
+			auto minImageCount = std::clamp(ImageCount, surfaceCaps.minImageCount, surfaceCaps.maxImageCount);
 
-	auto swapPresentMode = ([](const decltype(availablePresentModes)& modes) {
-		for (const auto& availablePresentMode : modes)
-			if (availablePresentMode == vk::PresentModeKHR::eFifoRelaxed)
-				return availablePresentMode;
-		return vk::PresentModeKHR::eFifo;
-		})(availablePresentModes);
+			auto swapchainCreateInfo = vk::SwapchainCreateInfoKHR{
+				.flags = vk::SwapchainCreateFlagsKHR(0),
+				.surface = surface->GetSurface(),
+				.minImageCount = minImageCount,
+				.imageFormat = swapSurfaceFormat.format,
+				.imageColorSpace = swapSurfaceFormat.colorSpace,
+				.imageExtent = swapExtent,
+				.imageArrayLayers = 1,
+				.imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst,
+				.imageSharingMode = vk::SharingMode::eExclusive,
+				.preTransform = surfaceCaps.currentTransform,
+				.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
+				.presentMode = swapPresentMode,
+				.clipped = true,
+				.oldSwapchain = old == nullptr ? nullptr : *old->GetSwapChain()
+			};
 
-	auto minImageCount = std::clamp(3u, surfaceCaps.minImageCount, surfaceCaps.maxImageCount);
-
-	auto swapchainCreateInfo = vk::SwapchainCreateInfoKHR{
-		.flags = vk::SwapchainCreateFlagsKHR(0),
-		.surface = surface,
-		.minImageCount = minImageCount,
-		.imageFormat = swapSurfaceFormat.format,
-		.imageColorSpace = swapSurfaceFormat.colorSpace,
-		.imageExtent = swapExtent,
-		.imageArrayLayers = 1,
-		.imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst,
-		.imageSharingMode = vk::SharingMode::eExclusive,
-		.preTransform = surfaceCaps.currentTransform,
-		.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
-		.presentMode = swapPresentMode,
-		.clipped = true,
-		.oldSwapchain = nullptr
+			m_chain = vk::raii::SwapchainKHR(device->GetDevice(), swapchainCreateInfo);
+		}
+		void Clear()
+		{
+			m_chain.clear();
+		}
+		vk::raii::SwapchainKHR& GetSwapChain()
+		{
+			return m_chain;
+		}
+		const vk::raii::SwapchainKHR& GetSwapChain() const
+		{
+			return m_chain;
+		}
+	private:
+	  vk::raii::SwapchainKHR m_chain = nullptr;
 	};
 
-	return vk::raii::SwapchainKHR(device, swapchainCreateInfo);
+	struct VkImages
+	{
+	public:
+		void Create(SwapChain* chain)
+		{
+			m_images = chain->GetSwapChain().getImages();
+		}
+		std::vector<vk::Image>& GetImages()
+		{
+			return m_images;
+		}
+		const std::vector<vk::Image>& GetImages() const
+		{
+			return m_images;
+		}
+		void Clear()
+		{
+			m_images.clear();
+		}
+	private:
+		std::vector<vk::Image> m_images;
+	};
 }
+
+
+
+
+
+
 
 struct FrameData
 {
@@ -397,30 +441,55 @@ struct FrameData
 	vk::raii::CommandBuffer commandBuffer = nullptr;
 };
 
-uint32_t AcquireNextImage(vk::raii::Device& device, vk::raii::SwapchainKHR& swapchain, vk::raii::Semaphore& semaphore, vk::raii::Fence& fence)
+int32_t AcquireNextImage(vk::raii::Device& device, vk::raii::SwapchainKHR& swapchain, vk::raii::Semaphore& semaphore, vk::raii::Fence& fence)
 {
 	auto fenceResult = device.waitForFences(*fence, true, UINT64_MAX);
 	device.resetFences(*fence);
 
-	auto [result, currentImageIndex] = swapchain.acquireNextImage(UINT64_MAX, semaphore, nullptr);
-	if (result != vk::Result::eSuccess)
-		throw std::runtime_error("No success at acquire. Check if suboptimal ?");
+	uint32_t imageIndex = 0;
 
-	return currentImageIndex;
+	VkSemaphore vkSemaphore = static_cast<VkSemaphore>(*semaphore);
+
+	VkDevice vkDevice = static_cast<VkDevice>(*device);
+	VkSwapchainKHR vkSwapChain = static_cast<VkSwapchainKHR>(*swapchain);
+
+	VkResult result = vkAcquireNextImageKHR(
+		vkDevice,
+		vkSwapChain,
+		UINT64_MAX,                   
+		vkSemaphore,          
+		VK_NULL_HANDLE,                     
+		&imageIndex
+	);
+
+	if (result == VK_ERROR_OUT_OF_DATE_KHR ||  result == VK_SUBOPTIMAL_KHR) {
+		return  -1;
+	}
+
+	return static_cast<int>(imageIndex);
 }
 
-void Present(vk::raii::Semaphore& waitSemaphore, vk::raii::Queue& queue, vk::raii::SwapchainKHR& swapchain, uint32_t imageIndex)
+int Present(vk::raii::Semaphore& waitSemaphore, vk::raii::Queue& queue, vk::raii::SwapchainKHR& swapchain, uint32_t imageIndex)
 {
-	const auto presentInfo = vk::PresentInfoKHR{
-		.waitSemaphoreCount = 1,
-		.pWaitSemaphores = &*waitSemaphore,
-		.swapchainCount = 1,
-		.pSwapchains = &*swapchain,
-		.pImageIndices = &imageIndex
-	};
+	VkSemaphore vkSemaphore = static_cast<VkSemaphore>(*waitSemaphore);
 
-	if (queue.presentKHR(presentInfo) != vk::Result::eSuccess)
-		throw std::runtime_error("Error while presenting");
+	VkPresentInfoKHR presentInfo{};
+	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	presentInfo.waitSemaphoreCount = 1;
+	presentInfo.pWaitSemaphores = &vkSemaphore; // VkSemaphore
+	presentInfo.swapchainCount = 1;
+
+	VkSwapchainKHR swapchainC = static_cast<VkSwapchainKHR>(*swapchain);
+	presentInfo.pSwapchains = &swapchainC;
+	presentInfo.pImageIndices = &imageIndex;
+	presentInfo.pResults = nullptr;
+
+	VkQueue queueC = static_cast<VkQueue>(*queue);
+	VkResult result = vkQueuePresentKHR(queueC, &presentInfo);
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+		return -1;
+	}
+	return 0;
 }
 
 void Submit(vk::raii::Queue& queue, vk::raii::CommandBuffer& commandBuffer, vk::raii::Semaphore& waitSemaphore, vk::raii::Semaphore& signalSemaphore, vk::raii::Fence& fence)
@@ -478,7 +547,7 @@ int main()
 {
 	glfwInit();
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 	auto window = glfwCreateWindow(1280, 720, "Gaming Campus goes Vulkan", nullptr, nullptr);
 
 	_Vulkan::AppInfo info{};
@@ -499,8 +568,10 @@ int main()
 	device.Create(&physicalDevice);
 	auto graphicsQueue = _Vulkan::Queue{};
 	graphicsQueue.Create(&device, &physicalDevice);
-	auto swapchain = CreateSwapchain(physicalDevice.GetDevice(), device.GetDevice(), surface.GetSurface(), window);
-	auto swapchainImages = swapchain.getImages();
+	auto swapchain = _Vulkan::SwapChain{};
+	swapchain.Create(&physicalDevice, &device, &surface, window);
+	auto swapchainImages = _Vulkan::VkImages{};
+	swapchainImages.Create(&swapchain);
 
 	auto poolInfo = vk::CommandPoolCreateInfo{
 		.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
@@ -508,7 +579,7 @@ int main()
 	};
 	auto commandPool = vk::raii::CommandPool(device.GetDevice(), poolInfo);
 
-	auto frameData = swapchainImages | std::views::transform([&](const vk::Image&) {
+	auto frameData = swapchainImages.GetImages() | std::views::transform([&](const vk::Image&) {
 		vk::CommandBufferAllocateInfo allocInfo{
 			.commandPool = commandPool,
 			.level = vk::CommandBufferLevel::ePrimary,
@@ -538,8 +609,16 @@ int main()
 	do
 	{
 		glfwPollEvents();
-		auto  currentImageIndex = AcquireNextImage(device.GetDevice(), swapchain, frameData[currentFrame].presentCompleteSemaphore, drawFence);
-		auto& currentImage = swapchainImages[currentImageIndex];
+		auto  currentImageIndex = AcquireNextImage(device.GetDevice(), swapchain.GetSwapChain(), frameData[currentFrame].presentCompleteSemaphore, drawFence);
+
+		if (currentImageIndex == -1)
+		{
+			swapchain.Create(&physicalDevice, &device, &surface, window, 3, &swapchain);
+			currentImageIndex = AcquireNextImage(device.GetDevice(), swapchain.GetSwapChain(), frameData[currentFrame].presentCompleteSemaphore, drawFence);
+			swapchainImages.Create(&swapchain);
+		}
+
+		auto& currentImage = swapchainImages.GetImages()[currentImageIndex];
 
 		auto& cb = frameData[currentFrame].commandBuffer;
 		cb.begin(vk::CommandBufferBeginInfo{ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
@@ -557,7 +636,14 @@ int main()
 
 		Submit(graphicsQueue.GetQueue(), cb, frameData[currentFrame].presentCompleteSemaphore, frameData[currentFrame].renderFinishedSemaphore, drawFence);
 
-		Present(frameData[currentFrame].renderFinishedSemaphore, graphicsQueue.GetQueue(), swapchain, currentImageIndex);
+		auto reult = Present(frameData[currentFrame].renderFinishedSemaphore, graphicsQueue.GetQueue(), swapchain.GetSwapChain(), currentImageIndex);
+
+		if (reult == -1)
+		{
+			swapchain.Create(&physicalDevice, &device, &surface, window, 3, &swapchain);
+
+			swapchainImages.Create(&swapchain);
+		}
 		++currentFrame %= frameData.size();
 	} while (!glfwWindowShouldClose(window));
 
@@ -566,8 +652,8 @@ int main()
 	drawFence.clear();
 	frameData.clear();
 	commandPool.clear();
-	swapchainImages.clear();
-	swapchain.clear();
+	swapchainImages.Clear();
+	swapchain.Clear();
 	graphicsQueue.Clear();
 	device.Clear();
 	surface.Clear();
