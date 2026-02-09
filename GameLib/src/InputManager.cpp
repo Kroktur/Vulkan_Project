@@ -26,34 +26,34 @@ void InputManager::Update()
 
 //KEYBOARD
 
-bool InputManager::IsKeyDown(int key)
+bool InputManager::IsKDown(int key)
 {
 	return m_currentKeys[key];
 }
 
-bool InputManager::IsKeyPressed(int key)
+bool InputManager::IsKPressed(int key)
 {
 	return m_currentKeys[key] && !m_previousKeys[key];
 }
 
-bool InputManager::IsKeyReleased(int key)
+bool InputManager::IsKReleased(int key)
 {
 	return !m_currentKeys[key] && m_previousKeys[key];
 }
 
 //MOUSE
 
-bool InputManager::IsMouseDown(int button)
+bool InputManager::IsMDown(int button)
 {
 	return m_currentMouse[button];
 }
 
-bool InputManager::IsMousePressed(int button)
+bool InputManager::IsMPressed(int button)
 {
 	return m_currentMouse[button] && !m_previousMouse[button];
 }
 
-bool InputManager::IsMouseReleased(int button)
+bool InputManager::IsMReleased(int button)
 {
 	return !m_currentMouse[button] && m_previousMouse[button];
 }

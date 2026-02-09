@@ -13,5 +13,6 @@
 #include "OBB.h"
 #include "Collision.h"
 #include "SAT.h"
+#include "InputManager.h"
 
 #endif
