@@ -10,7 +10,7 @@ KGR::_Vulkan::_Vulkan()
 {
 }
 
-void KGR::_Vulkan::Init(_GLFW* window)
+void KGR::_Vulkan::Init(_GLFW::Window* window)
 {
 	InitInstance();
 	CreatePhysicalDevice();
@@ -82,7 +82,7 @@ void KGR::_Vulkan::CreatePhysicalDevice()
 	m_physicalDevice = std::make_unique<PhysicalDevice>(std::move(*selectedDevice));
 }
 
-void KGR::_Vulkan::CreateSurface(_GLFW* window)
+void KGR::_Vulkan::CreateSurface(_GLFW::Window* window)
 {
 	VkSurfaceKHR tmpSurface;
 	if (glfwCreateWindowSurface(**m_instance, &window->GetWindow(), nullptr, &tmpSurface)
@@ -131,7 +131,7 @@ void KGR::_Vulkan::CreateDevice()
 	m_graphicsQueue = std::make_unique<Queue>(*m_device, m_graphicsQueueFamily, 0);
 }
 
-void KGR::_Vulkan::CreateSwapchain(_GLFW* window)
+void KGR::_Vulkan::CreateSwapchain(_GLFW::Window* window)
 {
 	auto surfaceCaps = m_physicalDevice->getSurfaceCapabilitiesKHR(**m_surface);
 	auto availableFormats = m_physicalDevice->getSurfaceFormatsKHR(**m_surface);
