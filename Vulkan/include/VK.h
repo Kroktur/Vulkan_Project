@@ -13,14 +13,6 @@ namespace KGR
 	{
 		inline static Context vkContext;
 
-		struct _FrameData
-		{
-			_Semaphore presentCompleteSemaphore;
-			_Semaphore renderFinishedSemaphore;
-			_CommandBuffer commandBuffer;
-			_Fence perFrameFence;
-		};
-
 		struct _AppInfo
 		{
 			const char* appName = "Basic_Api";
@@ -186,12 +178,20 @@ namespace KGR
 		private:
 			Fence m_fence = nullptr;
 		};
+
+		struct _FrameData
+		{
+			_Semaphore presentCompleteSemaphore;
+			_Semaphore renderFinishedSemaphore;
+			_CommandBuffer commandBuffer;
+			_Fence perFrameFence;
+		};
 	}
 
-	class TMP_Vulkan
+	class Core_Vulkan
 	{
 	public:
-		TMP_Vulkan();
+		Core_Vulkan();
 		void Init(_GLFW::Window* window);
 
 		void InitInstance();
@@ -199,6 +199,7 @@ namespace KGR
 		void CreateSurface(_GLFW::Window* window);
 		void CreateDevice();
 		void CreateSwapchain(_GLFW::Window* window);
+		void RecreateSwapchain(_GLFW::Window* window);
 		void CreateCommandResources();
 		void CreateObjects();
 
@@ -207,30 +208,25 @@ namespace KGR
 
 		i32t AcquireNextImage(ui32t frameIndex);
 		void SubmitCommands(ui32t frameIndex);
-		void Present(ui32t frameIndex, ui32t imageIndex);
+		i32t Present(ui32t frameIndex, ui32t imageIndex);
 
 		void WaitIdle();
 		void Cleanup();
 
-		Instance& GetInstance();
-		Device& GetDevice();
-		CommandBuffer& GetCommandBuffer(ui32t frameIndex);
+		_Vulkan::_Instance& GetInstance();
+		_Vulkan::_Device& GetDevice();
+		_Vulkan::_CommandBuffer& GetCommandBuffer(ui32t frameIndex);
 		std::vector<vk::Image>& GetSCImages();
 		ui32t GetFrameCount() const;
 		ui32t GetCurrentImageIndex() const;
 		vk::Image& GetCurrentImage();
+		ui32t GetCurrentFrame() const;
 
 		vk::PhysicalDeviceType GetGPU();
-		CommandBuffer& Begin();
-		void End();
+		i32t Begin();
+		i32t End();
 
 	private:
-
-		void CheckLayerProperties();
-		void GetExtensions();
-		void AddExtensions();
-		void VerifyExtensions();
-		ui32t FindGraphicsQueueFamily();
 
 		// Generic method for Transitions
 		void TransitionImage(
@@ -250,35 +246,23 @@ namespace KGR
 
 	private:
 		Context m_vkContext;
-		std::unique_ptr<Instance> m_instance;
-		std::unique_ptr<PhysicalDevice> m_physicalDevice;
-		std::unique_ptr<SurfaceKHR> m_surface;
-		std::unique_ptr<Device> m_device;
-		std::unique_ptr<Queue> m_graphicsQueue;
-		std::unique_ptr<SwapchainKHR> m_swapchain;
-		std::unique_ptr<CommandPool> m_commandPool;
+
+		_Vulkan::_AppInfo m_appInfo;
+		_Vulkan::_Instance m_instance;
+		_Vulkan::_PhysicalDevice m_physicalDevice;
+		_Vulkan::_Surface m_surface;
+		_Vulkan::_Device m_device;
+		_Vulkan::_Queue m_graphicsQueue;
+		_Vulkan::_Swapchain m_swapchain;
+		_Vulkan::_CommandPool m_commandPool;
 
 		std::vector<vk::Image> m_scImages;
-		std::vector<KGR::_Vulkan::_FrameData> m_frameData;
+		std::vector<_Vulkan::_FrameData> m_frameData;
 
-		vk::ApplicationInfo m_appInfo;
-		vk::InstanceCreateInfo m_instanceCreateInfo;
-
-		ui32t m_graphicsQueueFamily = 0;
 		ui32t m_currentFrame = 0;
 		ui32t m_currentImageIndex = 0;
 
-		std::vector<const char*> m_requiredLayers;
-		const std::vector<char const*> m_validationLayers =
+		const std::vector<char const*> m_validationLayers = 
 		{ "VK_LAYER_KHRONOS_validation" };
-
-		ui32t m_glfwExtensionCount = 0;
-		const char** m_glfwExtensions = nullptr;
-		std::vector<vk::ExtensionProperties> m_extensionProperties;
-		std::vector<const char*> m_activeExtensions;
-
-		std::vector<PhysicalDevice> m_devices;
 	};
-
-	
 }

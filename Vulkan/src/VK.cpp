@@ -442,16 +442,11 @@ void KGR::_Vulkan::_Semaphore::Clear()
 }
 
 // CLASS VULKAN
-KGR::TMP_Vulkan::TMP_Vulkan()
-	: m_graphicsQueueFamily(0)
-	, m_currentFrame(0)
-	, m_currentImageIndex(0)
-	, m_glfwExtensionCount(0)
-	, m_glfwExtensions(nullptr)
+KGR::Core_Vulkan::Core_Vulkan()
 {
 }
 
-void KGR::TMP_Vulkan::Init(_GLFW::Window* window)
+void KGR::Core_Vulkan::Init(_GLFW::Window* window)
 {
 	InitInstance();
 	CreatePhysicalDevice();
@@ -462,220 +457,69 @@ void KGR::TMP_Vulkan::Init(_GLFW::Window* window)
 	CreateObjects();
 }
 
-void KGR::TMP_Vulkan::InitInstance()
+void KGR::Core_Vulkan::InitInstance()
 {
-	m_appInfo = 
-	{
-		.pApplicationName = "GCVulkan",
-		.applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-		.pEngineName = "None",
-		.engineVersion = VK_MAKE_VERSION(0, 1, 0),
-		.apiVersion = vk::ApiVersion14
-	};
+	m_appInfo.appName = "GCVulkan";
+	m_appInfo.appVersion = VK_MAKE_VERSION(1, 0, 0);
+	m_appInfo.engineName = "None";
+	m_appInfo.engineVersion = VK_MAKE_VERSION(0, 1, 0);
+	m_appInfo.version = vk::ApiVersion14;
 
-	m_requiredLayers.assign(m_validationLayers.begin(), m_validationLayers.end());
-
-	CheckLayerProperties();
-	GetExtensions();
-	AddExtensions();
-	VerifyExtensions();
-
-	m_instanceCreateInfo =
-	{
-		.pApplicationInfo = &m_appInfo,
-		.enabledLayerCount = static_cast<uint32_t>(m_requiredLayers.size()),
-		.ppEnabledLayerNames = m_requiredLayers.data(),
-		.enabledExtensionCount = static_cast<uint32_t>(m_activeExtensions.size()),
-		.ppEnabledExtensionNames = m_activeExtensions.data()
-	};
-
-	m_instance = std::make_unique<Instance>(m_vkContext, m_instanceCreateInfo);
+	m_instance = _Vulkan::_Instance(std::move(m_appInfo), m_validationLayers);
 }
 
-void KGR::TMP_Vulkan::CreatePhysicalDevice()
+void KGR::Core_Vulkan::CreatePhysicalDevice()
 {
-	m_devices = m_instance->enumeratePhysicalDevices();
-	if (m_devices.empty())
-		throw std::runtime_error("No physical devices found");
-
-	PhysicalDevice* selectedDevice = nullptr;
-	
-	for (auto& d : m_devices)
-	{
-		auto dProperties = d.getProperties();
-
-		if (dProperties.apiVersion < VK_API_VERSION_1_4)
-			continue;
-
-		if (dProperties.deviceType == GetGPU())
-		{
-			selectedDevice = &d;
-			break;
-		}
-
-		if (!selectedDevice)
-			selectedDevice = &d;
-	}
-
-	if (!selectedDevice)
-		throw std::runtime_error("No suitable phyisical device found");
-
-	m_physicalDevice = std::make_unique<PhysicalDevice>(std::move(*selectedDevice));
+	m_physicalDevice = _Vulkan::_PhysicalDevice(&m_instance);
 }
 
-void KGR::TMP_Vulkan::CreateSurface(_GLFW::Window* window)
+void KGR::Core_Vulkan::CreateSurface(_GLFW::Window* window)
 {
-	VkSurfaceKHR tmpSurface;
-	if (glfwCreateWindowSurface(**m_instance, &window->GetWindow(), nullptr, &tmpSurface)
-		!= VK_SUCCESS)
-		throw std::runtime_error("Failed to create window surface");
-
-	m_surface = std::make_unique<SurfaceKHR>(*m_instance, tmpSurface);
+	m_surface = _Vulkan::_Surface(&m_instance, window);
 }
 
-void KGR::TMP_Vulkan::CreateDevice()
+void KGR::Core_Vulkan::CreateDevice()
 {
-	m_graphicsQueueFamily = FindGraphicsQueueFamily();
-
-	float queuePriority = 0.0f;
-	auto deviceQueueCreateInfo = vk::DeviceQueueCreateInfo
-	{
-		.queueFamilyIndex = m_graphicsQueueFamily,
-		.queueCount = 1,
-		.pQueuePriorities = &queuePriority
-	};
-
-	vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features> featureChain = 
-	{
-		{.features = {.samplerAnisotropy = true } },
-		{.bufferDeviceAddress = true },
-		{.synchronization2 = true, .dynamicRendering = true },
-	};
-
-	std::vector<const char*> deviceExtensions = 
-	{
-		vk::KHRSwapchainExtensionName,
-		vk::KHRSpirv14ExtensionName,
-		vk::KHRSynchronization2ExtensionName
-	};
-
-	vk::DeviceCreateInfo deviceCreateInfo
-	{
-		.pNext = &featureChain.get<vk::PhysicalDeviceFeatures2>(),
-		.queueCreateInfoCount = 1,
-		.pQueueCreateInfos = &deviceQueueCreateInfo,
-		.enabledExtensionCount = static_cast<ui32t>(deviceExtensions.size()),
-		.ppEnabledExtensionNames = deviceExtensions.data()
-	};
-
-	m_device = std::make_unique<Device>(*m_physicalDevice, deviceCreateInfo);
-	m_graphicsQueue = std::make_unique<Queue>(*m_device, m_graphicsQueueFamily, 0);
+	m_device = _Vulkan::_Device(&m_physicalDevice);
+	m_graphicsQueue = _Vulkan::_Queue(&m_device, &m_physicalDevice);
 }
 
-void KGR::TMP_Vulkan::CreateSwapchain(_GLFW::Window* window)
+void KGR::Core_Vulkan::CreateSwapchain(_GLFW::Window* window)
 {
-	auto surfaceCaps = m_physicalDevice->getSurfaceCapabilitiesKHR(**m_surface);
-	auto availableFormats = m_physicalDevice->getSurfaceFormatsKHR(**m_surface);
-	auto availablePresentModes = m_physicalDevice->getSurfacePresentModesKHR(**m_surface);
-
-	auto swapSurfaceFormat = ([](const decltype(availableFormats)& formats) 
-		{
-		for (const auto& availableFormat : formats)
-			if (availableFormat.format == vk::Format::eB8G8R8A8Srgb &&
-				availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
-				return availableFormat;
-		return formats[0];
-		})(availableFormats);
-
-	auto swapExtent = ([&window](const vk::SurfaceCapabilitiesKHR& capabilities) 
-		{
-		if (capabilities.currentExtent.width != std::numeric_limits<ui32t>::max())
-			return capabilities.currentExtent;
-
-		int width, height;
-		glfwGetFramebufferSize(&window->GetWindow(), &width, &height);
-
-		return vk::Extent2D
-		{
-			std::clamp<ui32t>(width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
-			std::clamp<ui32t>(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
-		};
-		})(surfaceCaps);
-
-	auto swapPresentMode = ([](const decltype(availablePresentModes)& modes) 
-		{
-		for (const auto& availablePresentMode : modes)
-			if (availablePresentMode == vk::PresentModeKHR::eFifoRelaxed)
-				return availablePresentMode;
-		return vk::PresentModeKHR::eFifo;
-		})(availablePresentModes);
-
-	auto minImageCount = std::clamp(3u, surfaceCaps.minImageCount, surfaceCaps.maxImageCount);
-
-	auto swapchainCreateInfo = vk::SwapchainCreateInfoKHR
-	{
-		.flags = vk::SwapchainCreateFlagsKHR(0),
-		.surface = **m_surface,
-		.minImageCount = minImageCount,
-		.imageFormat = swapSurfaceFormat.format,
-		.imageColorSpace = swapSurfaceFormat.colorSpace,
-		.imageExtent = swapExtent,
-		.imageArrayLayers = 1,
-		.imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst,
-		.imageSharingMode = vk::SharingMode::eExclusive,
-		.preTransform = surfaceCaps.currentTransform,
-		.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque,
-		.presentMode = swapPresentMode,
-		.clipped = true,
-		.oldSwapchain = nullptr
-	};
-
-	m_swapchain = std::make_unique<SwapchainKHR>(*m_device, swapchainCreateInfo);
-	m_scImages = m_swapchain->getImages();
+	m_swapchain = _Vulkan::_Swapchain(&m_physicalDevice, &m_device, &m_surface, window);
+	m_scImages = m_swapchain.GetSwapchain().getImages();
 }
 
-void KGR::TMP_Vulkan::CreateCommandResources()
+void KGR::Core_Vulkan::RecreateSwapchain(_GLFW::Window* window)
 {
-	auto poolInfo = vk::CommandPoolCreateInfo
-	{
-		.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-		.queueFamilyIndex = m_graphicsQueueFamily
-	};
+	m_device.WaitIdle();
 
-	m_commandPool = std::make_unique<CommandPool>(*m_device, poolInfo);
+	m_swapchain = _Vulkan::_Swapchain(&m_physicalDevice, &m_device, &m_surface, window, 3, &m_swapchain);
+	m_scImages = m_swapchain.GetSwapchain().getImages();
 }
 
-void KGR::TMP_Vulkan::CreateObjects()
+void KGR::Core_Vulkan::CreateCommandResources()
+{
+	m_commandPool = _Vulkan::_CommandPool(&m_physicalDevice, &m_device);
+}
+
+void KGR::Core_Vulkan::CreateObjects()
 {
 	m_frameData.clear();
 
 	for (size_t i = 0; i < m_scImages.size(); ++i)
 	{
-		KGR::_Vulkan::_FrameData frame;
-		frame.presentCompleteSemaphore = Semaphore(*m_device, vk::SemaphoreCreateInfo());
-		frame.renderFinishedSemaphore = Semaphore(*m_device, vk::SemaphoreCreateInfo());
-		frame.perFrameFence = Fence(*m_device, vk::FenceCreateInfo
-			{
-			.flags = vk::FenceCreateFlagBits::eSignaled
-			});
+		_Vulkan::_FrameData frame;
+		frame.presentCompleteSemaphore = _Vulkan::_Semaphore(&m_device);
+		frame.renderFinishedSemaphore = _Vulkan::_Semaphore(&m_device);
+		frame.perFrameFence = _Vulkan::_Fence(&m_device);
+		frame.commandBuffer = _Vulkan::_CommandBuffer(&m_device, &m_commandPool);
 
 		m_frameData.push_back(std::move(frame));
 	}
-
-	for (auto& fd : m_frameData)
-	{
-		vk::CommandBufferAllocateInfo allocInfo
-		{
-			.commandPool = **m_commandPool,
-			.level = vk::CommandBufferLevel::ePrimary,
-			.commandBufferCount = 1
-		};
-
-		fd.commandBuffer = std::move(CommandBuffers(*m_device, allocInfo).front());
-	}
 }
 
-void KGR::TMP_Vulkan::TransitionToTransferDst(CommandBuffer& cb, vk::Image& image)
+void KGR::Core_Vulkan::TransitionToTransferDst(CommandBuffer& cb, vk::Image& image)
 {
 	TransitionImage
 	(
@@ -692,7 +536,7 @@ void KGR::TMP_Vulkan::TransitionToTransferDst(CommandBuffer& cb, vk::Image& imag
 	);
 }
 
-void KGR::TMP_Vulkan::TransitionToPresent(CommandBuffer& cb, vk::Image& image)
+void KGR::Core_Vulkan::TransitionToPresent(CommandBuffer& cb, vk::Image& image)
 {
 	TransitionImage
 	(
@@ -709,181 +553,138 @@ void KGR::TMP_Vulkan::TransitionToPresent(CommandBuffer& cb, vk::Image& image)
 	);
 }
 
-i32t KGR::TMP_Vulkan::AcquireNextImage(ui32t frameIndex)
+i32t KGR::Core_Vulkan::AcquireNextImage(ui32t frameIndex)
 {
-	vk::Result waitResult = m_device->waitForFences
-	(
-		*m_frameData[frameIndex].perFrameFence,
+	auto fenceResult = m_device.GetDevice().waitForFences(
+		*m_frameData[frameIndex].perFrameFence.GetFence(),
 		true,
 		UINT64_MAX
 	);
 
-	if (waitResult != vk::Result::eSuccess)
-	{
-		throw std::runtime_error("Failed to wait for fence");
-	}
+	m_device.GetDevice().resetFences(*m_frameData[frameIndex].perFrameFence.GetFence());
 
-	m_device->resetFences(*m_frameData[frameIndex].perFrameFence);
+	uint32_t imageIndex = 0;
+	VkSemaphore vkSemaphore = static_cast<VkSemaphore>(*m_frameData[frameIndex].presentCompleteSemaphore.GetSemaphore());
+	VkDevice vkDevice = static_cast<VkDevice>(*m_device.GetDevice());
+	VkSwapchainKHR vkSwapChain = static_cast<VkSwapchainKHR>(*m_swapchain.GetSwapchain());
 
-	auto [result, imageIndex] = m_swapchain->acquireNextImage
-	(
+	VkResult result = vkAcquireNextImageKHR(
+		vkDevice,
+		vkSwapChain,
 		UINT64_MAX,
-		*m_frameData[frameIndex].presentCompleteSemaphore,
-		nullptr
+		vkSemaphore,
+		VK_NULL_HANDLE,
+		&imageIndex
 	);
 
-	if (result == vk::Result::eErrorOutOfDateKHR)
-	{
-		throw std::runtime_error("Swapchain out of date - recreation needed");
-	}
-	else if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR)
-	{
-		throw std::runtime_error("Failed to acquire swapchain image");
-	}
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+		return -1;
 
 	m_currentImageIndex = imageIndex;
-	return imageIndex;
+	return static_cast<i32t>(imageIndex);
 }
 
-void KGR::TMP_Vulkan::SubmitCommands(ui32t frameIndex)
+void KGR::Core_Vulkan::SubmitCommands(ui32t frameIndex)
 {
 	vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
 
 	const auto submitInfo = vk::SubmitInfo
 	{
 		.waitSemaphoreCount = 1,
-		.pWaitSemaphores = &*m_frameData[frameIndex].presentCompleteSemaphore,
+		.pWaitSemaphores = &*m_frameData[frameIndex].presentCompleteSemaphore.GetSemaphore(),
 		.pWaitDstStageMask = &waitDestinationStageMask,
 		.commandBufferCount = 1,
-		.pCommandBuffers = &*m_frameData[frameIndex].commandBuffer,
+		.pCommandBuffers = &*m_frameData[frameIndex].commandBuffer.GetBuffer(),
 		.signalSemaphoreCount = 1,
-		.pSignalSemaphores = &*m_frameData[frameIndex].renderFinishedSemaphore,
+		.pSignalSemaphores = &*m_frameData[frameIndex].renderFinishedSemaphore.GetSemaphore(),
 	};
 
-	m_graphicsQueue->submit(submitInfo, *m_frameData[frameIndex].perFrameFence);
+	m_graphicsQueue.GetQueue().submit(submitInfo, *m_frameData[frameIndex].perFrameFence.GetFence());
 }
 
-void KGR::TMP_Vulkan::Present(ui32t frameIndex, ui32t imageIndex)
+i32t KGR::Core_Vulkan::Present(ui32t frameIndex, ui32t imageIndex)
 {
-	const auto presentInfo = vk::PresentInfoKHR
-	{
-	   .waitSemaphoreCount = 1,
-	   .pWaitSemaphores = &*m_frameData[frameIndex].renderFinishedSemaphore,
-	   .swapchainCount = 1,
-	   .pSwapchains = &**m_swapchain,
-	   .pImageIndices = &imageIndex
-	};
+	VkSemaphore vkSemaphore = static_cast<VkSemaphore>(*m_frameData[frameIndex].renderFinishedSemaphore.GetSemaphore());
 
-	if (m_graphicsQueue->presentKHR(presentInfo) != vk::Result::eSuccess)
-		throw std::runtime_error("Failed to present");
+	VkPresentInfoKHR presentInfo{};
+	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	presentInfo.waitSemaphoreCount = 1;
+	presentInfo.pWaitSemaphores = &vkSemaphore;
+	presentInfo.swapchainCount = 1;
+
+	VkSwapchainKHR swapchainC = static_cast<VkSwapchainKHR>(*m_swapchain.GetSwapchain());
+	presentInfo.pSwapchains = &swapchainC;
+	presentInfo.pImageIndices = &imageIndex;
+	presentInfo.pResults = nullptr;
+
+	VkQueue queueC = static_cast<VkQueue>(*m_graphicsQueue.GetQueue());
+	VkResult result = vkQueuePresentKHR(queueC, &presentInfo);
+
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+		return -1;
+
+	return 0;
 }
 
-void KGR::TMP_Vulkan::WaitIdle()
+void KGR::Core_Vulkan::WaitIdle()
 {
-	m_device->waitIdle();
+	m_device.WaitIdle();
 }
 
-void KGR::TMP_Vulkan::Cleanup()
+void KGR::Core_Vulkan::Cleanup()
 {
 	m_frameData.clear();
-	m_commandPool.reset();
+	m_commandPool.Clear();
 	m_scImages.clear();
-	m_swapchain.reset();
-	m_graphicsQueue.reset();
-	m_device.reset();
-	m_surface.reset();
-	m_physicalDevice.reset();
-	m_instance.reset();
+	m_swapchain.Clear();
+	m_graphicsQueue.Clear();
+	m_device.Clear();
+	m_surface.Clear();
+	m_physicalDevice.Clear();
+	m_instance.Clear();
 }
 
-Instance& KGR::TMP_Vulkan::GetInstance()
+KGR::_Vulkan::_Instance& KGR::Core_Vulkan::GetInstance()
 {
-	return *m_instance;
+	return m_instance;
 }
 
-Device& KGR::TMP_Vulkan::GetDevice()
+KGR::_Vulkan::_Device& KGR::Core_Vulkan::GetDevice()
 {
-	return *m_device;
+	return m_device;
 }
 
-CommandBuffer& KGR::TMP_Vulkan::GetCommandBuffer(ui32t frameIndex)
+KGR::_Vulkan::_CommandBuffer& KGR::Core_Vulkan::GetCommandBuffer(ui32t frameIndex)
 {
 	return m_frameData[frameIndex].commandBuffer;
 }
 
-std::vector<vk::Image>& KGR::TMP_Vulkan::GetSCImages()
+std::vector<vk::Image>& KGR::Core_Vulkan::GetSCImages()
 {
 	return m_scImages;
 }
 
-ui32t KGR::TMP_Vulkan::GetFrameCount() const
+ui32t KGR::Core_Vulkan::GetFrameCount() const
 {
 	return static_cast<ui32t>(m_frameData.size());
 }
 
-ui32t KGR::TMP_Vulkan::GetCurrentImageIndex() const
+ui32t KGR::Core_Vulkan::GetCurrentImageIndex() const
 {
 	return m_currentImageIndex;
 }
 
-vk::Image& KGR::TMP_Vulkan::GetCurrentImage()
+vk::Image& KGR::Core_Vulkan::GetCurrentImage()
 {
 	return m_scImages[m_currentImageIndex];
 }
 
-void KGR::TMP_Vulkan::CheckLayerProperties()
+ui32t KGR::Core_Vulkan::GetCurrentFrame() const
 {
-	const auto layerProperties = m_vkContext.enumerateInstanceLayerProperties();
-	if (std::ranges::any_of(m_requiredLayers, [&layerProperties](auto const& requiredLayer)
-		{
-			return std::ranges::none_of(layerProperties, [requiredLayer](auto const& layerProperty)
-				{
-					return strcmp(layerProperty.layerName, requiredLayer) == 0;
-				});
-		}))
-		throw std::runtime_error("One or more required layers are not supported !");
+	return m_currentFrame;
 }
 
-void KGR::TMP_Vulkan::GetExtensions()
-{
-	m_glfwExtensions = glfwGetRequiredInstanceExtensions(&m_glfwExtensionCount);
-	m_extensionProperties = m_vkContext.enumerateInstanceExtensionProperties();
-}
-
-void KGR::TMP_Vulkan::AddExtensions()
-{
-	for (ui32t i = 0; i < m_glfwExtensionCount; ++i)
-		m_activeExtensions.push_back(m_glfwExtensions[i]);
-}
-
-void KGR::TMP_Vulkan::VerifyExtensions()
-{
-	for (ui32t i = 0; i < m_glfwExtensionCount; ++i)
-		if (std::ranges::none_of(m_extensionProperties, [glfwExtension = m_glfwExtensions[i]](auto const& extensionProperty)
-			{
-				return strcmp(extensionProperty.extensionName, glfwExtension) == 0;
-			}))
-			throw std::runtime_error("Required GLFW extensions not supported");
-}
-
-ui32t KGR::TMP_Vulkan::FindGraphicsQueueFamily()
-{
-	std::vector<vk::QueueFamilyProperties> queueFamilyProperties = m_physicalDevice->getQueueFamilyProperties();
-	auto graphicsQueueFamilyProperty = std::find_if
-	(
-		queueFamilyProperties.begin(),
-		queueFamilyProperties.end(),
-		[](vk::QueueFamilyProperties const& qfp) 
-		{
-			return qfp.queueFlags & vk::QueueFlagBits::eGraphics;
-		}
-	);
-
-	return static_cast<ui32t>(std::distance(queueFamilyProperties.begin(),
-								graphicsQueueFamilyProperty));
-}
-
-void KGR::TMP_Vulkan::TransitionImage(
+void KGR::Core_Vulkan::TransitionImage(
 	CommandBuffer& cb,
 	vk::Image& image,
 	vk::ImageLayout oldLayout,
@@ -929,25 +730,33 @@ void KGR::TMP_Vulkan::TransitionImage(
 	cb.pipelineBarrier2(dependencyInfo);
 }
 
-vk::PhysicalDeviceType KGR::TMP_Vulkan::GetGPU()
+vk::PhysicalDeviceType KGR::Core_Vulkan::GetGPU()
 {
 	return vk::PhysicalDeviceType::eDiscreteGpu;
 }
 
-CommandBuffer& KGR::TMP_Vulkan::Begin()
+i32t KGR::Core_Vulkan::Begin()
 {
-	AcquireNextImage(m_currentFrame);
+	i32t imageIndex = AcquireNextImage(m_currentFrame);
 
-	auto& cb = m_frameData[m_currentFrame].commandBuffer;
-	cb.(vk::CommandBufferBeginInfo{});
+	if (imageIndex == -1)
+		return -1;
 
-	return cb;
+	m_frameData[m_currentFrame].commandBuffer.GetBuffer().begin(vk::CommandBufferBeginInfo{});
+
+	return 0;
 }
 
-void KGR::TMP_Vulkan::End()
+i32t KGR::Core_Vulkan::End()
 {
-	m_frameData[m_currentFrame].commandBuffer.end();
+	m_frameData[m_currentFrame].commandBuffer.GetBuffer().end();
 	SubmitCommands(m_currentFrame);
-	Present(m_currentFrame, m_currentImageIndex);
+
+	i32t result = Present(m_currentFrame, m_currentImageIndex);
+
+	if (result == -1)
+		return -1;
+
 	++m_currentFrame %= m_frameData.size();
+	return 0;
 }
