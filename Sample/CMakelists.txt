@@ -65,7 +65,7 @@ set(VulkanLib ${VulkanSDK_DIR}/Lib)
 target_include_directories(${PROJECT_NAME}
     PUBLIC 
      ${VukanHeader}
-      ${HEADER_DIR}
+     ${HEADER_DIR}
   # ${MYLIB_HEADER}
     PRIVATE
   # ${MYLIB_HEADER}

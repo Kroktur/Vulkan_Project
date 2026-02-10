@@ -191,7 +191,7 @@ namespace KGR
 	class Core_Vulkan
 	{
 	public:
-		Core_Vulkan();
+		Core_Vulkan(_GLFW::Window* window);
 		void Init(_GLFW::Window* window);
 
 		void InitInstance();
