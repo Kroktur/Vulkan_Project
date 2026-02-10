@@ -9,5 +9,10 @@
 #include "VKFiles.h"
 #include "GLFWFiles.h"
 #include "GameTest.h"
+#include "AABB.h"
+#include "OBB.h"
+#include "Collision.h"
+#include "SAT.h"
+#include "InputManager.h"
 
 #endif
