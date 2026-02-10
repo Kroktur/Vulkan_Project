@@ -1,105 +1,12 @@
-﻿//#include "AllFiles.h"
-//#include "Core/ManagerImple.h"
-//#include <fstream>
-//#include <filesystem>
-//#include <iostream>
-//
-//
-//
-//
-//int main(int argc, char** argv)
-//{
-//
-//	std::filesystem::path exePath = argv[0];
-//	std::filesystem::path projectRoot = exePath.parent_path().parent_path().parent_path().parent_path().parent_path();
-//
-//	fileManager::SetGlobalFIlePath(projectRoot / "Ressources");
-//	
-//
-//
-//	std::cout << projectRoot;
-//	KGR::_GLFW::Window::Init();
-//	KGR::_GLFW::Window::AddHint(GLFW_CLIENT_API, GLFW_NO_API);
-//	KGR::_GLFW::Window::AddHint(GLFW_RESIZABLE, GLFW_TRUE);
-//	KGR::_GLFW::Window window;
-//
-//
-//	window.CreateMyWindow({ 1280, 720 }, "GC goes Vulkan", nullptr, nullptr);
-//
-//	KGR::Core_Vulkan vulkan;
-//	vulkan.Init(&window);
-//
-//	do
-//	{
-//		KGR::_GLFW::Window::PollEvent();
-//		if (vulkan.Begin() == -1)
-//		{
-//			vulkan.RecreateSwapchain(&window);
-//			continue;
-//		}
-//
-//		auto& cb = vulkan.GetCommandBuffer(vulkan.GetCurrentFrame()).GetBuffer();
-//		auto& currentImage = vulkan.GetCurrentImage();
-//
-//		auto clearRange = vk::ImageSubresourceRange
-//		{
-//			.aspectMask = vk::ImageAspectFlagBits::eColor,
-//			.levelCount = vk::RemainingMipLevels,
-//			.layerCount = vk::RemainingArrayLayers
-//		};
-//
-//
-//		
-//		float color[4] = { 1.0f, 0.5f, 0.0f, 1.0f };
-//
-//		vk::RenderingAttachmentInfo renderingAttachmentInfo
-//		{
-//			.imageView = vulkan.GetCurrentImageView(),
-//			.imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
-//			.loadOp = vk::AttachmentLoadOp::eClear,
-//			.storeOp = vk::AttachmentStoreOp::eStore,
-//			.clearValue = vk::ClearColorValue(0.1f,0.2f,0.3f,1.0f)
-//		};
-//
-//
-//
-//
-//		vk::RenderingInfo renderingInfo
-//		{
-//			.renderArea = vk::Rect2D{{0,0}, vk::Extent2D{ static_cast<uint32_t>(window.GetSize().x), static_cast<uint32_t>(window.GetSize().y) } },
-//			.layerCount = 1,
-//			.colorAttachmentCount = 1,
-//			.pColorAttachments = &renderingAttachmentInfo
-//		};
-//
-//		/*cb.beginRendering(renderingInfo);
-//		cb.bindPipeline(vk::PipelineBindPoint::eGraphics, vulkan.GetPipeline().GetPipeline());
-//		cb.draw(3, 1, 0, 0);
-//		cb.endRendering();*/
-//		
-//
-//
-//		vulkan.TransitionToTransferDst(cb, currentImage);
-//		cb.clearColorImage(currentImage, vk::ImageLayout::eTransferDstOptimal,
-//			vk::ClearColorValue(0.1f, 0.2f, 0.3f, 1.0f), clearRange);
-//		vulkan.TransitionToPresent(cb, currentImage);
-//
-//		if (vulkan.End() == -1)
-//		{
-//			vulkan.RecreateSwapchain(&window);
-//			continue;
-//		}
-//
-//	} while (!window.ShouldClose());
-//
-//	vulkan.WaitIdle();
-//	vulkan.Cleanup();
-//
-//	window.DestroyMyWindow();
-//	KGR::_GLFW::Window::Destroy();
-//
-//	return 0;
-//}
+﻿#include "AllFiles.h"
+#include "Core/ManagerImple.h"
+#include <fstream>
+#include <filesystem>
+#include <iostream>
+
+
+
+
 
 
 #include <algorithm>
@@ -746,7 +653,9 @@ private:
 	static std::vector<char> readFile(const std::string& filename)
 	{
 		auto& file = fileManager::Load("Shaders/slang.spv");
-		std::vector<char> buffer(file.tellg());
+		file.seekg(0, std::ios::end);
+		auto fileSize = file.tellg();
+		std::vector<char> buffer(fileSize);
 		file.seekg(0, std::ios::beg);
 		file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
 		file.close();
@@ -755,22 +664,105 @@ private:
 	}
 };
 
+//int main(int argc, char** argv)
+//{
+//
+//	std::filesystem::path exePath = argv[0];
+//	std::filesystem::path projectRoot = exePath.parent_path().parent_path().parent_path().parent_path().parent_path();
+//	fileManager::SetGlobalFIlePath(projectRoot / "Ressources");
+//	try
+//	{
+//		HelloTriangleApplication app;
+//		app.run();
+//	}
+//	catch (const std::exception& e)
+//	{
+//		std::cerr << e.what() << std::endl;
+//		return EXIT_FAILURE;
+//	}
+//
+//	return EXIT_SUCCESS;
+//}
+
 int main(int argc, char** argv)
 {
 
 	std::filesystem::path exePath = argv[0];
 	std::filesystem::path projectRoot = exePath.parent_path().parent_path().parent_path().parent_path().parent_path();
-	fileManager::SetGlobalFIlePath(projectRoot / "Ressources");
-	try
-	{
-		HelloTriangleApplication app;
-		app.run();
-	}
-	catch (const std::exception& e)
-	{
-		std::cerr << e.what() << std::endl;
-		return EXIT_FAILURE;
-	}
 
-	return EXIT_SUCCESS;
+	fileManager::SetGlobalFIlePath(projectRoot / "Ressources");
+
+	std::cout << projectRoot;
+	KGR::_GLFW::Window::Init();
+	KGR::_GLFW::Window::AddHint(GLFW_CLIENT_API, GLFW_NO_API);
+	KGR::_GLFW::Window::AddHint(GLFW_RESIZABLE, GLFW_TRUE);
+	KGR::_GLFW::Window window;
+
+
+	window.CreateMyWindow({ 1280, 720 }, "GC goes Vulkan", nullptr, nullptr);
+
+	KGR::Core_Vulkan vulkan;
+	vulkan.Init(&window);
+
+	do
+	{
+		KGR::_GLFW::Window::PollEvent();
+		if (vulkan.Begin() == -1)
+		{
+			vulkan.RecreateSwapchain(&window);
+			continue;
+		}
+
+		auto& cb = vulkan.GetCommandBuffer(vulkan.GetCurrentFrame()).GetBuffer();
+		auto& currentImage = vulkan.GetCurrentImage();
+		auto extent = vulkan.GetSwapchain().GetSwapchainExtent();
+
+		vulkan.TransitionToColorAttachment(cb, currentImage);
+
+		vk::RenderingAttachmentInfo attachmentInfo
+		{
+			.imageView = vulkan.GetCurrentImageView(),
+			.imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
+			.loadOp = vk::AttachmentLoadOp::eClear,
+			.storeOp = vk::AttachmentStoreOp::eStore,
+			.clearValue = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f)
+		};
+
+		vk::RenderingInfo renderingInfo
+		{
+			.renderArea = vk::Rect2D{{0,0}, extent},
+			.layerCount = 1,
+			.colorAttachmentCount = 1,
+			.pColorAttachments = &attachmentInfo
+		};
+
+		cb.beginRendering(renderingInfo);
+		cb.bindPipeline(vk::PipelineBindPoint::eGraphics, *vulkan.GetPipeline().GetPipeline());
+
+		cb.setViewport(0, vk::Viewport(0.f, 0.f,
+			static_cast<float>(extent.width),
+			static_cast<float>(extent.height), 0.f, 1.f));
+
+		cb.setScissor(0, vk::Rect2D({ 0,0 }, extent));
+
+		cb.draw(3, 1, 0, 0);
+		cb.endRendering();
+
+		vulkan.TransitionFromColorAttachmentToPresent(cb, currentImage);
+
+		if (vulkan.End() == -1)
+		{
+			vulkan.RecreateSwapchain(&window);
+			continue;
+		}
+
+	} while (!window.ShouldClose());
+
+	vulkan.WaitIdle();
+	vulkan.Cleanup();
+
+	window.DestroyMyWindow();
+	KGR::_GLFW::Window::Destroy();
+
+	return 0;
 }

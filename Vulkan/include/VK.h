@@ -109,13 +109,14 @@ namespace KGR
 			SwapchainKHR& GetSwapchain();
 			const SwapchainKHR& GetSwapchain() const;
 			void Clear();
-			VkSurfaceFormatKHR GetFormat() const
-			{
-				return m_format;
-			}
+			VkSurfaceFormatKHR GetFormat() const;
+			vk::Extent2D GetSwapchainExtent();
+			const vk::Extent2D GetSwapchainExtent() const;
+
 		private:
 			VkSurfaceFormatKHR m_format;
 			SwapchainKHR m_chain = nullptr;
+			vk::Extent2D m_extent;
 		};
 
 		struct _VkImages
@@ -191,13 +192,15 @@ namespace KGR
 			_Fence perFrameFence;
 		};
 
-		struct PipeLine
+		struct _PipeLine
 		{
-			PipeLine() = default;
-			PipeLine(_Vulkan::_Device* device,_Vulkan::_Swapchain* swap)
+			_PipeLine() = default;
+			_PipeLine(_Vulkan::_Device* device,_Vulkan::_Swapchain* swap)
 			{
 				auto& file = fileManager::Load("Shaders/slang.spv");
-				std::vector<char> buffer(file.tellg());
+				file.seekg(0, std::ios::end);
+				auto fileSize = file.tellg();
+				std::vector<char> buffer(fileSize);
 				file.seekg(0, std::ios::beg);
 				file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
 				file.close();
@@ -206,7 +209,7 @@ namespace KGR
 				vk::ShaderModuleCreateInfo createInfo{
 					.codeSize = buffer.size() * sizeof(char),
 					.pCode = reinterpret_cast<const uint32_t*>(buffer.data()) };
-				vk::raii::ShaderModule shaderModule{ device->GetDevice(), createInfo };
+				ShaderModule shaderModule{ device->GetDevice(), createInfo };
 
 				vk::PipelineShaderStageCreateInfo vertShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eVertex, .module = shaderModule, .pName = "vertMain" };
 				vk::PipelineShaderStageCreateInfo fragShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eFragment, .module = shaderModule, .pName = "fragMain" };
@@ -230,8 +233,7 @@ namespace KGR
 					vk::DynamicState::eScissor };
 				vk::PipelineDynamicStateCreateInfo dynamicState{ .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()), .pDynamicStates = dynamicStates.data() };
 
-				auto pipelineLayout = vk::raii::PipelineLayout(device->GetDevice(), vk::PipelineLayoutCreateInfo{});
-
+				m_layout = PipelineLayout(device->GetDevice(), vk::PipelineLayoutCreateInfo{});
 
 				std::vector<vk::Format> m_formats;
 				m_formats.push_back(static_cast<vk::Format>(swap->GetFormat().format));
@@ -246,13 +248,13 @@ namespace KGR
 					.pMultisampleState = &multisampling,
 					.pColorBlendState = &colorBlending,
 					.pDynamicState = &dynamicState,
-					.layout = pipelineLayout,
+					.layout = m_layout,
 					.renderPass = nullptr},
 			{
 				.colorAttachmentCount = 1,
 				.pColorAttachmentFormats = m_formats.data()} };
 
-				m_pipeline = vk::raii::Pipeline(device->GetDevice(), nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
+				m_pipeline = Pipeline(device->GetDevice(), nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
 			}
 			vk::raii::Pipeline& GetPipeline()
 			{
@@ -267,7 +269,8 @@ namespace KGR
 				return m_pipeline.clear();
 			}
 		private:
-			vk::raii::Pipeline m_pipeline = nullptr;
+			Pipeline m_pipeline = nullptr;
+			PipelineLayout m_layout = nullptr;
 		};
 	}
 
@@ -275,6 +278,7 @@ namespace KGR
 	{
 	public:
 		Core_Vulkan();
+
 		void Init(_GLFW::Window* window);
 		void InitInstance();
 		void CreatePhysicalDevice();
@@ -284,9 +288,12 @@ namespace KGR
 		void RecreateSwapchain(_GLFW::Window* window);
 		void CreateCommandResources();
 		void CreateObjects();
+		void CreateViewImages();
 
 		void TransitionToTransferDst(CommandBuffer& cb, vk::Image& image);
 		void TransitionToPresent(CommandBuffer& cb, vk::Image& image);
+		void TransitionToColorAttachment(CommandBuffer& cb, vk::Image& image);
+		void TransitionFromColorAttachmentToPresent(CommandBuffer& cb, vk::Image& image);
 
 		i32t AcquireNextImage(ui32t frameIndex);
 		void SubmitCommands(ui32t frameIndex);
@@ -297,25 +304,25 @@ namespace KGR
 
 		_Vulkan::_Instance& GetInstance();
 		_Vulkan::_Device& GetDevice();
+		_Vulkan::_PhysicalDevice& GetPhysicalDevice();
 		_Vulkan::_CommandBuffer& GetCommandBuffer(ui32t frameIndex);
 		std::vector<vk::Image>& GetSCImages();
+		_Vulkan::_Swapchain& GetSwapchain();
 
 		void CreatePipeline()
 		{
-			m_pipeline = _Vulkan::PipeLine(&m_device, &m_swapchain);
+			m_pipeline = _Vulkan::_PipeLine(&m_device, &m_swapchain);
 		}
 
-		_Vulkan::PipeLine& GetPipeline()
+		_Vulkan::_PipeLine& GetPipeline()
 		{
 			return m_pipeline;
 		}
+
 		ui32t GetFrameCount() const;
 		ui32t GetCurrentImageIndex() const;
 		vk::Image& GetCurrentImage();
-		vk::ImageView& GetCurrentImageView()
-		{
-			return m_viewImages[m_currentImageIndex];
-		}
+		vk::ImageView GetCurrentImageView();
 		ui32t GetCurrentFrame() const;
 
 		vk::PhysicalDeviceType GetGPU();
@@ -351,10 +358,10 @@ namespace KGR
 		_Vulkan::_Queue m_graphicsQueue;
 		_Vulkan::_Swapchain m_swapchain;
 		_Vulkan::_CommandPool m_commandPool;
-		_Vulkan::PipeLine m_pipeline;
+		_Vulkan::_PipeLine m_pipeline;
 
 		std::vector<vk::Image> m_scImages;
-		std::vector<vk::ImageView> m_viewImages;
+		std::vector<ImageView> m_viewImages;
 		std::vector<_Vulkan::_FrameData> m_frameData;
 
 		ui32t m_currentFrame = 0;
