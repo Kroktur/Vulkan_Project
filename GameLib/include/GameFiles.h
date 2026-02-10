@@ -6,8 +6,8 @@
 	You only need to include this file in your .cpp.
 */
 
-#include "vulkan/vulkan_raii.hpp"
-#include "GLFW/glfw3.h"
+#include "VKFiles.h"
+#include "GLFWFiles.h"
 #include "GameTest.h"
 #include "AABB.h"
 #include "OBB.h"
