@@ -290,10 +290,10 @@ void Transition(vk::raii::CommandBuffer& cb, vk::ImageLayout from, vk::ImageLayo
 int main()
 {
 	VKToto();
+	TestInput();
 	TestCollision1();
 	TestCollision2();
 	TestCollision3();
-	TestInput();
 	GLFWToto();
 
 	// GLFW init

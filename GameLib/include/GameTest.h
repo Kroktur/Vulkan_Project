@@ -12,7 +12,7 @@ void TestInput()
     GLFWwindow* window = glfwCreateWindow(800, 600, "GameToto", nullptr, nullptr);
     glfwMakeContextCurrent(window);
 
-    InputManager input;
+    KGR::InputManager input;
     input.Initialize(window);
 
     while (!glfwWindowShouldClose(window))
@@ -21,31 +21,31 @@ void TestInput()
 
         input.Update();
 
-        if (input.IsKeyPressed(Key::A))
+        if (input.IsKeyPressed(KGR::Key::A ))
             std::cout << "A key was pressed!\n";
-
-        if (input.IsKeyReleased(Key::A))
+      
+        if (input.IsKeyReleased(KGR::Key::A))
             std::cout << "A key was released!\n";
 
-        if (input.IsKeyPressed(Key::Num1))
+        if (input.IsKeyPressed(KGR::Key::Num1))
             std::cout << "Num1 key was pressed!\n";
 
-        if (input.IsKeyReleased(Key::Num1))
+        if (input.IsKeyReleased(KGR::Key::Num1))
             std::cout << "Num1 key was released!\n";
 
-        if (input.IsKeyPressed(SpecialKey::Space))
+        if (input.IsKeyPressed(KGR::SpecialKey::Space))
             std::cout << "Space key was pressed!\n";
 
-        if (input.IsKeyReleased(SpecialKey::Space))
+        if (input.IsKeyReleased(KGR::SpecialKey::Space))
             std::cout << "Space key was released!\n";
 
-        if (input.IsMouseDown(Mouse::Left))
+        if (input.IsMouseDown(KGR::Mouse::Left))
             std::cout << "Left mouse button is being held down!\n";
 
-        if (input.IsMouseDown(Mouse::Right))
+        if (input.IsMouseDown(KGR::Mouse::Right))
             std::cout << "Right mouse button is being held down!\n";
 
-        if (input.IsKeyDown(SpecialKey::Escape))
+        if (input.IsKeyDown(KGR::SpecialKey::Escape))
             glfwSetWindowShouldClose(window, true);
         /*double mouseX, mouseY;
         input.GetMousePosition(mouseX, mouseY);
@@ -57,7 +57,7 @@ void TestInput()
 
 void TestCollision1()
 {
-    OBB3D box1(
+    KGR::OBB3D box1(
         glm::vec3(0.0f, 0.0f, 0.0f),
         glm::vec3(1.0f, 1.0f, 1.0f),
         glm::vec3(1, 0, 0),
@@ -70,7 +70,7 @@ void TestCollision1()
     glm::vec3 axisY = glm::vec3(0, 1, 0);
     glm::vec3 axisZ = glm::normalize(glm::cross(axisX, axisY));
 
-    OBB3D box2(
+    KGR::OBB3D box2(
         glm::vec3(1.5f, 0.0f, 0.0f),
         glm::vec3(1.0f, 1.0f, 1.0f),
         axisX,
@@ -78,7 +78,7 @@ void TestCollision1()
         axisZ
     );
 
-    Collision3D result = SeparatingAxisTheorem::CheckCollisionOBB3D(box1, box2);
+    KGR::Collision3D result = KGR::SeparatingAxisTheorem::CheckCollisionOBB3D(box1, box2);
 
     if (result.IsColliding())
     {
@@ -97,7 +97,7 @@ void TestCollision1()
 
 void TestCollision2()
 {
-    OBB3D box1(
+    KGR::OBB3D box1(
         glm::vec3(0.0f, 0.0f, 0.0f),
         glm::vec3(1.0f, 1.0f, 1.0f),
         glm::vec3(1, 0, 0),
@@ -110,7 +110,7 @@ void TestCollision2()
     glm::vec3 axisY = glm::vec3(0, 1, 0);
     glm::vec3 axisZ = glm::normalize(glm::cross(axisX, axisY));
 
-    OBB3D box2(
+    KGR::OBB3D box2(
         glm::vec3(5.0f, 0.0f, 0.0f),
         glm::vec3(1.0f, 1.0f, 1.0f),
         axisX,
@@ -118,7 +118,7 @@ void TestCollision2()
         axisZ
     );
 
-    Collision3D result = SeparatingAxisTheorem::CheckCollisionOBB3D(box1, box2);
+    KGR::Collision3D result = KGR::SeparatingAxisTheorem::CheckCollisionOBB3D(box1, box2);
 
     if (result.IsColliding())
     {
@@ -137,7 +137,7 @@ void TestCollision2()
 
 void TestCollision3()
 {
-    OBB3D box1(
+    KGR::OBB3D box1(
         glm::vec3(0.0f, 0.0f, 0.0f),
         glm::vec3(1.0f, 1.0f, 1.0f),
         glm::vec3(1, 0, 0),
@@ -150,7 +150,7 @@ void TestCollision3()
     glm::vec3 axisY = glm::vec3(0, 1, 0);
     glm::vec3 axisZ = glm::normalize(glm::cross(axisX, axisY));
 
-    OBB3D box2(
+    KGR::OBB3D box2(
         glm::vec3(2.0f, 0.0f, 0.0f),
         glm::vec3(1.0f, 1.0f, 1.0f),
         axisX,
@@ -159,7 +159,7 @@ void TestCollision3()
     );
 
 
-    Collision3D result = SeparatingAxisTheorem::CheckCollisionOBB3D(box1, box2);
+    KGR::Collision3D result = KGR::SeparatingAxisTheorem::CheckCollisionOBB3D(box1, box2);
 
     if (result.IsColliding())
     {
