@@ -45,6 +45,7 @@ constexpr bool enableValidationLayers = false;
 constexpr bool enableValidationLayers = true;
 #endif
 
+
 int main(int argc, char** argv)
 {
 
@@ -64,6 +65,10 @@ int main(int argc, char** argv)
 
 	KGR::Core_Vulkan vulkan;
 	vulkan.Init(&window);
+
+
+
+	
 
 	do
 	{
@@ -100,12 +105,19 @@ int main(int argc, char** argv)
 		cb.beginRendering(renderingInfo);
 		cb.bindPipeline(vk::PipelineBindPoint::eGraphics, *vulkan.GetPipeline().GetPipeline());
 
+
+	
+
+
 		cb.setViewport(0, vk::Viewport(0.f, 0.f,
 			static_cast<float>(extent.width),
 			static_cast<float>(extent.height), 0.f, 1.f));
 
 		cb.setScissor(0, vk::Rect2D({ 0,0 }, extent));
 
+
+
+		cb.bindVertexBuffers(0, *vulkan.GetVertexBuffer(), { 0 });
 		cb.draw(3, 1, 0, 0);
 		cb.endRendering();
 

@@ -41,6 +41,11 @@ void KGR::_Vulkan::_Fence::Clear()
 }
 
 
+
+
+
+
+
 KGR::_Vulkan::_PipeLine::_PipeLine(_Vulkan::_Device* device, _Vulkan::_Swapchain* swap)
 {
 	auto& file = fileManager::Load("Shaders/slang.spv");
@@ -60,10 +65,18 @@ KGR::_Vulkan::_PipeLine::_PipeLine(_Vulkan::_Device* device, _Vulkan::_Swapchain
 	vk::PipelineShaderStageCreateInfo vertShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eVertex, .module = shaderModule, .pName = "vertMain" };
 	vk::PipelineShaderStageCreateInfo fragShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eFragment, .module = shaderModule, .pName = "fragMain" };
 	vk::PipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
-
-	vk::PipelineVertexInputStateCreateInfo   vertexInputInfo;
 	vk::PipelineInputAssemblyStateCreateInfo inputAssembly{ .topology = vk::PrimitiveTopology::eTriangleList };
 	vk::PipelineViewportStateCreateInfo      viewportState{ .viewportCount = 1, .scissorCount = 1 };
+
+	// implement here
+	auto                                   bindingDescription = Vertex::getBindingDescription();
+	auto                                   attributeDescriptions = Vertex::getAttributeDescriptions();
+	vk::PipelineVertexInputStateCreateInfo vertexInputInfo{ .vertexBindingDescriptionCount = 1,
+															.pVertexBindingDescriptions = &bindingDescription,
+															.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),
+															.pVertexAttributeDescriptions = attributeDescriptions.data() };
+
+
 
 	vk::PipelineRasterizationStateCreateInfo rasterizer{ .depthClampEnable = vk::False, .rasterizerDiscardEnable = vk::False, .polygonMode = vk::PolygonMode::eFill, .cullMode = vk::CullModeFlagBits::eBack, .frontFace = vk::FrontFace::eClockwise, .depthBiasEnable = vk::False, .depthBiasSlopeFactor = 1.0f, .lineWidth = 1.0f };
 
@@ -557,6 +570,8 @@ void KGR::Core_Vulkan::Init(_GLFW::Window* window)
 	CreateCommandResources();
 	CreateObjects();
 	CreatePipeline();
+	// TODO refacto
+	createVertexBuffer();
 }
 
 void KGR::Core_Vulkan::InitInstance()
@@ -803,6 +818,12 @@ void KGR::Core_Vulkan::WaitIdle()
 
 void KGR::Core_Vulkan::Cleanup()
 {
+
+	// TODO refacto 
+	vertexBufferMemory.clear();
+	vertexBuffer.clear();
+
+
 	m_submitSemaphores.clear();
 	m_viewImages.clear();
 	m_pipeline.Clear();

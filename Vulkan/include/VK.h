@@ -7,6 +7,29 @@ using namespace vk::raii;
 using ui32t = uint32_t;
 using i32t = int32_t;
 
+struct Vertex
+{
+	glm::vec2 pos;
+	glm::vec3 color;
+
+	static vk::VertexInputBindingDescription getBindingDescription() {
+		return { 0, sizeof(Vertex), vk::VertexInputRate::eVertex };
+	}
+	static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions() {
+		return {
+			vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, pos)),
+			vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, color))
+		};
+	}
+};
+
+const std::vector<Vertex> vertices = {
+	{{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
+	{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+	{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+};
+
+
 namespace KGR
 {
 	namespace _Vulkan
@@ -246,6 +269,42 @@ namespace KGR
 
 		vk::PhysicalDeviceType GetGPU();
 
+
+		//TODO refacto
+		void createVertexBuffer() {
+			vk::BufferCreateInfo bufferInfo{ .size = sizeof(vertices[0]) * vertices.size(), .usage = vk::BufferUsageFlagBits::eVertexBuffer, .sharingMode = vk::SharingMode::eExclusive };
+			vertexBuffer = vk::raii::Buffer(m_device.GetDevice(), bufferInfo);
+
+			vk::MemoryRequirements memRequirements = vertexBuffer.getMemoryRequirements();
+			vk::MemoryAllocateInfo memoryAllocateInfo{ .allocationSize = memRequirements.size, .memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent) };
+			vertexBufferMemory = vk::raii::DeviceMemory(m_device.GetDevice(), memoryAllocateInfo);
+
+			vertexBuffer.bindMemory(*vertexBufferMemory, 0);
+
+			void* data = vertexBufferMemory.mapMemory(0, bufferInfo.size);
+			memcpy(data, vertices.data(), bufferInfo.size);
+			vertexBufferMemory.unmapMemory();
+		}
+		//TODO refacto
+		uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties)
+		{
+			vk::PhysicalDeviceMemoryProperties memProperties = m_physicalDevice.GetDevice().getMemoryProperties();
+
+			for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+			{
+				if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+				{
+					return i;
+				}
+			}
+
+			throw std::runtime_error("failed to find suitable memory type!");
+		}
+		vk::raii::Buffer& GetVertexBuffer()
+		{
+			return vertexBuffer;
+		}
+
 	protected:
 
 		void InitInstance();
@@ -282,6 +341,9 @@ namespace KGR
 
 	private:
 		Context m_vkContext;
+
+		vk::raii::Buffer       vertexBuffer = nullptr;
+		vk::raii::DeviceMemory vertexBufferMemory = nullptr;
 
 		_Vulkan::_AppInfo m_appInfo;
 		_Vulkan::_Instance m_instance;
