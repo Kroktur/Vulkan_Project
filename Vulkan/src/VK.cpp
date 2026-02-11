@@ -274,7 +274,7 @@ KGR::_Vulkan::_Swapchain::_Swapchain(_PhysicalDevice* pDevice,
 	auto availableFormats = pDevice->GetDevice().getSurfaceFormatsKHR(surface->GetSurface());
 	auto availablePresentModes = pDevice->GetDevice().getSurfacePresentModesKHR(surface->GetSurface());
 
-	auto swapSurfaceFormat = ([](const decltype(availableFormats)& formats)
+	m_format = ([](const decltype(availableFormats)& formats)
 		{
 			for (const auto& availableFormat : formats)
 				if (availableFormat.format == vk::Format::eB8G8R8A8Srgb && availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
@@ -283,7 +283,8 @@ KGR::_Vulkan::_Swapchain::_Swapchain(_PhysicalDevice* pDevice,
 			return formats[0];
 		})(availableFormats);
 
-	auto swapExtent = ([&window](const vk::SurfaceCapabilitiesKHR& capabilities) {
+	auto swapExtent = ([&window](const vk::SurfaceCapabilitiesKHR& capabilities) 
+		{
 		if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
 			return capabilities.currentExtent;
 
@@ -313,8 +314,8 @@ KGR::_Vulkan::_Swapchain::_Swapchain(_PhysicalDevice* pDevice,
 		.flags = vk::SwapchainCreateFlagsKHR(0),
 		.surface = surface->GetSurface(),
 		.minImageCount = minImageCount,
-		.imageFormat = swapSurfaceFormat.format,
-		.imageColorSpace = swapSurfaceFormat.colorSpace,
+		.imageFormat = static_cast<vk::Format>(m_format.format),
+		.imageColorSpace = static_cast<vk::ColorSpaceKHR>(m_format.colorSpace),
 		.imageExtent = swapExtent,
 		.imageArrayLayers = 1,
 		.imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst,
@@ -326,12 +327,28 @@ KGR::_Vulkan::_Swapchain::_Swapchain(_PhysicalDevice* pDevice,
 		.oldSwapchain = old == nullptr ? nullptr : *old->GetSwapchain()
 	};
 
+	m_extent = swapExtent;
 	m_chain = SwapchainKHR(device->GetDevice(), swapchainCreateInfo);
 }
 
 void KGR::_Vulkan::_Swapchain::Clear()
 {
 	m_chain.clear();
+}
+
+VkSurfaceFormatKHR KGR::_Vulkan::_Swapchain::GetFormat() const
+{
+	return m_format;
+}
+
+vk::Extent2D KGR::_Vulkan::_Swapchain::GetSwapchainExtent()
+{
+	return m_extent;
+}
+
+const vk::Extent2D KGR::_Vulkan::_Swapchain::GetSwapchainExtent() const
+{
+	return m_extent;
 }
 
 SwapchainKHR& KGR::_Vulkan::_Swapchain::GetSwapchain()
@@ -448,13 +465,16 @@ KGR::Core_Vulkan::Core_Vulkan()
 
 void KGR::Core_Vulkan::Init(_GLFW::Window* window)
 {
+	m_window = window;
 	InitInstance();
-	CreatePhysicalDevice();
 	CreateSurface(window);
+	CreatePhysicalDevice();
 	CreateDevice();
 	CreateSwapchain(window);
+	CreateViewImages();
 	CreateCommandResources();
 	CreateObjects();
+	CreatePipeline();
 }
 
 void KGR::Core_Vulkan::InitInstance()
@@ -494,8 +514,16 @@ void KGR::Core_Vulkan::RecreateSwapchain(_GLFW::Window* window)
 {
 	m_device.WaitIdle();
 
+	m_pipeline.Clear();
+	m_viewImages.clear();
+	m_frameData.clear();
+
 	m_swapchain = _Vulkan::_Swapchain(&m_physicalDevice, &m_device, &m_surface, window, 3, &m_swapchain);
 	m_scImages = m_swapchain.GetSwapchain().getImages();
+
+	CreateViewImages();
+	CreateObjects();
+	CreatePipeline();
 }
 
 void KGR::Core_Vulkan::CreateCommandResources()
@@ -516,6 +544,24 @@ void KGR::Core_Vulkan::CreateObjects()
 		frame.commandBuffer = _Vulkan::_CommandBuffer(&m_device, &m_commandPool);
 
 		m_frameData.push_back(std::move(frame));
+	}
+}
+
+void KGR::Core_Vulkan::CreateViewImages()
+{
+	assert(m_viewImages.empty());
+
+	vk::ImageViewCreateInfo viewInfo
+	{
+		.viewType = vk::ImageViewType::e2D,
+		.format = static_cast<vk::Format>(m_swapchain.GetFormat().format),
+		.subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
+	};
+
+	for ( auto& image : m_scImages)
+	{
+		viewInfo.image = image;
+		m_viewImages.push_back(ImageView(m_device.GetDevice(), viewInfo));
 	}
 }
 
@@ -551,6 +597,32 @@ void KGR::Core_Vulkan::TransitionToPresent(CommandBuffer& cb, vk::Image& image)
 		vk::ImageAspectFlagBits::eColor,
 		0, 1, 0, 1
 	);
+}
+
+void KGR::Core_Vulkan::TransitionToColorAttachment(CommandBuffer& cb, vk::Image& image)
+{
+	TransitionImage(cb, image,
+		vk::ImageLayout::eUndefined,
+		vk::ImageLayout::eColorAttachmentOptimal,
+		vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+		vk::AccessFlagBits2::eNone,
+		vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+		vk::AccessFlagBits2::eColorAttachmentWrite,
+		vk::ImageAspectFlagBits::eColor,
+		0, 1, 0, 1);
+}
+
+void KGR::Core_Vulkan::TransitionFromColorAttachmentToPresent(CommandBuffer& cb, vk::Image& image)
+{
+	TransitionImage(cb, image,
+		vk::ImageLayout::eColorAttachmentOptimal,
+		vk::ImageLayout::ePresentSrcKHR,
+		vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+		vk::AccessFlagBits2::eColorAttachmentWrite,
+		vk::PipelineStageFlagBits2::eBottomOfPipe,
+		vk::AccessFlagBits2::eNone,
+		vk::ImageAspectFlagBits::eColor,
+		0, 1, 0, 1);
 }
 
 i32t KGR::Core_Vulkan::AcquireNextImage(ui32t frameIndex)
@@ -633,6 +705,7 @@ void KGR::Core_Vulkan::WaitIdle()
 
 void KGR::Core_Vulkan::Cleanup()
 {
+	m_pipeline.Clear();
 	m_frameData.clear();
 	m_commandPool.Clear();
 	m_scImages.clear();
@@ -654,6 +727,11 @@ KGR::_Vulkan::_Device& KGR::Core_Vulkan::GetDevice()
 	return m_device;
 }
 
+KGR::_Vulkan::_PhysicalDevice& KGR::Core_Vulkan::GetPhysicalDevice()
+{
+	return m_physicalDevice;
+}
+
 KGR::_Vulkan::_CommandBuffer& KGR::Core_Vulkan::GetCommandBuffer(ui32t frameIndex)
 {
 	return m_frameData[frameIndex].commandBuffer;
@@ -662,6 +740,11 @@ KGR::_Vulkan::_CommandBuffer& KGR::Core_Vulkan::GetCommandBuffer(ui32t frameInde
 std::vector<vk::Image>& KGR::Core_Vulkan::GetSCImages()
 {
 	return m_scImages;
+}
+
+KGR::_Vulkan::_Swapchain& KGR::Core_Vulkan::GetSwapchain()
+{
+	return m_swapchain;
 }
 
 ui32t KGR::Core_Vulkan::GetFrameCount() const
@@ -677,6 +760,11 @@ ui32t KGR::Core_Vulkan::GetCurrentImageIndex() const
 vk::Image& KGR::Core_Vulkan::GetCurrentImage()
 {
 	return m_scImages[m_currentImageIndex];
+}
+
+vk::ImageView KGR::Core_Vulkan::GetCurrentImageView()
+{
+	return *m_viewImages[m_currentImageIndex];
 }
 
 ui32t KGR::Core_Vulkan::GetCurrentFrame() const

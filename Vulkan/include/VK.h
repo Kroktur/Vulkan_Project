@@ -2,7 +2,7 @@
 #include <vulkan/vulkan_raii.hpp>
 #include <vma/vk_mem_alloc.h>
 #include "_GLFW.h"
-
+#include "Core/ManagerImple.h"
 using namespace vk::raii;
 using ui32t = uint32_t;
 using i32t = int32_t;
@@ -109,9 +109,14 @@ namespace KGR
 			SwapchainKHR& GetSwapchain();
 			const SwapchainKHR& GetSwapchain() const;
 			void Clear();
+			VkSurfaceFormatKHR GetFormat() const;
+			vk::Extent2D GetSwapchainExtent();
+			const vk::Extent2D GetSwapchainExtent() const;
 
 		private:
+			VkSurfaceFormatKHR m_format;
 			SwapchainKHR m_chain = nullptr;
+			vk::Extent2D m_extent;
 		};
 
 		struct _VkImages
@@ -186,12 +191,94 @@ namespace KGR
 			_CommandBuffer commandBuffer;
 			_Fence perFrameFence;
 		};
+
+		struct _PipeLine
+		{
+			_PipeLine() = default;
+			_PipeLine(_Vulkan::_Device* device,_Vulkan::_Swapchain* swap)
+			{
+				auto& file = fileManager::Load("Shaders/slang.spv");
+				file.seekg(0, std::ios::end);
+				auto fileSize = file.tellg();
+				std::vector<char> buffer(fileSize);
+				file.seekg(0, std::ios::beg);
+				file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+				file.close();
+				fileManager::Unload("Shaders/slang.spv");
+
+				vk::ShaderModuleCreateInfo createInfo{
+					.codeSize = buffer.size() * sizeof(char),
+					.pCode = reinterpret_cast<const uint32_t*>(buffer.data()) };
+				ShaderModule shaderModule{ device->GetDevice(), createInfo };
+
+				vk::PipelineShaderStageCreateInfo vertShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eVertex, .module = shaderModule, .pName = "vertMain" };
+				vk::PipelineShaderStageCreateInfo fragShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eFragment, .module = shaderModule, .pName = "fragMain" };
+				vk::PipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+
+				vk::PipelineVertexInputStateCreateInfo   vertexInputInfo;
+				vk::PipelineInputAssemblyStateCreateInfo inputAssembly{ .topology = vk::PrimitiveTopology::eTriangleList };
+				vk::PipelineViewportStateCreateInfo      viewportState{ .viewportCount = 1, .scissorCount = 1 };
+
+				vk::PipelineRasterizationStateCreateInfo rasterizer{ .depthClampEnable = vk::False, .rasterizerDiscardEnable = vk::False, .polygonMode = vk::PolygonMode::eFill, .cullMode = vk::CullModeFlagBits::eBack, .frontFace = vk::FrontFace::eClockwise, .depthBiasEnable = vk::False, .depthBiasSlopeFactor = 1.0f, .lineWidth = 1.0f };
+
+				vk::PipelineMultisampleStateCreateInfo multisampling{ .rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = vk::False };
+
+				vk::PipelineColorBlendAttachmentState colorBlendAttachment{ .blendEnable = vk::False,
+																		   .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA };
+
+				vk::PipelineColorBlendStateCreateInfo colorBlending{ .logicOpEnable = vk::False, .logicOp = vk::LogicOp::eCopy, .attachmentCount = 1, .pAttachments = &colorBlendAttachment };
+
+				std::vector dynamicStates = {
+					vk::DynamicState::eViewport,
+					vk::DynamicState::eScissor };
+				vk::PipelineDynamicStateCreateInfo dynamicState{ .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()), .pDynamicStates = dynamicStates.data() };
+
+				m_layout = PipelineLayout(device->GetDevice(), vk::PipelineLayoutCreateInfo{});
+
+				std::vector<vk::Format> m_formats;
+				m_formats.push_back(static_cast<vk::Format>(swap->GetFormat().format));
+				vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipelineCreateInfoChain = {
+				{
+					.stageCount = 2,
+					.pStages = shaderStages,
+					.pVertexInputState = &vertexInputInfo,
+					.pInputAssemblyState = &inputAssembly,
+					.pViewportState = &viewportState,
+					.pRasterizationState = &rasterizer,
+					.pMultisampleState = &multisampling,
+					.pColorBlendState = &colorBlending,
+					.pDynamicState = &dynamicState,
+					.layout = m_layout,
+					.renderPass = nullptr},
+			{
+				.colorAttachmentCount = 1,
+				.pColorAttachmentFormats = m_formats.data()} };
+
+				m_pipeline = Pipeline(device->GetDevice(), nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
+			}
+			vk::raii::Pipeline& GetPipeline()
+			{
+				return m_pipeline;
+			}
+			const vk::raii::Pipeline& GetPipeline() const
+			{
+				return m_pipeline;
+			}
+			void Clear()
+			{
+				return m_pipeline.clear();
+			}
+		private:
+			Pipeline m_pipeline = nullptr;
+			PipelineLayout m_layout = nullptr;
+		};
 	}
 
 	class Core_Vulkan
 	{
 	public:
 		Core_Vulkan();
+
 		void Init(_GLFW::Window* window);
 		void InitInstance();
 		void CreatePhysicalDevice();
@@ -201,9 +288,12 @@ namespace KGR
 		void RecreateSwapchain(_GLFW::Window* window);
 		void CreateCommandResources();
 		void CreateObjects();
+		void CreateViewImages();
 
 		void TransitionToTransferDst(CommandBuffer& cb, vk::Image& image);
 		void TransitionToPresent(CommandBuffer& cb, vk::Image& image);
+		void TransitionToColorAttachment(CommandBuffer& cb, vk::Image& image);
+		void TransitionFromColorAttachmentToPresent(CommandBuffer& cb, vk::Image& image);
 
 		i32t AcquireNextImage(ui32t frameIndex);
 		void SubmitCommands(ui32t frameIndex);
@@ -214,11 +304,25 @@ namespace KGR
 
 		_Vulkan::_Instance& GetInstance();
 		_Vulkan::_Device& GetDevice();
+		_Vulkan::_PhysicalDevice& GetPhysicalDevice();
 		_Vulkan::_CommandBuffer& GetCommandBuffer(ui32t frameIndex);
 		std::vector<vk::Image>& GetSCImages();
+		_Vulkan::_Swapchain& GetSwapchain();
+
+		void CreatePipeline()
+		{
+			m_pipeline = _Vulkan::_PipeLine(&m_device, &m_swapchain);
+		}
+
+		_Vulkan::_PipeLine& GetPipeline()
+		{
+			return m_pipeline;
+		}
+
 		ui32t GetFrameCount() const;
 		ui32t GetCurrentImageIndex() const;
 		vk::Image& GetCurrentImage();
+		vk::ImageView GetCurrentImageView();
 		ui32t GetCurrentFrame() const;
 
 		vk::PhysicalDeviceType GetGPU();
@@ -254,12 +358,16 @@ namespace KGR
 		_Vulkan::_Queue m_graphicsQueue;
 		_Vulkan::_Swapchain m_swapchain;
 		_Vulkan::_CommandPool m_commandPool;
+		_Vulkan::_PipeLine m_pipeline;
 
 		std::vector<vk::Image> m_scImages;
+		std::vector<ImageView> m_viewImages;
 		std::vector<_Vulkan::_FrameData> m_frameData;
 
 		ui32t m_currentFrame = 0;
 		ui32t m_currentImageIndex = 0;
+
+		_GLFW::Window* m_window;
 
 		const std::vector<char const*> m_validationLayers = 
 		{ "VK_LAYER_KHRONOS_validation" };
