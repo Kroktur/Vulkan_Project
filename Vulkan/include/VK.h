@@ -12,6 +12,14 @@ namespace KGR
 	namespace _Vulkan
 	{
 		inline static Context vkContext;
+		constexpr ui32t MAX_FRAMES_IN_FLIGHT = 2;
+
+		enum class TransitionType
+		{
+			TransferDst,
+			Present,
+			ColorAttachment,
+		};
 
 		struct _AppInfo
 		{
@@ -187,7 +195,6 @@ namespace KGR
 		struct _FrameData
 		{
 			_Semaphore presentCompleteSemaphore;
-			_Semaphore renderFinishedSemaphore;
 			_CommandBuffer commandBuffer;
 			_Fence perFrameFence;
 		};
@@ -195,79 +202,11 @@ namespace KGR
 		struct _PipeLine
 		{
 			_PipeLine() = default;
-			_PipeLine(_Vulkan::_Device* device,_Vulkan::_Swapchain* swap)
-			{
-				auto& file = fileManager::Load("Shaders/slang.spv");
-				file.seekg(0, std::ios::end);
-				auto fileSize = file.tellg();
-				std::vector<char> buffer(fileSize);
-				file.seekg(0, std::ios::beg);
-				file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-				file.close();
-				fileManager::Unload("Shaders/slang.spv");
+			_PipeLine(_Vulkan::_Device* device, _Vulkan::_Swapchain* swap);
+			vk::raii::Pipeline& GetPipeline();
+			const vk::raii::Pipeline& GetPipeline() const;
+			void Clear();
 
-				vk::ShaderModuleCreateInfo createInfo{
-					.codeSize = buffer.size() * sizeof(char),
-					.pCode = reinterpret_cast<const uint32_t*>(buffer.data()) };
-				ShaderModule shaderModule{ device->GetDevice(), createInfo };
-
-				vk::PipelineShaderStageCreateInfo vertShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eVertex, .module = shaderModule, .pName = "vertMain" };
-				vk::PipelineShaderStageCreateInfo fragShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eFragment, .module = shaderModule, .pName = "fragMain" };
-				vk::PipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
-
-				vk::PipelineVertexInputStateCreateInfo   vertexInputInfo;
-				vk::PipelineInputAssemblyStateCreateInfo inputAssembly{ .topology = vk::PrimitiveTopology::eTriangleList };
-				vk::PipelineViewportStateCreateInfo      viewportState{ .viewportCount = 1, .scissorCount = 1 };
-
-				vk::PipelineRasterizationStateCreateInfo rasterizer{ .depthClampEnable = vk::False, .rasterizerDiscardEnable = vk::False, .polygonMode = vk::PolygonMode::eFill, .cullMode = vk::CullModeFlagBits::eBack, .frontFace = vk::FrontFace::eClockwise, .depthBiasEnable = vk::False, .depthBiasSlopeFactor = 1.0f, .lineWidth = 1.0f };
-
-				vk::PipelineMultisampleStateCreateInfo multisampling{ .rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = vk::False };
-
-				vk::PipelineColorBlendAttachmentState colorBlendAttachment{ .blendEnable = vk::False,
-																		   .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA };
-
-				vk::PipelineColorBlendStateCreateInfo colorBlending{ .logicOpEnable = vk::False, .logicOp = vk::LogicOp::eCopy, .attachmentCount = 1, .pAttachments = &colorBlendAttachment };
-
-				std::vector dynamicStates = {
-					vk::DynamicState::eViewport,
-					vk::DynamicState::eScissor };
-				vk::PipelineDynamicStateCreateInfo dynamicState{ .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()), .pDynamicStates = dynamicStates.data() };
-
-				m_layout = PipelineLayout(device->GetDevice(), vk::PipelineLayoutCreateInfo{});
-
-				std::vector<vk::Format> m_formats;
-				m_formats.push_back(static_cast<vk::Format>(swap->GetFormat().format));
-				vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipelineCreateInfoChain = {
-				{
-					.stageCount = 2,
-					.pStages = shaderStages,
-					.pVertexInputState = &vertexInputInfo,
-					.pInputAssemblyState = &inputAssembly,
-					.pViewportState = &viewportState,
-					.pRasterizationState = &rasterizer,
-					.pMultisampleState = &multisampling,
-					.pColorBlendState = &colorBlending,
-					.pDynamicState = &dynamicState,
-					.layout = m_layout,
-					.renderPass = nullptr},
-			{
-				.colorAttachmentCount = 1,
-				.pColorAttachmentFormats = m_formats.data()} };
-
-				m_pipeline = Pipeline(device->GetDevice(), nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
-			}
-			vk::raii::Pipeline& GetPipeline()
-			{
-				return m_pipeline;
-			}
-			const vk::raii::Pipeline& GetPipeline() const
-			{
-				return m_pipeline;
-			}
-			void Clear()
-			{
-				return m_pipeline.clear();
-			}
 		private:
 			Pipeline m_pipeline = nullptr;
 			PipelineLayout m_layout = nullptr;
@@ -280,54 +219,48 @@ namespace KGR
 		Core_Vulkan();
 
 		void Init(_GLFW::Window* window);
-		void InitInstance();
-		void CreatePhysicalDevice();
-		void CreateSurface(_GLFW::Window* window);
-		void CreateDevice();
-		void CreateSwapchain(_GLFW::Window* window);
-		void RecreateSwapchain(_GLFW::Window* window);
-		void CreateCommandResources();
-		void CreateObjects();
-		void CreateViewImages();
 
-		void TransitionToTransferDst(CommandBuffer& cb, vk::Image& image);
-		void TransitionToPresent(CommandBuffer& cb, vk::Image& image);
-		void TransitionToColorAttachment(CommandBuffer& cb, vk::Image& image);
-		void TransitionFromColorAttachmentToPresent(CommandBuffer& cb, vk::Image& image);
-
-		i32t AcquireNextImage(ui32t frameIndex);
-		void SubmitCommands(ui32t frameIndex);
-		i32t Present(ui32t frameIndex, ui32t imageIndex);
+		i32t Begin();
+		i32t End();
 
 		void WaitIdle();
 		void Cleanup();
+
+		void RecreateSwapchain();
+		void Transition(_Vulkan::TransitionType type, CommandBuffer& cb);
 
 		_Vulkan::_Instance& GetInstance();
 		_Vulkan::_Device& GetDevice();
 		_Vulkan::_PhysicalDevice& GetPhysicalDevice();
 		_Vulkan::_CommandBuffer& GetCommandBuffer(ui32t frameIndex);
-		std::vector<vk::Image>& GetSCImages();
 		_Vulkan::_Swapchain& GetSwapchain();
+		_Vulkan::_PipeLine& GetPipeline();
 
-		void CreatePipeline()
-		{
-			m_pipeline = _Vulkan::_PipeLine(&m_device, &m_swapchain);
-		}
-
-		_Vulkan::_PipeLine& GetPipeline()
-		{
-			return m_pipeline;
-		}
+		std::vector<vk::Image>& GetSCImages();
+		vk::Image& GetCurrentImage();
+		vk::ImageView GetCurrentImageView();
 
 		ui32t GetFrameCount() const;
 		ui32t GetCurrentImageIndex() const;
-		vk::Image& GetCurrentImage();
-		vk::ImageView GetCurrentImageView();
 		ui32t GetCurrentFrame() const;
 
 		vk::PhysicalDeviceType GetGPU();
-		i32t Begin();
-		i32t End();
+
+	protected:
+
+		void InitInstance();
+		void CreatePhysicalDevice();
+		void CreateSurface(_GLFW::Window* window);
+		void CreateDevice();
+		void CreateSwapchain(_GLFW::Window* window);
+		void CreateCommandResources();
+		void CreateObjects();
+		void CreateViewImages();
+		void CreatePipeline();
+
+		i32t AcquireNextImage(ui32t frameIndex);
+		void SubmitCommands(ui32t frameIndex);
+		i32t Present(ui32t frameIndex, ui32t imageIndex);
 
 	private:
 
@@ -347,6 +280,11 @@ namespace KGR
 			ui32t baseArrayLayer,
 			ui32t layerCount);
 
+		void TransitionToTransferDst(CommandBuffer& cb, vk::Image& image);
+		void TransitionToPresent(CommandBuffer& cb, vk::Image& image);
+		void TransitionToColorAttachment(CommandBuffer& cb, vk::Image& image);
+		void TransitionFromColorAttachmentToPresent(CommandBuffer& cb, vk::Image& image);
+
 	private:
 		Context m_vkContext;
 
@@ -363,6 +301,8 @@ namespace KGR
 		std::vector<vk::Image> m_scImages;
 		std::vector<ImageView> m_viewImages;
 		std::vector<_Vulkan::_FrameData> m_frameData;
+		std::vector<_Vulkan::_Semaphore> m_submitSemaphores;
+		std::vector<vk::ImageLayout> m_imageLayouts;
 
 		ui32t m_currentFrame = 0;
 		ui32t m_currentImageIndex = 0;
