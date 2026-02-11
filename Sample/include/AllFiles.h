@@ -12,5 +12,6 @@
 #include "GameFiles.h"
 #include "GLFWFiles.h"
 #include "VKFiles.h"
+#include "ImGuiFiles.h"
 
 #endif

@@ -684,6 +684,11 @@ ui32t KGR::Core_Vulkan::GetCurrentFrame() const
 	return m_currentFrame;
 }
 
+KGR::_Vulkan::_Queue& KGR::Core_Vulkan::GetGraphicsQueue()
+{
+	return m_graphicsQueue;
+}
+
 void KGR::Core_Vulkan::TransitionImage(
 	CommandBuffer& cb,
 	vk::Image& image,

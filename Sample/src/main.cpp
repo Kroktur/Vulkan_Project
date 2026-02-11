@@ -3,17 +3,20 @@
 int main()
 {
 	KGR::_GLFW::Window window;
-	window.Init();
-	window.AddHint(GLFW_CLIENT_API, GLFW_NO_API);
-	window.AddHint(GLFW_RESIZABLE, GLFW_TRUE);
+	KGR::_GLFW::Window::Init();
+	KGR::_GLFW::Window::AddHint(GLFW_CLIENT_API, GLFW_NO_API);
+	KGR::_GLFW::Window::AddHint(GLFW_RESIZABLE, GLFW_TRUE);
 	window.CreateMyWindow({ 1280, 720 }, "GC goes Vulkan", nullptr, nullptr);
 
 	KGR::Core_Vulkan vulkan;
 	vulkan.Init(&window);
 
+	ImGui::CreateContext();
+	ImGui_ImplGlfw_InitForVulkan(&window.GetWindow(), true);
+
 	do
 	{
-		window.PollEvent();
+		KGR::_GLFW::Window::PollEvent();
 
 		if (vulkan.Begin() == -1)
 		{
@@ -47,7 +50,7 @@ int main()
 	vulkan.Cleanup();
 
 	window.DestroyMyWindow();
-	window.Destroy();
+	KGR::_GLFW::Window::Destroy();
 
 	return 0;
 }
