@@ -8,8 +8,7 @@ int main()
 	KGR::_GLFW::Window::AddHint(GLFW_RESIZABLE, GLFW_TRUE);
 	window.CreateMyWindow({ 1280, 720 }, "GC goes Vulkan", nullptr, nullptr);
 
-	KGR::Core_Vulkan vulkan;
-	vulkan.Init(&window);
+	KGR::Core_Vulkan vulkan(&window);
 
 	ImGui::CreateContext();
 	ImGui_ImplGlfw_InitForVulkan(&window.GetWindow(), true);

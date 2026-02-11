@@ -442,8 +442,9 @@ void KGR::_Vulkan::_Semaphore::Clear()
 }
 
 // CLASS VULKAN
-KGR::Core_Vulkan::Core_Vulkan()
+KGR::Core_Vulkan::Core_Vulkan(_GLFW::Window* window)
 {
+	Init(window);
 }
 
 void KGR::Core_Vulkan::Init(_GLFW::Window* window)
