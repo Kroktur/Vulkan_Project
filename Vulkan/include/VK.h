@@ -2,7 +2,7 @@
 #include <vulkan/vulkan_raii.hpp>
 #include <vma/vk_mem_alloc.h>
 #include "_GLFW.h"
-
+#include "Core/ManagerImple.h"
 using namespace vk::raii;
 using ui32t = uint32_t;
 using i32t = int32_t;
@@ -109,9 +109,14 @@ namespace KGR
 			SwapchainKHR& GetSwapchain();
 			const SwapchainKHR& GetSwapchain() const;
 			void Clear();
+			VkSurfaceFormatKHR GetFormat() const;
+			vk::Extent2D GetSwapchainExtent();
+			const vk::Extent2D GetSwapchainExtent() const;
 
 		private:
+			VkSurfaceFormatKHR m_format;
 			SwapchainKHR m_chain = nullptr;
+			vk::Extent2D m_extent;
 		};
 
 		struct _VkImages
@@ -186,12 +191,29 @@ namespace KGR
 			_CommandBuffer commandBuffer;
 			_Fence perFrameFence;
 		};
+
+		struct _PipeLine
+		{
+			_PipeLine();
+			_PipeLine(_Vulkan::_Device* device,_Vulkan::_Swapchain* swap);
+
+			vk::raii::Pipeline& GetPipeline();
+
+			const vk::raii::Pipeline& GetPipeline() const;
+
+			void Clear();
+
+		private:
+			Pipeline m_pipeline = nullptr;
+			PipelineLayout m_layout = nullptr;
+		};
 	}
 
 	class Core_Vulkan
 	{
 	public:
 		Core_Vulkan();
+
 		void Init(_GLFW::Window* window);
 		void InitInstance();
 		void CreatePhysicalDevice();
@@ -201,9 +223,12 @@ namespace KGR
 		void RecreateSwapchain(_GLFW::Window* window);
 		void CreateCommandResources();
 		void CreateObjects();
+		void CreateViewImages();
 
 		void TransitionToTransferDst(CommandBuffer& cb, vk::Image& image);
 		void TransitionToPresent(CommandBuffer& cb, vk::Image& image);
+		void TransitionToColorAttachment(CommandBuffer& cb, vk::Image& image);
+		void TransitionFromColorAttachmentToPresent(CommandBuffer& cb, vk::Image& image);
 
 		i32t AcquireNextImage(ui32t frameIndex);
 		void SubmitCommands(ui32t frameIndex);
@@ -214,11 +239,19 @@ namespace KGR
 
 		_Vulkan::_Instance& GetInstance();
 		_Vulkan::_Device& GetDevice();
+		_Vulkan::_PhysicalDevice& GetPhysicalDevice();
 		_Vulkan::_CommandBuffer& GetCommandBuffer(ui32t frameIndex);
 		std::vector<vk::Image>& GetSCImages();
+		_Vulkan::_Swapchain& GetSwapchain();
+
+		void CreatePipeline();
+
+		_Vulkan::_PipeLine& GetPipeline();
+
 		ui32t GetFrameCount() const;
 		ui32t GetCurrentImageIndex() const;
 		vk::Image& GetCurrentImage();
+		vk::ImageView GetCurrentImageView();
 		ui32t GetCurrentFrame() const;
 
 		vk::PhysicalDeviceType GetGPU();
@@ -254,12 +287,16 @@ namespace KGR
 		_Vulkan::_Queue m_graphicsQueue;
 		_Vulkan::_Swapchain m_swapchain;
 		_Vulkan::_CommandPool m_commandPool;
+		_Vulkan::_PipeLine m_pipeline;
 
 		std::vector<vk::Image> m_scImages;
+		std::vector<ImageView> m_viewImages;
 		std::vector<_Vulkan::_FrameData> m_frameData;
 
 		ui32t m_currentFrame = 0;
 		ui32t m_currentImageIndex = 0;
+
+		_GLFW::Window* m_window;
 
 		const std::vector<char const*> m_validationLayers = 
 		{ "VK_LAYER_KHRONOS_validation" };
