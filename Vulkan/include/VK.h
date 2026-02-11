@@ -324,6 +324,7 @@ namespace KGR
 		vk::Image& GetCurrentImage();
 		vk::ImageView GetCurrentImageView();
 		ui32t GetCurrentFrame() const;
+		_Vulkan::_Queue& GetGraphicsQueue();
 
 		vk::PhysicalDeviceType GetGPU();
 		i32t Begin();

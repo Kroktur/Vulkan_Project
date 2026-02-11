@@ -697,16 +697,14 @@ int main(int argc, char** argv)
 	KGR::_GLFW::Window::AddHint(GLFW_CLIENT_API, GLFW_NO_API);
 	KGR::_GLFW::Window::AddHint(GLFW_RESIZABLE, GLFW_TRUE);
 	KGR::_GLFW::Window window;
-
-
 	window.CreateMyWindow({ 1280, 720 }, "GC goes Vulkan", nullptr, nullptr);
 
-	KGR::Core_Vulkan vulkan;
-	vulkan.Init(&window);
+	KGR::Core_Vulkan vulkan(&window);
 
 	do
 	{
 		KGR::_GLFW::Window::PollEvent();
+
 		if (vulkan.Begin() == -1)
 		{
 			vulkan.RecreateSwapchain(&window);

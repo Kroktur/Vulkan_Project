@@ -459,8 +459,9 @@ void KGR::_Vulkan::_Semaphore::Clear()
 }
 
 // CLASS VULKAN
-KGR::Core_Vulkan::Core_Vulkan()
+KGR::Core_Vulkan::Core_Vulkan(_GLFW::Window* window)
 {
+	Init(window);
 }
 
 void KGR::Core_Vulkan::Init(_GLFW::Window* window)
@@ -770,6 +771,11 @@ vk::ImageView KGR::Core_Vulkan::GetCurrentImageView()
 ui32t KGR::Core_Vulkan::GetCurrentFrame() const
 {
 	return m_currentFrame;
+}
+
+KGR::_Vulkan::_Queue& KGR::Core_Vulkan::GetGraphicsQueue()
+{
+	return m_graphicsQueue;
 }
 
 void KGR::Core_Vulkan::TransitionImage(
