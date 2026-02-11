@@ -266,6 +266,7 @@ namespace KGR
 			}
 			void Clear()
 			{
+				m_layout.clear();
 				return m_pipeline.clear();
 			}
 		private:

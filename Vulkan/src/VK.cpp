@@ -705,6 +705,7 @@ void KGR::Core_Vulkan::WaitIdle()
 
 void KGR::Core_Vulkan::Cleanup()
 {
+	m_viewImages.clear();
 	m_pipeline.Clear();
 	m_frameData.clear();
 	m_commandPool.Clear();
