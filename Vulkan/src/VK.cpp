@@ -40,7 +40,6 @@ void KGR::_Vulkan::_Fence::Clear()
 	m_fence.clear();
 }
 
-KGR::_Vulkan::_PipeLine::_PipeLine() = default;
 
 KGR::_Vulkan::_PipeLine::_PipeLine(_Vulkan::_Device* device, _Vulkan::_Swapchain* swap)
 {
@@ -966,80 +965,3 @@ i32t KGR::Core_Vulkan::End()
 	return 0;
 }
 
-KGR::_Vulkan::_PipeLine::_PipeLine(_Vulkan::_Device* device, _Vulkan::_Swapchain* swap)
-{
-	auto& file = fileManager::Load("Shaders/slang.spv");
-	file.seekg(0, std::ios::end);
-	auto fileSize = file.tellg();
-	std::vector<char> buffer(fileSize);
-	file.seekg(0, std::ios::beg);
-	file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-	file.close();
-	fileManager::Unload("Shaders/slang.spv");
-
-	vk::ShaderModuleCreateInfo createInfo{
-		.codeSize = buffer.size() * sizeof(char),
-		.pCode = reinterpret_cast<const uint32_t*>(buffer.data()) };
-	ShaderModule shaderModule{ device->GetDevice(), createInfo };
-
-	vk::PipelineShaderStageCreateInfo vertShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eVertex, .module = shaderModule, .pName = "vertMain" };
-	vk::PipelineShaderStageCreateInfo fragShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eFragment, .module = shaderModule, .pName = "fragMain" };
-	vk::PipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
-
-	vk::PipelineVertexInputStateCreateInfo   vertexInputInfo;
-	vk::PipelineInputAssemblyStateCreateInfo inputAssembly{ .topology = vk::PrimitiveTopology::eTriangleList };
-	vk::PipelineViewportStateCreateInfo      viewportState{ .viewportCount = 1, .scissorCount = 1 };
-
-	vk::PipelineRasterizationStateCreateInfo rasterizer{ .depthClampEnable = vk::False, .rasterizerDiscardEnable = vk::False, .polygonMode = vk::PolygonMode::eFill, .cullMode = vk::CullModeFlagBits::eBack, .frontFace = vk::FrontFace::eClockwise, .depthBiasEnable = vk::False, .depthBiasSlopeFactor = 1.0f, .lineWidth = 1.0f };
-
-	vk::PipelineMultisampleStateCreateInfo multisampling{ .rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = vk::False };
-
-	vk::PipelineColorBlendAttachmentState colorBlendAttachment{ .blendEnable = vk::False,
-		.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA };
-
-	vk::PipelineColorBlendStateCreateInfo colorBlending{ .logicOpEnable = vk::False, .logicOp = vk::LogicOp::eCopy, .attachmentCount = 1, .pAttachments = &colorBlendAttachment };
-
-	std::vector dynamicStates = {
-		vk::DynamicState::eViewport,
-		vk::DynamicState::eScissor };
-	vk::PipelineDynamicStateCreateInfo dynamicState{ .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()), .pDynamicStates = dynamicStates.data() };
-
-	m_layout = PipelineLayout(device->GetDevice(), vk::PipelineLayoutCreateInfo{});
-
-	std::vector<vk::Format> m_formats;
-	m_formats.push_back(static_cast<vk::Format>(swap->GetFormat().format));
-	vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipelineCreateInfoChain = {
-		{
-			.stageCount = 2,
-			.pStages = shaderStages,
-			.pVertexInputState = &vertexInputInfo,
-			.pInputAssemblyState = &inputAssembly,
-			.pViewportState = &viewportState,
-			.pRasterizationState = &rasterizer,
-			.pMultisampleState = &multisampling,
-			.pColorBlendState = &colorBlending,
-			.pDynamicState = &dynamicState,
-			.layout = m_layout,
-			.renderPass = nullptr},
-		{
-			.colorAttachmentCount = 1,
-			.pColorAttachmentFormats = m_formats.data()} };
-
-	m_pipeline = Pipeline(device->GetDevice(), nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
-}
-
-vk::raii::Pipeline& KGR::_Vulkan::_PipeLine::GetPipeline()
-{
-	return m_pipeline;
-}
-
-const vk::raii::Pipeline& KGR::_Vulkan::_PipeLine::GetPipeline() const
-{
-	return m_pipeline;
-}
-
-void KGR::_Vulkan::_PipeLine::Clear()
-{
-	m_layout.clear();
-	return m_pipeline.clear();
-}
