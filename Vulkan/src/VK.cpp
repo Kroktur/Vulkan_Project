@@ -803,6 +803,7 @@ void KGR::Core_Vulkan::WaitIdle()
 
 void KGR::Core_Vulkan::Cleanup()
 {
+	m_submitSemaphores.clear();
 	m_viewImages.clear();
 	m_pipeline.Clear();
 	m_frameData.clear();
@@ -814,7 +815,7 @@ void KGR::Core_Vulkan::Cleanup()
 	m_surface.Clear();
 	m_physicalDevice.Clear();
 	m_instance.Clear();
-	m_submitSemaphores.clear();
+	
 }
 
 KGR::_Vulkan::_Instance& KGR::Core_Vulkan::GetInstance()
