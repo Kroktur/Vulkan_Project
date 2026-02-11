@@ -280,11 +280,6 @@ namespace KGR
 			ui32t baseArrayLayer,
 			ui32t layerCount);
 
-		void TransitionToTransferDst(CommandBuffer& cb, vk::Image& image);
-		void TransitionToPresent(CommandBuffer& cb, vk::Image& image);
-		void TransitionToColorAttachment(CommandBuffer& cb, vk::Image& image);
-		void TransitionFromColorAttachmentToPresent(CommandBuffer& cb, vk::Image& image);
-
 	private:
 		Context m_vkContext;
 

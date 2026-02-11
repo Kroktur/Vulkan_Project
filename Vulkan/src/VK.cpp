@@ -581,66 +581,6 @@ void KGR::Core_Vulkan::CreateViewImages()
 	}
 }
 
-void KGR::Core_Vulkan::TransitionToTransferDst(CommandBuffer& cb, vk::Image& image)
-{
-	TransitionImage
-	(
-		cb,
-		image,
-		vk::ImageLayout::eUndefined,
-		vk::ImageLayout::eTransferDstOptimal,
-		vk::PipelineStageFlagBits2::eTopOfPipe,
-		vk::AccessFlagBits2::eNone,
-		vk::PipelineStageFlagBits2::eTransfer,
-		vk::AccessFlagBits2::eTransferWrite,
-		vk::ImageAspectFlagBits::eColor,
-		0, 1, 0, 1
-	);
-}
-
-void KGR::Core_Vulkan::TransitionToPresent(CommandBuffer& cb, vk::Image& image)
-{
-	TransitionImage
-	(
-		cb,
-		image,
-		vk::ImageLayout::eTransferDstOptimal,
-		vk::ImageLayout::ePresentSrcKHR,
-		vk::PipelineStageFlagBits2::eTransfer,
-		vk::AccessFlagBits2::eTransferWrite,
-		vk::PipelineStageFlagBits2::eBottomOfPipe,
-		vk::AccessFlagBits2::eNone,
-		vk::ImageAspectFlagBits::eColor,
-		0, 1, 0, 1
-	);
-}
-
-void KGR::Core_Vulkan::TransitionToColorAttachment(CommandBuffer& cb, vk::Image& image)
-{
-	TransitionImage(cb, image,
-		vk::ImageLayout::eUndefined,
-		vk::ImageLayout::eColorAttachmentOptimal,
-		vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-		vk::AccessFlagBits2::eNone,
-		vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-		vk::AccessFlagBits2::eColorAttachmentWrite,
-		vk::ImageAspectFlagBits::eColor,
-		0, 1, 0, 1);
-}
-
-void KGR::Core_Vulkan::TransitionFromColorAttachmentToPresent(CommandBuffer& cb, vk::Image& image)
-{
-	TransitionImage(cb, image,
-		vk::ImageLayout::eColorAttachmentOptimal,
-		vk::ImageLayout::ePresentSrcKHR,
-		vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-		vk::AccessFlagBits2::eColorAttachmentWrite,
-		vk::PipelineStageFlagBits2::eBottomOfPipe,
-		vk::AccessFlagBits2::eNone,
-		vk::ImageAspectFlagBits::eColor,
-		0, 1, 0, 1);
-}
-
 void KGR::Core_Vulkan::Transition(_Vulkan::TransitionType type, CommandBuffer& cb)
 {
 	auto& currentLayout = m_imageLayouts[m_currentImageIndex];
