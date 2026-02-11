@@ -36,7 +36,6 @@ namespace KGR
 			if (it != m_map.end())
 				throw std::runtime_error("Already Register");
 			m_map[key] = value;
-
 		}
 		// Return the right function By the Types 
 		ReturnType operator()(LhsType& lhs, RhsType& rhs, Args&&... args)
@@ -46,7 +45,6 @@ namespace KGR
 			if (it == m_map.end())
 				throw std::runtime_error("not Register");
 			return it->second(lhs, rhs, std::forward<Args>(args)...);
-
 		}
 	private:
 		std::map<key_type, value_type> m_map;

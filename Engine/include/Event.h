@@ -4,7 +4,7 @@
 //The event system is a simple struct that contain the data of the event and a boolean to know if the event is handled or not
 struct Event
 {
-	~Event() = default;
+	virtual ~Event() = default;
 	bool handled = false;
 };
 

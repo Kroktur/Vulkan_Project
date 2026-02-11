@@ -4,6 +4,13 @@
 #include <map>
 #include "EventDispatcher.h"
 
+// EventBus :
+/**
+ * - stock every receivers (object that receive the events)
+ * - stock the events in the queue
+ * - distrib every events to every receivers with the EventDispatcher
+ * - stop if evt.handled == true
+ */
 struct EventBus
 {
 public:
