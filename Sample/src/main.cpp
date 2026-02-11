@@ -45,8 +45,6 @@ constexpr bool enableValidationLayers = false;
 constexpr bool enableValidationLayers = true;
 #endif
 
-
-
 int main(int argc, char** argv)
 {
 
@@ -72,7 +70,7 @@ int main(int argc, char** argv)
 		KGR::_GLFW::Window::PollEvent();
 		if (vulkan.Begin() == -1)
 		{
-			vulkan.RecreateSwapchain(&window);
+			vulkan.RecreateSwapchain();
 			continue;
 		}
 
@@ -80,7 +78,7 @@ int main(int argc, char** argv)
 		auto& currentImage = vulkan.GetCurrentImage();
 		auto extent = vulkan.GetSwapchain().GetSwapchainExtent();
 
-		vulkan.TransitionToColorAttachment(cb, currentImage);
+		vulkan.Transition(KGR::_Vulkan::TransitionType::ColorAttachment, cb);
 
 		vk::RenderingAttachmentInfo attachmentInfo
 		{
@@ -111,11 +109,11 @@ int main(int argc, char** argv)
 		cb.draw(3, 1, 0, 0);
 		cb.endRendering();
 
-		vulkan.TransitionFromColorAttachmentToPresent(cb, currentImage);
+		vulkan.Transition(KGR::_Vulkan::TransitionType::Present, cb);
 
 		if (vulkan.End() == -1)
 		{
-			vulkan.RecreateSwapchain(&window);
+			vulkan.RecreateSwapchain();
 			continue;
 		}
 

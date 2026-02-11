@@ -275,8 +275,12 @@ KGR::_Vulkan::_Device::_Device(_PhysicalDevice* device, ui32t count)
 		.pQueuePriorities = &queuePriority
 	};
 
-	vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features> featureChain = {
+	vk::StructureChain<vk::PhysicalDeviceFeatures2,
+		vk::PhysicalDeviceVulkan11Features,
+		vk::PhysicalDeviceVulkan12Features,
+		vk::PhysicalDeviceVulkan13Features> featureChain = {
 		{.features = {.samplerAnisotropy = true } },
+		{.shaderDrawParameters = true },
 		{.bufferDeviceAddress = true },
 		{.synchronization2 = true, .dynamicRendering = true },
 	};
@@ -540,8 +544,7 @@ void KGR::_Vulkan::_Semaphore::Clear()
 
 // CLASS VULKAN
 KGR::Core_Vulkan::Core_Vulkan()
-{
-}
+{}
 
 void KGR::Core_Vulkan::Init(_GLFW::Window* window)
 {
@@ -590,15 +593,25 @@ void KGR::Core_Vulkan::CreateSwapchain(_GLFW::Window* window)
 	m_scImages = m_swapchain.GetSwapchain().getImages();
 }
 
-void KGR::Core_Vulkan::RecreateSwapchain(_GLFW::Window* window)
+void KGR::Core_Vulkan::RecreateSwapchain()
 {
+	int width, height;
+	glfwGetFramebufferSize(&m_window->GetWindow(), &width, &height);
+
+	while (width == 0 || height == 0)
+	{
+		glfwGetFramebufferSize(&m_window->GetWindow(), &width, &height);
+		glfwWaitEvents();
+	}
+
 	m_device.WaitIdle();
 
 	m_pipeline.Clear();
 	m_viewImages.clear();
 	m_frameData.clear();
+	m_submitSemaphores.clear();
 
-	m_swapchain = _Vulkan::_Swapchain(&m_physicalDevice, &m_device, &m_surface, window, 3, &m_swapchain);
+	m_swapchain = _Vulkan::_Swapchain(&m_physicalDevice, &m_device, &m_surface, m_window, 3, &m_swapchain);
 	m_scImages = m_swapchain.GetSwapchain().getImages();
 
 	CreateViewImages();
@@ -614,22 +627,25 @@ void KGR::Core_Vulkan::CreateCommandResources()
 void KGR::Core_Vulkan::CreateObjects()
 {
 	m_frameData.clear();
+	m_submitSemaphores.clear();
 
-	for (size_t i = 0; i < m_scImages.size(); ++i)
+	for (size_t i = 0; i < _Vulkan::MAX_FRAMES_IN_FLIGHT; ++i)
 	{
 		_Vulkan::_FrameData frame;
 		frame.presentCompleteSemaphore = _Vulkan::_Semaphore(&m_device);
-		frame.renderFinishedSemaphore = _Vulkan::_Semaphore(&m_device);
 		frame.perFrameFence = _Vulkan::_Fence(&m_device);
 		frame.commandBuffer = _Vulkan::_CommandBuffer(&m_device, &m_commandPool);
-
 		m_frameData.push_back(std::move(frame));
 	}
+
+	for (size_t i = 0; i < m_scImages.size(); ++i)
+		m_submitSemaphores.push_back(_Vulkan::_Semaphore(&m_device));
 }
 
 void KGR::Core_Vulkan::CreateViewImages()
 {
 	assert(m_viewImages.empty());
+	m_imageLayouts.assign(m_scImages.size(), vk::ImageLayout::eUndefined);
 
 	vk::ImageViewCreateInfo viewInfo
 	{
@@ -645,69 +661,71 @@ void KGR::Core_Vulkan::CreateViewImages()
 	}
 }
 
-void KGR::Core_Vulkan::TransitionToTransferDst(CommandBuffer& cb, vk::Image& image)
+void KGR::Core_Vulkan::Transition(_Vulkan::TransitionType type, CommandBuffer& cb)
 {
+	auto& currentLayout = m_imageLayouts[m_currentImageIndex];
+
+	struct TransitionParams
+	{
+		vk::ImageLayout newLayout;
+		vk::PipelineStageFlags2 srcStage, dstStage;
+		vk::AccessFlags2 srcAccess, dstAccess;
+	};
+
+	TransitionParams parameters;
+
+	switch (type)
+	{
+	case _Vulkan::TransitionType::TransferDst:
+		parameters = 
+		{	  vk::ImageLayout::eTransferDstOptimal,
+			  vk::PipelineStageFlagBits2::eTopOfPipe,
+			  vk::PipelineStageFlagBits2::eTransfer,
+			  vk::AccessFlagBits2::eNone,
+			  vk::AccessFlagBits2::eTransferWrite 
+		};
+		break;
+	case _Vulkan::TransitionType::ColorAttachment:
+		parameters = 
+		{     vk::ImageLayout::eColorAttachmentOptimal,
+			  vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+			  vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+			  vk::AccessFlagBits2::eNone,
+			  vk::AccessFlagBits2::eColorAttachmentWrite 
+		};
+		break;
+	case _Vulkan::TransitionType::Present:
+		parameters = 
+		{     vk::ImageLayout::ePresentSrcKHR,
+			  vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+			  vk::PipelineStageFlagBits2::eBottomOfPipe,
+			  vk::AccessFlagBits2::eColorAttachmentWrite,
+			  vk::AccessFlagBits2::eNone 
+		};
+		break;
+	}
+
 	TransitionImage
-	(
+	(	
 		cb,
-		image,
-		vk::ImageLayout::eUndefined,
-		vk::ImageLayout::eTransferDstOptimal,
-		vk::PipelineStageFlagBits2::eTopOfPipe,
-		vk::AccessFlagBits2::eNone,
-		vk::PipelineStageFlagBits2::eTransfer,
-		vk::AccessFlagBits2::eTransferWrite,
+		GetCurrentImage(),
+		currentLayout,
+		parameters.newLayout,
+		parameters.srcStage,
+		parameters.srcAccess,
+		parameters.dstStage,
+		parameters.dstAccess,
 		vk::ImageAspectFlagBits::eColor,
 		0, 1, 0, 1
 	);
-}
 
-void KGR::Core_Vulkan::TransitionToPresent(CommandBuffer& cb, vk::Image& image)
-{
-	TransitionImage
-	(
-		cb,
-		image,
-		vk::ImageLayout::eTransferDstOptimal,
-		vk::ImageLayout::ePresentSrcKHR,
-		vk::PipelineStageFlagBits2::eTransfer,
-		vk::AccessFlagBits2::eTransferWrite,
-		vk::PipelineStageFlagBits2::eBottomOfPipe,
-		vk::AccessFlagBits2::eNone,
-		vk::ImageAspectFlagBits::eColor,
-		0, 1, 0, 1
-	);
-}
-
-void KGR::Core_Vulkan::TransitionToColorAttachment(CommandBuffer& cb, vk::Image& image)
-{
-	TransitionImage(cb, image,
-		vk::ImageLayout::eUndefined,
-		vk::ImageLayout::eColorAttachmentOptimal,
-		vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-		vk::AccessFlagBits2::eNone,
-		vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-		vk::AccessFlagBits2::eColorAttachmentWrite,
-		vk::ImageAspectFlagBits::eColor,
-		0, 1, 0, 1);
-}
-
-void KGR::Core_Vulkan::TransitionFromColorAttachmentToPresent(CommandBuffer& cb, vk::Image& image)
-{
-	TransitionImage(cb, image,
-		vk::ImageLayout::eColorAttachmentOptimal,
-		vk::ImageLayout::ePresentSrcKHR,
-		vk::PipelineStageFlagBits2::eColorAttachmentOutput,
-		vk::AccessFlagBits2::eColorAttachmentWrite,
-		vk::PipelineStageFlagBits2::eBottomOfPipe,
-		vk::AccessFlagBits2::eNone,
-		vk::ImageAspectFlagBits::eColor,
-		0, 1, 0, 1);
+	currentLayout = parameters.newLayout;
 }
 
 i32t KGR::Core_Vulkan::AcquireNextImage(ui32t frameIndex)
 {
-	auto fenceResult = m_device.GetDevice().waitForFences(
+	auto fenceResult = m_device.GetDevice().waitForFences
+	(
 		*m_frameData[frameIndex].perFrameFence.GetFence(),
 		true,
 		UINT64_MAX
@@ -720,7 +738,8 @@ i32t KGR::Core_Vulkan::AcquireNextImage(ui32t frameIndex)
 	VkDevice vkDevice = static_cast<VkDevice>(*m_device.GetDevice());
 	VkSwapchainKHR vkSwapChain = static_cast<VkSwapchainKHR>(*m_swapchain.GetSwapchain());
 
-	VkResult result = vkAcquireNextImageKHR(
+	VkResult result = vkAcquireNextImageKHR
+	(
 		vkDevice,
 		vkSwapChain,
 		UINT64_MAX,
@@ -748,7 +767,7 @@ void KGR::Core_Vulkan::SubmitCommands(ui32t frameIndex)
 		.commandBufferCount = 1,
 		.pCommandBuffers = &*m_frameData[frameIndex].commandBuffer.GetBuffer(),
 		.signalSemaphoreCount = 1,
-		.pSignalSemaphores = &*m_frameData[frameIndex].renderFinishedSemaphore.GetSemaphore(),
+		.pSignalSemaphores = &*m_submitSemaphores[m_currentImageIndex].GetSemaphore(),
 	};
 
 	m_graphicsQueue.GetQueue().submit(submitInfo, *m_frameData[frameIndex].perFrameFence.GetFence());
@@ -756,7 +775,7 @@ void KGR::Core_Vulkan::SubmitCommands(ui32t frameIndex)
 
 i32t KGR::Core_Vulkan::Present(ui32t frameIndex, ui32t imageIndex)
 {
-	VkSemaphore vkSemaphore = static_cast<VkSemaphore>(*m_frameData[frameIndex].renderFinishedSemaphore.GetSemaphore());
+	VkSemaphore vkSemaphore = static_cast<VkSemaphore>(*m_submitSemaphores[imageIndex].GetSemaphore());
 
 	VkPresentInfoKHR presentInfo{};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -796,6 +815,7 @@ void KGR::Core_Vulkan::Cleanup()
 	m_surface.Clear();
 	m_physicalDevice.Clear();
 	m_instance.Clear();
+	m_submitSemaphores.clear();
 }
 
 KGR::_Vulkan::_Instance& KGR::Core_Vulkan::GetInstance()
@@ -916,13 +936,19 @@ vk::PhysicalDeviceType KGR::Core_Vulkan::GetGPU()
 
 i32t KGR::Core_Vulkan::Begin()
 {
+	int width, height;
+
+	glfwGetFramebufferSize(&m_window->GetWindow(), &width, &height);
+
+	if (width == 0 || height == 0)
+		return -1;
+
 	i32t imageIndex = AcquireNextImage(m_currentFrame);
 
 	if (imageIndex == -1)
 		return -1;
 
 	m_frameData[m_currentFrame].commandBuffer.GetBuffer().begin(vk::CommandBufferBeginInfo{});
-
 	return 0;
 }
 
@@ -936,6 +962,84 @@ i32t KGR::Core_Vulkan::End()
 	if (result == -1)
 		return -1;
 
-	++m_currentFrame %= m_frameData.size();
+	++m_currentFrame %= _Vulkan::MAX_FRAMES_IN_FLIGHT;
 	return 0;
+}
+
+KGR::_Vulkan::_PipeLine::_PipeLine(_Vulkan::_Device* device, _Vulkan::_Swapchain* swap)
+{
+	auto& file = fileManager::Load("Shaders/slang.spv");
+	file.seekg(0, std::ios::end);
+	auto fileSize = file.tellg();
+	std::vector<char> buffer(fileSize);
+	file.seekg(0, std::ios::beg);
+	file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+	file.close();
+	fileManager::Unload("Shaders/slang.spv");
+
+	vk::ShaderModuleCreateInfo createInfo{
+		.codeSize = buffer.size() * sizeof(char),
+		.pCode = reinterpret_cast<const uint32_t*>(buffer.data()) };
+	ShaderModule shaderModule{ device->GetDevice(), createInfo };
+
+	vk::PipelineShaderStageCreateInfo vertShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eVertex, .module = shaderModule, .pName = "vertMain" };
+	vk::PipelineShaderStageCreateInfo fragShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eFragment, .module = shaderModule, .pName = "fragMain" };
+	vk::PipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+
+	vk::PipelineVertexInputStateCreateInfo   vertexInputInfo;
+	vk::PipelineInputAssemblyStateCreateInfo inputAssembly{ .topology = vk::PrimitiveTopology::eTriangleList };
+	vk::PipelineViewportStateCreateInfo      viewportState{ .viewportCount = 1, .scissorCount = 1 };
+
+	vk::PipelineRasterizationStateCreateInfo rasterizer{ .depthClampEnable = vk::False, .rasterizerDiscardEnable = vk::False, .polygonMode = vk::PolygonMode::eFill, .cullMode = vk::CullModeFlagBits::eBack, .frontFace = vk::FrontFace::eClockwise, .depthBiasEnable = vk::False, .depthBiasSlopeFactor = 1.0f, .lineWidth = 1.0f };
+
+	vk::PipelineMultisampleStateCreateInfo multisampling{ .rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = vk::False };
+
+	vk::PipelineColorBlendAttachmentState colorBlendAttachment{ .blendEnable = vk::False,
+		.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA };
+
+	vk::PipelineColorBlendStateCreateInfo colorBlending{ .logicOpEnable = vk::False, .logicOp = vk::LogicOp::eCopy, .attachmentCount = 1, .pAttachments = &colorBlendAttachment };
+
+	std::vector dynamicStates = {
+		vk::DynamicState::eViewport,
+		vk::DynamicState::eScissor };
+	vk::PipelineDynamicStateCreateInfo dynamicState{ .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()), .pDynamicStates = dynamicStates.data() };
+
+	m_layout = PipelineLayout(device->GetDevice(), vk::PipelineLayoutCreateInfo{});
+
+	std::vector<vk::Format> m_formats;
+	m_formats.push_back(static_cast<vk::Format>(swap->GetFormat().format));
+	vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipelineCreateInfoChain = {
+		{
+			.stageCount = 2,
+			.pStages = shaderStages,
+			.pVertexInputState = &vertexInputInfo,
+			.pInputAssemblyState = &inputAssembly,
+			.pViewportState = &viewportState,
+			.pRasterizationState = &rasterizer,
+			.pMultisampleState = &multisampling,
+			.pColorBlendState = &colorBlending,
+			.pDynamicState = &dynamicState,
+			.layout = m_layout,
+			.renderPass = nullptr},
+		{
+			.colorAttachmentCount = 1,
+			.pColorAttachmentFormats = m_formats.data()} };
+
+	m_pipeline = Pipeline(device->GetDevice(), nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
+}
+
+vk::raii::Pipeline& KGR::_Vulkan::_PipeLine::GetPipeline()
+{
+	return m_pipeline;
+}
+
+const vk::raii::Pipeline& KGR::_Vulkan::_PipeLine::GetPipeline() const
+{
+	return m_pipeline;
+}
+
+void KGR::_Vulkan::_PipeLine::Clear()
+{
+	m_layout.clear();
+	return m_pipeline.clear();
 }

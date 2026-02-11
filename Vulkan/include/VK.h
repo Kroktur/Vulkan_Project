@@ -12,6 +12,14 @@ namespace KGR
 	namespace _Vulkan
 	{
 		inline static Context vkContext;
+		constexpr ui32t MAX_FRAMES_IN_FLIGHT = 2;
+
+		enum class TransitionType
+		{
+			TransferDst,
+			Present,
+			ColorAttachment,
+		};
 
 		struct _AppInfo
 		{
@@ -187,20 +195,16 @@ namespace KGR
 		struct _FrameData
 		{
 			_Semaphore presentCompleteSemaphore;
-			_Semaphore renderFinishedSemaphore;
 			_CommandBuffer commandBuffer;
 			_Fence perFrameFence;
 		};
 
 		struct _PipeLine
 		{
-			_PipeLine();
-			_PipeLine(_Vulkan::_Device* device,_Vulkan::_Swapchain* swap);
-
+			_PipeLine() = default;
+			_PipeLine(_Vulkan::_Device* device, _Vulkan::_Swapchain* swap);
 			vk::raii::Pipeline& GetPipeline();
-
 			const vk::raii::Pipeline& GetPipeline() const;
-
 			void Clear();
 
 		private:
@@ -215,48 +219,48 @@ namespace KGR
 		Core_Vulkan();
 
 		void Init(_GLFW::Window* window);
-		void InitInstance();
-		void CreatePhysicalDevice();
-		void CreateSurface(_GLFW::Window* window);
-		void CreateDevice();
-		void CreateSwapchain(_GLFW::Window* window);
-		void RecreateSwapchain(_GLFW::Window* window);
-		void CreateCommandResources();
-		void CreateObjects();
-		void CreateViewImages();
 
-		void TransitionToTransferDst(CommandBuffer& cb, vk::Image& image);
-		void TransitionToPresent(CommandBuffer& cb, vk::Image& image);
-		void TransitionToColorAttachment(CommandBuffer& cb, vk::Image& image);
-		void TransitionFromColorAttachmentToPresent(CommandBuffer& cb, vk::Image& image);
-
-		i32t AcquireNextImage(ui32t frameIndex);
-		void SubmitCommands(ui32t frameIndex);
-		i32t Present(ui32t frameIndex, ui32t imageIndex);
+		i32t Begin();
+		i32t End();
 
 		void WaitIdle();
 		void Cleanup();
+
+		void RecreateSwapchain();
+		void Transition(_Vulkan::TransitionType type, CommandBuffer& cb);
 
 		_Vulkan::_Instance& GetInstance();
 		_Vulkan::_Device& GetDevice();
 		_Vulkan::_PhysicalDevice& GetPhysicalDevice();
 		_Vulkan::_CommandBuffer& GetCommandBuffer(ui32t frameIndex);
-		std::vector<vk::Image>& GetSCImages();
 		_Vulkan::_Swapchain& GetSwapchain();
-
-		void CreatePipeline();
-
 		_Vulkan::_PipeLine& GetPipeline();
+
+		std::vector<vk::Image>& GetSCImages();
+		vk::Image& GetCurrentImage();
+		vk::ImageView GetCurrentImageView();
 
 		ui32t GetFrameCount() const;
 		ui32t GetCurrentImageIndex() const;
-		vk::Image& GetCurrentImage();
-		vk::ImageView GetCurrentImageView();
 		ui32t GetCurrentFrame() const;
 
 		vk::PhysicalDeviceType GetGPU();
-		i32t Begin();
-		i32t End();
+
+	protected:
+
+		void InitInstance();
+		void CreatePhysicalDevice();
+		void CreateSurface(_GLFW::Window* window);
+		void CreateDevice();
+		void CreateSwapchain(_GLFW::Window* window);
+		void CreateCommandResources();
+		void CreateObjects();
+		void CreateViewImages();
+		void CreatePipeline();
+
+		i32t AcquireNextImage(ui32t frameIndex);
+		void SubmitCommands(ui32t frameIndex);
+		i32t Present(ui32t frameIndex, ui32t imageIndex);
 
 	private:
 
@@ -292,6 +296,8 @@ namespace KGR
 		std::vector<vk::Image> m_scImages;
 		std::vector<ImageView> m_viewImages;
 		std::vector<_Vulkan::_FrameData> m_frameData;
+		std::vector<_Vulkan::_Semaphore> m_submitSemaphores;
+		std::vector<vk::ImageLayout> m_imageLayouts;
 
 		ui32t m_currentFrame = 0;
 		ui32t m_currentImageIndex = 0;
