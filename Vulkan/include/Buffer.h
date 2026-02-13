@@ -14,34 +14,40 @@ namespace KGR
 			using vkBuffer = vk::raii::Buffer;
 			using vkBufferMemory = vk::raii::DeviceMemory;
 			Buffer() = default;
-			template<typename elemType,size_t elemSize>
-			Buffer(Device* device, Queue* queue, CommandBuffers* buffers, PhysicalDevice* phDevice, vk::BufferUsageFlags usage,const std::array<elemType,elemSize>& data);
-			Buffer(Device* device, Queue* queue, CommandBuffers* buffers, PhysicalDevice* phDevice, vk::BufferUsageFlags usage, size_t size, const void* data);
+		
 
-			vkBuffer& Get()
-			{
-				return m_buffer;
-			}
-			const vkBuffer& Get() const
-			{
-				return m_buffer;
-			}
+			vkBuffer& Get();
+			const vkBuffer& Get() const;
+			Buffer(Device* device, PhysicalDevice* phDevice, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags MemoryProperties,size_t size);
+			template<typename elemType, size_t elemSize>
+			void Upload(const std::array<elemType, elemSize>& data);
+			template<typename elemType>
+			void Upload(const std::vector<elemType>& data);
+			void Upload(const void* data,size_t size);
+			void Copy(Buffer* other, Device* device, Queue* queue, CommandBuffers* buffers);
 		private:
 			static void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
 				vk::MemoryPropertyFlags properties, vk::raii::Buffer& buffer, vk::raii::DeviceMemory& bufferMemory,Device* device, PhysicalDevice* phDevice);
-
 			static void copyBuffer(vk::raii::Buffer& srcBuffer, vk::raii::Buffer& dstBuffer, vk::DeviceSize size,Device* device,Queue* queue,CommandBuffers* commandBuffer);
-
 			static uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties, PhysicalDevice* phDevice);
-
+			size_t m_size = 0;
 			vkBuffer m_buffer = nullptr;
 			vkBufferMemory m_bufferMemory = nullptr;
 		};
 
-		template <typename elemType, size_t elemSize>
-		Buffer::Buffer(Device* device, Queue* queue, CommandBuffers* buffers, PhysicalDevice* phDevice, vk::BufferUsageFlags usage, const std::array<elemType, elemSize>& data) : Buffer(device, queue, buffers, phDevice, (data.empty() ? 0 : sizeof(data[0]))* data.size(), data.data())
-		{}
-
 		
+		
+
+		template <typename elemType, size_t elemSize>
+		void Buffer::Upload(const std::array<elemType, elemSize>& data)
+		{
+			Upload(data.data(), data.size() * (data.empty() ? 0 : sizeof(data[0])));
+		}
+
+		template <typename elemType>
+		void Buffer::Upload(const std::vector<elemType>& data)
+		{
+			Upload(data.data(), data.size() * (data.empty() ? 0 : sizeof(data[0])));
+		}
 	}
 }

@@ -48,10 +48,20 @@ void KGR::_Vulkan::VulkanCore::initVulkan()
 	// Command Buffer
 	commandBuffers = _Vulkan::CommandBuffers(&device);
 	// vertex
-	vertexBuffer = _Vulkan::Buffer(&device, &queue, &commandBuffers, &physicalDevice, vk::BufferUsageFlagBits::eVertexBuffer, sizeof(vertices[0])*vertices.size(),vertices.data());
+	size_t vertSize = vertices.size() * sizeof(vertices[0]);
+	auto vertexTmp = _Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, vertSize);
+	vertexTmp.Upload(vertices);
+	vertexBuffer = _Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, vertSize);
+	vertexBuffer.Copy(&vertexTmp, &device, &queue, &commandBuffers);
 	// index
-	indexBuffer = _Vulkan::Buffer(&device, &queue, &commandBuffers, &physicalDevice, vk::BufferUsageFlagBits::eIndexBuffer, sizeof(indices[0]) *indices.size(), indices.data());
+	size_t indexSize = indices.size() * sizeof(indices[0]);
+	auto indexTmp = _Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, indexSize);
+	indexTmp.Upload(indices);
+	indexBuffer = _Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, indexSize);
+	indexBuffer.Copy(&indexTmp, &device, &queue, &commandBuffers);	
 	//
+
+
 	createSyncObjects();
 }
 
@@ -125,9 +135,11 @@ void KGR::_Vulkan::VulkanCore::recordCommandBuffer(uint32_t imageIndex, vk::raii
 	commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(swapChain.GetExtend().width), static_cast<float>(swapChain.GetExtend().height), 0.0f, 1.0f));
 	commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapChain.GetExtend()));
 	commandBuffer.bindVertexBuffers(0, *vertexBuffer.Get(), { 0 });
-	commandBuffer.bindIndexBuffer(*indexBuffer.Get(), 0, vk::IndexTypeValue<decltype(indices)::value_type>::value);
+	commandBuffer.bindIndexBuffer(*indexBuffer.Get(), 0, vk::IndexTypeValue<uint16_t>::value);
 	commandBuffer.drawIndexed(indices.size(), 1, 0, 0, 0);
 	commandBuffer.endRendering();
+
+
 	// After rendering, transition the swapchain image to PRESENT_SRC
 	transition_image_layout(
 		imageIndex,

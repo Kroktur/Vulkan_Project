@@ -64,7 +64,6 @@ namespace KGR
 
 			Buffer vertexBuffer;
 			Buffer indexBuffer;
-
 			CommandBuffers         commandBuffers;
 
 

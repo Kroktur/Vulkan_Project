@@ -3,20 +3,38 @@
 #include "CommandBuffers.h"
 #include "Queue.h"
 #include "PhysicalDevice.h"
-KGR::_Vulkan::Buffer::Buffer(Device* device, Queue* queue, CommandBuffers* buffers, PhysicalDevice* phDevice, vk::BufferUsageFlags usage, size_t size, const void* data)
+
+KGR::_Vulkan::Buffer::vkBuffer& KGR::_Vulkan::Buffer::Get()
 {
+	return m_buffer;
+}
 
+const KGR::_Vulkan::Buffer::vkBuffer& KGR::_Vulkan::Buffer::Get() const
+{
+	return m_buffer;
+}
 
-	vk::raii::Buffer       stagingBuffer({});
-	vk::raii::DeviceMemory stagingBufferMemory({});
-	createBuffer(size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, stagingBuffer, stagingBufferMemory,device,phDevice);
-	void* mData = stagingBufferMemory.mapMemory(0, size);
-	memcpy(mData, data, (size_t)size);
-	stagingBufferMemory.unmapMemory();
+KGR::_Vulkan::Buffer::Buffer(Device* device, PhysicalDevice* phDevice,
+	vk::BufferUsageFlags usage, vk::MemoryPropertyFlags MemoryProperties,size_t size)
+{
+	m_size = size;
+	createBuffer(m_size,  usage, MemoryProperties, m_buffer, m_bufferMemory, device, phDevice);
+}
 
-	createBuffer(size, vk::BufferUsageFlagBits::eTransferDst | usage, vk::MemoryPropertyFlagBits::eDeviceLocal, m_buffer, m_bufferMemory, device, phDevice);
+void KGR::_Vulkan::Buffer::Upload(const void* data, size_t size)
+{
+	if (size > m_size)
+		throw std::out_of_range("impossible to upload");
+	void* mData = m_bufferMemory.mapMemory(0, size);
+	std::memcpy(mData, data, (size_t)size);
+	m_bufferMemory.unmapMemory();
+}
 
-	copyBuffer(stagingBuffer, m_buffer, size,device,queue, buffers);
+void KGR::_Vulkan::Buffer::Copy(Buffer* other, Device* device, Queue* queue, CommandBuffers* buffers)
+{
+	if (other->m_size > m_size)
+		throw std::out_of_range("impossible to copy");
+	copyBuffer(other->m_buffer, m_buffer, other->m_size , device, queue, buffers);
 }
 
 void KGR::_Vulkan::Buffer::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
