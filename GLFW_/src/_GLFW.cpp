@@ -1,6 +1,8 @@
 #include "GLFWFiles.h"
 #include "_GLFW.h"
 
+#include <stdexcept>
+
 KGR::_GLFW::Window::Window()
 	: m_window(nullptr)
 	, m_lasWindowedPos(0, 0)
