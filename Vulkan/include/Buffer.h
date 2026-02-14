@@ -39,7 +39,6 @@ namespace KGR
 			size_t m_size = 0;
 			vkBuffer m_buffer = nullptr;
 			vkBufferMemory m_bufferMemory = nullptr;
-			bool m_isMapped = false;
 		};
 
 		

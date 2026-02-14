@@ -18,6 +18,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <chrono>
+#include <stb_image.h>
+
 struct UniformBufferObject {
 	glm::mat4 model;
 	glm::mat4 view;
@@ -66,6 +68,33 @@ namespace KGR
 
 			void createDescriptorPool();
 
+			void createTextureImage();
+			
+			void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image& image, vk::raii::DeviceMemory& imageMemory);
+
+			void transitionImageLayout(const vk::raii::Image& image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+
+			void copyBufferToImage(const vk::raii::Buffer& buffer, vk::raii::Image& image, uint32_t width, uint32_t height);
+
+
+			void createTextureImageView();
+
+			void createTextureSampler();
+
+			vk::raii::ImageView createImageView(vk::raii::Image& image, vk::Format format)
+			{
+				vk::ImageViewCreateInfo viewInfo{
+					.image = image,
+					.viewType = vk::ImageViewType::e2D,
+					.format = format,
+					.subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1} };
+				return vk::raii::ImageView(device.Get(), viewInfo);
+			}
+
+			std::unique_ptr<vk::raii::CommandBuffer> beginSingleTimeCommands();
+
+			void endSingleTimeCommands(vk::raii::CommandBuffer& commandBuffer);
+
 
 			void updateUniformBuffer(uint32_t currentImage);
 			// callBack for instance
@@ -98,6 +127,11 @@ namespace KGR
 			std::vector<vk::raii::Semaphore> renderFinishedSemaphores;
 			std::vector<vk::raii::Fence>     inFlightFences;
 			uint32_t                         frameIndex = 0;
+
+			vk::raii::Image textureImage = nullptr;
+			vk::raii::DeviceMemory textureImageMemory = nullptr;
+			vk::raii::ImageView    textureImageView = nullptr;
+			vk::raii::Sampler      textureSampler = nullptr;
 
 
 

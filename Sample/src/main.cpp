@@ -130,6 +130,7 @@ int main(int argc, char** argv)
 	std::filesystem::path projectRoot = exePath.parent_path().parent_path().parent_path().parent_path().parent_path();
 
 	fileManager::SetGlobalFIlePath(projectRoot / "Ressources");
+	STBManager::SetGlobalFIlePath(projectRoot / "Ressources");
 
 	KGR::_GLFW::Window::Init();
 	KGR::_GLFW::Window::AddHint(GLFW_CLIENT_API, GLFW_NO_API);

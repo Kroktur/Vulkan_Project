@@ -76,6 +76,7 @@ set(VulkanLib ${VulkanSDK_DIR}/Lib)
 target_include_directories(${PROJECT_NAME}
     PUBLIC 
     ${HEADER_DIR}
+     ${CMAKE_CURRENT_SOURCE_DIR}/../External/STB/Includes
   # ${MYLIB_HEADER}
     PRIVATE
   # ${MYLIB_HEADER}

@@ -11,3 +11,8 @@ inline std::unique_ptr<std::ifstream> LoadFile(const std::string& filePath)
 	return std::move(file);
 }
 using fileManager = KGR::ResourceManager<std::ifstream, KGR::TypeWrapper<>, LoadFile>;
+
+#include "stb_image.h"
+
+std::unique_ptr<stbi_uc*> LoadFile2(const std::string& filePath, int* texWidth, int* texHeight, int* texChannels);
+using STBManager = KGR::ResourceManager<stbi_uc*, KGR::TypeWrapper<int*,int*,int*>, LoadFile2>;

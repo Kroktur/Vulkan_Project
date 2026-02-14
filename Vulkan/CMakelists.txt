@@ -75,6 +75,7 @@ target_include_directories(${PROJECT_NAME}
     PUBLIC 
     ${HEADER_DIR}
     ${VukanHeader}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../External/STB/Includes
   # ${MYLIB_HEADER}
     PRIVATE
   # ${MYLIB_HEADER}

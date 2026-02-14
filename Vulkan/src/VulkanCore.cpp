@@ -51,19 +51,26 @@ void KGR::_Vulkan::VulkanCore::initVulkan()
 	// vertex
 	size_t vertSize = vertices.size() * sizeof(vertices[0]);
 	auto vertexTmp = _Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, vertSize);
+	vertexTmp.MapMemory(vertSize);
 	vertexTmp.Upload(vertices);
+	vertexTmp.UnMapMemory();
 	vertexBuffer = _Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, vertSize);
 	vertexBuffer.Copy(&vertexTmp, &device, &queue, &commandBuffers);
 	// index
 	size_t indexSize = indices.size() * sizeof(indices[0]);
 	auto indexTmp = _Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, indexSize);
+	indexTmp.MapMemory(indexSize);
 	indexTmp.Upload(indices);
+	indexTmp.UnMapMemory();
 	indexBuffer = _Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, indexSize);
 	indexBuffer.Copy(&indexTmp, &device, &queue, &commandBuffers);	
 	//
 
 
 	createSyncObjects();
+	createTextureImage();
+	createTextureImageView();
+	createTextureSampler();
 	createUniformBuffers();
 	createDescriptorPool();
 	createDescriptorSets();
@@ -341,6 +348,120 @@ void KGR::_Vulkan::VulkanCore::createDescriptorPool()
 	descriptorPool = vk::raii::DescriptorPool(device.Get(), poolInfo);
 }
 
+void KGR::_Vulkan::VulkanCore::createTextureImage()
+{
+	int texWidth, texHeight, texChannels;
+	stbi_uc* pixels = STBManager::Load("Textures\\texture.jpg", &texWidth, &texHeight, &texChannels);
+	vk::DeviceSize imageSize = texWidth * texHeight * 4;
+
+	if (!pixels) {
+		throw std::runtime_error("failed to load texture image!");
+	}
+	size_t size = imageSize;
+	Buffer buffer = Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, imageSize);
+	buffer.MapMemory(imageSize);
+	buffer.Upload(pixels,imageSize);
+	buffer.UnMapMemory();
+	stbi_image_free(pixels);
+	STBManager::Unload("Textures\\texture.jpg");
+	createImage(texWidth, texHeight, vk::Format::eR8G8B8A8Srgb, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal, textureImage, textureImageMemory);
+	transitionImageLayout(textureImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+	copyBufferToImage(buffer.Get(), textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+	transitionImageLayout(textureImage, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+}
+
+void KGR::_Vulkan::VulkanCore::createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling,
+	vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image& image,
+	vk::raii::DeviceMemory& imageMemory)
+{
+	vk::ImageCreateInfo imageInfo{ .imageType = vk::ImageType::e2D, .format = format, .extent = {width, height, 1}, .mipLevels = 1, .arrayLayers = 1, .samples = vk::SampleCountFlagBits::e1, .tiling = tiling, .usage = usage, .sharingMode = vk::SharingMode::eExclusive };
+	image = vk::raii::Image(device.Get(), imageInfo);
+	vk::MemoryRequirements memRequirements = image.getMemoryRequirements();
+	vk::MemoryAllocateInfo allocInfo{ .allocationSize = memRequirements.size,
+		.memoryTypeIndex = Buffer::findMemoryType(memRequirements.memoryTypeBits, properties,&physicalDevice) };
+	imageMemory = vk::raii::DeviceMemory(device.Get(), allocInfo);
+	image.bindMemory(imageMemory, 0);
+}
+
+void KGR::_Vulkan::VulkanCore::transitionImageLayout(const vk::raii::Image& image, vk::ImageLayout oldLayout,
+	vk::ImageLayout newLayout)
+{
+	auto commandBuffer = beginSingleTimeCommands();
+	vk::ImageMemoryBarrier barrier{ .oldLayout = oldLayout, .newLayout = newLayout, .image = image, .subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1} };
+	vk::PipelineStageFlags sourceStage;
+	vk::PipelineStageFlags destinationStage;
+	if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal)
+	{
+		barrier.srcAccessMask = {};
+		barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+		sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;
+		destinationStage = vk::PipelineStageFlagBits::eTransfer;
+	}
+	else if (oldLayout == vk::ImageLayout::eTransferDstOptimal && newLayout == vk::ImageLayout::eShaderReadOnlyOptimal)
+	{
+		barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+		barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+		sourceStage = vk::PipelineStageFlagBits::eTransfer;
+		destinationStage = vk::PipelineStageFlagBits::eFragmentShader;
+	}
+	else
+	{
+		throw std::invalid_argument("unsupported layout transition!");
+	}
+	commandBuffer->pipelineBarrier(sourceStage, destinationStage, {}, {}, nullptr, barrier);
+	endSingleTimeCommands(*commandBuffer);
+}
+
+void KGR::_Vulkan::VulkanCore::copyBufferToImage(const vk::raii::Buffer& buffer, vk::raii::Image& image, uint32_t width,
+	uint32_t height)
+{
+	std::unique_ptr<vk::raii::CommandBuffer> commandBuffer = beginSingleTimeCommands();
+	vk::BufferImageCopy                      region{ .bufferOffset = 0, .bufferRowLength = 0, .bufferImageHeight = 0, .imageSubresource = {vk::ImageAspectFlagBits::eColor, 0, 0, 1}, .imageOffset = {0, 0, 0}, .imageExtent = {width, height, 1} };
+	commandBuffer->copyBufferToImage(buffer, image, vk::ImageLayout::eTransferDstOptimal, { region });
+	endSingleTimeCommands(*commandBuffer);
+}
+
+void KGR::_Vulkan::VulkanCore::createTextureImageView()
+{
+	textureImageView = createImageView(textureImage, vk::Format::eR8G8B8A8Srgb);
+}
+
+void KGR::_Vulkan::VulkanCore::createTextureSampler()
+{
+	vk::PhysicalDeviceProperties properties = physicalDevice.Get().getProperties();
+	vk::SamplerCreateInfo        samplerInfo{
+		.magFilter = vk::Filter::eLinear,
+		.minFilter = vk::Filter::eLinear,
+		.mipmapMode = vk::SamplerMipmapMode::eLinear,
+		.addressModeU = vk::SamplerAddressMode::eRepeat,
+		.addressModeV = vk::SamplerAddressMode::eRepeat,
+		.addressModeW = vk::SamplerAddressMode::eRepeat,
+		.mipLodBias = 0.0f,
+		.anisotropyEnable = vk::True,
+		.maxAnisotropy = properties.limits.maxSamplerAnisotropy,
+		.compareEnable = vk::False,
+		.compareOp = vk::CompareOp::eAlways };
+	textureSampler = vk::raii::Sampler(device.Get(), samplerInfo);
+}
+
+std::unique_ptr<vk::raii::CommandBuffer> KGR::_Vulkan::VulkanCore::beginSingleTimeCommands()
+{
+	vk::CommandBufferAllocateInfo            allocInfo{ .commandPool = commandBuffers.GetPool(), .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1 };
+	std::unique_ptr<vk::raii::CommandBuffer> commandBuffer = std::make_unique<vk::raii::CommandBuffer>(std::move(vk::raii::CommandBuffers(device.Get(), allocInfo).front()));
+	vk::CommandBufferBeginInfo beginInfo{ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit };
+	commandBuffer->begin(beginInfo);
+	return commandBuffer;
+}
+
+void KGR::_Vulkan::VulkanCore::endSingleTimeCommands(vk::raii::CommandBuffer& commandBuffer)
+{
+	commandBuffer.end();
+	vk::SubmitInfo submitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandBuffer };
+	queue.Get().submit(submitInfo, nullptr);
+	queue.Get().waitIdle();
+}
+
+
 void KGR::_Vulkan::VulkanCore::updateUniformBuffer(uint32_t currentImage)
 {
 	static auto startTime = std::chrono::high_resolution_clock::now();
@@ -369,5 +490,8 @@ vk::Bool32 KGR::_Vulkan::VulkanCore::debugCallback(vk::DebugUtilsMessageSeverity
 	return vk::False;
 }
 
+
+
+//IMPL
 
 
