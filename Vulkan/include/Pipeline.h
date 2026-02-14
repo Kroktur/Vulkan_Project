@@ -19,7 +19,7 @@ namespace KGR
 			using vkPipeline = vk::raii::Pipeline;
 			using vkPipelineLayout = vk::raii::PipelineLayout;
 			Pipeline() = default;
-			Pipeline(const ShaderInfo& shaderInfo,Device* device,SwapChain* swapChain);
+			Pipeline(const ShaderInfo& shaderInfo,Device* device,SwapChain* swapChain, vk::raii::DescriptorSetLayout& layout);
 
 			vkPipelineLayout& GetLayout();
 

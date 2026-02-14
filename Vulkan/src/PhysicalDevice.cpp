@@ -31,7 +31,8 @@ KGR::_Vulkan::PhysicalDevice::PhysicalDevice(Instance* instance,DeviceType wante
 
 		score += dProperties.limits.maxImageDimension2D;
 		score += dProperties.limits.maxComputeWorkGroupInvocations;
-		score += vRam;
+		score += vRam / (1024ull * 1024ull * 1024ull);
+		auto totoScore = static_cast<int>(score);
 		if (static_cast<int>(score) > bestScore)
 		{
 			selectedDevice = &d;

@@ -44,7 +44,8 @@ void KGR::_Vulkan::VulkanCore::initVulkan()
 		.vertexMain = "vertMain",
 		.fragmentMain = "fragMain"
 	};
-	graphicsPipeline = _Vulkan::Pipeline(info, &device, &swapChain);
+	createDescriptorSetLayout();
+	graphicsPipeline = _Vulkan::Pipeline(info, &device, &swapChain,descriptorSetLayout);
 	// Command Buffer
 	commandBuffers = _Vulkan::CommandBuffers(&device);
 	// vertex
@@ -63,6 +64,9 @@ void KGR::_Vulkan::VulkanCore::initVulkan()
 
 
 	createSyncObjects();
+	createUniformBuffers();
+	createDescriptorPool();
+	createDescriptorSets();
 }
 
 void KGR::_Vulkan::VulkanCore::mainLoop()
@@ -96,7 +100,7 @@ void KGR::_Vulkan::VulkanCore::recreateSwapChain()
 		.vertexMain = "vertMain",
 		.fragmentMain = "fragMain"
 	};
-	graphicsPipeline = _Vulkan::Pipeline(info, &device, &swapChain);
+	graphicsPipeline = _Vulkan::Pipeline(info, &device, &swapChain,descriptorSetLayout);
 }
 
 
@@ -136,6 +140,7 @@ void KGR::_Vulkan::VulkanCore::recordCommandBuffer(uint32_t imageIndex, vk::raii
 	commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapChain.GetExtend()));
 	commandBuffer.bindVertexBuffers(0, *vertexBuffer.Get(), { 0 });
 	commandBuffer.bindIndexBuffer(*indexBuffer.Get(), 0, vk::IndexTypeValue<uint16_t>::value);
+	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, graphicsPipeline.GetLayout(), 0, *descriptorSets[frameIndex], nullptr);
 	commandBuffer.drawIndexed(indices.size(), 1, 0, 0, 0);
 	commandBuffer.endRendering();
 
@@ -265,6 +270,8 @@ void KGR::_Vulkan::VulkanCore::drawFrame()
 	buffer.reset();
 
 
+	updateUniformBuffer(imageIndex);
+
 	recordCommandBuffer(imageIndex, buffer);
 
 	vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
@@ -294,18 +301,65 @@ void KGR::_Vulkan::VulkanCore::drawFrame()
 	frameIndex = (frameIndex + 1) % swapChain.GetImagesCount();
 }
 
+void KGR::_Vulkan::VulkanCore::createUniformBuffers()
+{
+	uniformBuffers.clear();
+	for (size_t i = 0; i < swapChain.GetImagesCount(); i++) {
+		vk::DeviceSize bufferSize = sizeof(UniformBufferObject);
+		auto buffer = Buffer( &device, &physicalDevice, vk::BufferUsageFlagBits::eUniformBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,bufferSize);
+		buffer.MapMemory(bufferSize);
+		uniformBuffers.emplace_back(std::move(buffer));
+	}
+}
 
+void KGR::_Vulkan::VulkanCore::createDescriptorSetLayout()
+{
+	vk::DescriptorSetLayoutBinding    uboLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr);
+	vk::DescriptorSetLayoutCreateInfo layoutInfo{ .bindingCount = 1, .pBindings = &uboLayoutBinding };
+	descriptorSetLayout = vk::raii::DescriptorSetLayout(device.Get(), layoutInfo);
+}
 
+void KGR::_Vulkan::VulkanCore::createDescriptorSets()
+{
+	std::vector<vk::DescriptorSetLayout> layouts(swapChain.GetImagesCount(), *descriptorSetLayout);
+	vk::DescriptorSetAllocateInfo        allocInfo{ .descriptorPool = descriptorPool, .descriptorSetCount = static_cast<uint32_t>(layouts.size()), .pSetLayouts = layouts.data() };
 
+	descriptorSets = device.Get().allocateDescriptorSets(allocInfo);
 
+	for (size_t i = 0; i < swapChain.GetImagesCount(); i++)
+	{
+		vk::DescriptorBufferInfo bufferInfo{ .buffer = uniformBuffers[i].Get(), .offset = 0, .range = sizeof(UniformBufferObject) };
+		vk::WriteDescriptorSet   descriptorWrite{ .dstSet = descriptorSets[i], .dstBinding = 0, .dstArrayElement = 0, .descriptorCount = 1, .descriptorType = vk::DescriptorType::eUniformBuffer, .pBufferInfo = &bufferInfo };
+		device.Get().updateDescriptorSets(descriptorWrite, {});
+	}
+}
 
+void KGR::_Vulkan::VulkanCore::createDescriptorPool()
+{
+	vk::DescriptorPoolSize       poolSize(vk::DescriptorType::eUniformBuffer, swapChain.GetImagesCount());
+	vk::DescriptorPoolCreateInfo poolInfo{ .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, .maxSets = swapChain.GetImagesCount(), .poolSizeCount = 1, .pPoolSizes = &poolSize };
+	descriptorPool = vk::raii::DescriptorPool(device.Get(), poolInfo);
+}
 
+void KGR::_Vulkan::VulkanCore::updateUniformBuffer(uint32_t currentImage)
+{
+	static auto startTime = std::chrono::high_resolution_clock::now();
 
+	auto  currentTime = std::chrono::high_resolution_clock::now();
+	float time = std::chrono::duration<float>(currentTime - startTime).count();
 
+	UniformBufferObject ubo{};
+	ubo.model = rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.view = lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.proj = glm::perspective(glm::radians(45.0f), static_cast<float>(swapChain.GetExtend().width) / static_cast<float>(swapChain.GetExtend().height), 0.1f, 10.0f);
+	ubo.proj[1][1] *= -1;
+
+	uniformBuffers[currentImage].Upload(&ubo, sizeof(ubo));
+}
 
 
 vk::Bool32 KGR::_Vulkan::VulkanCore::debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT severity,
-                                                                 vk::DebugUtilsMessageTypeFlagsEXT type, const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData, void*)
+                                                   vk::DebugUtilsMessageTypeFlagsEXT type, const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData, void*)
 {
 	if (severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eError || severity == vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning)
 	{

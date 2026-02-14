@@ -13,6 +13,19 @@
 #include "Queue.h"
 #include "SwapChain.h"
 #include "CommandBuffers.h"
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <chrono>
+struct UniformBufferObject {
+	glm::mat4 model;
+	glm::mat4 view;
+	glm::mat4 proj;
+};
+
+
+
 namespace KGR
 {
 	namespace _Vulkan
@@ -45,8 +58,16 @@ namespace KGR
 
 			void drawFrame();
 			
+			void createUniformBuffers();
+
+			void createDescriptorSetLayout();
+
+			void createDescriptorSets();
+
+			void createDescriptorPool();
 
 
+			void updateUniformBuffer(uint32_t currentImage);
 			// callBack for instance
 			static VKAPI_ATTR vk::Bool32 VKAPI_CALL debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT severity, vk::DebugUtilsMessageTypeFlagsEXT type, const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData, void*);
 		private:
@@ -60,12 +81,18 @@ namespace KGR
 			Queue				   queue ;
 			SwapChain              swapChain;
 			ImagesViews            swapChainImageViews;
+
+			vk::raii::DescriptorSetLayout descriptorSetLayout = nullptr;
+			vk::raii::DescriptorPool descriptorPool = nullptr;
+			std::vector<vk::raii::DescriptorSet> descriptorSets;
 			Pipeline               graphicsPipeline;
 
 			Buffer vertexBuffer;
 			Buffer indexBuffer;
 			CommandBuffers         commandBuffers;
 
+
+			std::vector<Buffer> uniformBuffers;
 
 			std::vector<vk::raii::Semaphore> presentCompleteSemaphores;
 			std::vector<vk::raii::Semaphore> renderFinishedSemaphores;

@@ -24,15 +24,22 @@ namespace KGR
 			template<typename elemType>
 			void Upload(const std::vector<elemType>& data);
 			void Upload(const void* data,size_t size);
+
+
+
 			void Copy(Buffer* other, Device* device, Queue* queue, CommandBuffers* buffers);
-		private:
 			static void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
-				vk::MemoryPropertyFlags properties, vk::raii::Buffer& buffer, vk::raii::DeviceMemory& bufferMemory,Device* device, PhysicalDevice* phDevice);
-			static void copyBuffer(vk::raii::Buffer& srcBuffer, vk::raii::Buffer& dstBuffer, vk::DeviceSize size,Device* device,Queue* queue,CommandBuffers* commandBuffer);
+				vk::MemoryPropertyFlags properties, vk::raii::Buffer& buffer, vk::raii::DeviceMemory& bufferMemory, Device* device, PhysicalDevice* phDevice);
+			static void copyBuffer(vk::raii::Buffer& srcBuffer, vk::raii::Buffer& dstBuffer, vk::DeviceSize size, Device* device, Queue* queue, CommandBuffers* commandBuffer);
 			static uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties, PhysicalDevice* phDevice);
+			void MapMemory(size_t size);
+			void UnMapMemory();
+		private:
+			void* dest = nullptr;
 			size_t m_size = 0;
 			vkBuffer m_buffer = nullptr;
 			vkBufferMemory m_bufferMemory = nullptr;
+			bool m_isMapped = false;
 		};
 
 		
@@ -49,5 +56,6 @@ namespace KGR
 		{
 			Upload(data.data(), data.size() * (data.empty() ? 0 : sizeof(data[0])));
 		}
+
 	}
 }

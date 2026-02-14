@@ -22,13 +22,13 @@ KGR::_Vulkan::Buffer::Buffer(Device* device, PhysicalDevice* phDevice,
 }
 
 void KGR::_Vulkan::Buffer::Upload(const void* data, size_t size)
-{
-	if (size > m_size)
-		throw std::out_of_range("impossible to upload");
-	void* mData = m_bufferMemory.mapMemory(0, size);
-	std::memcpy(mData, data, (size_t)size);
-	m_bufferMemory.unmapMemory();
+{	
+
+	MapMemory(size);
+	std::memcpy(dest, data, (size_t)size);
+	UnMapMemory();
 }
+
 
 void KGR::_Vulkan::Buffer::Copy(Buffer* other, Device* device, Queue* queue, CommandBuffers* buffers)
 {
@@ -74,3 +74,24 @@ void KGR::_Vulkan::Buffer::createBuffer(vk::DeviceSize size, vk::BufferUsageFlag
 
 	throw std::runtime_error("failed to find suitable memory type!");
 }
+
+void KGR::_Vulkan::Buffer::MapMemory(size_t size)
+{
+	if (size > m_size)
+		throw std::out_of_range("impossible to upload");
+	if (m_isMapped)
+		return;
+	dest = m_bufferMemory.mapMemory(0, size);
+	m_isMapped = true;
+}
+
+void KGR::_Vulkan::Buffer::UnMapMemory()
+{
+	if (!m_isMapped)
+		return;
+	m_isMapped = false;
+	m_bufferMemory.unmapMemory();
+	dest = nullptr;
+}
+
+
