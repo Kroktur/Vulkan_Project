@@ -116,9 +116,13 @@ void KGR::_Vulkan::VulkanCore::recreateSwapChain()
 
 void KGR::_Vulkan::VulkanCore::recordCommandBuffer(uint32_t imageIndex, vk::raii::CommandBuffer& buffer)
 {
+	// on set le vuffer 
 	auto& commandBuffer =buffer;
+	// on begin
 	commandBuffer.begin({});
 	// Before starting rendering, transition the swapchain image to COLOR_ATTACHMENT_OPTIMAL
+
+
 	transition_image_layout(
 		imageIndex,
 		vk::ImageLayout::eUndefined,
@@ -129,6 +133,7 @@ void KGR::_Vulkan::VulkanCore::recordCommandBuffer(uint32_t imageIndex, vk::raii
 		vk::PipelineStageFlagBits2::eColorAttachmentOutput         // dstStage
 		,commandBuffer
 	);
+
 	vk::ClearValue              clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
 	vk::RenderingAttachmentInfo attachmentInfo = {
 		.imageView = swapChainImageViews.Get()[imageIndex],
@@ -321,30 +326,65 @@ void KGR::_Vulkan::VulkanCore::createUniformBuffers()
 
 void KGR::_Vulkan::VulkanCore::createDescriptorSetLayout()
 {
-	vk::DescriptorSetLayoutBinding    uboLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr);
-	vk::DescriptorSetLayoutCreateInfo layoutInfo{ .bindingCount = 1, .pBindings = &uboLayoutBinding };
-	descriptorSetLayout = vk::raii::DescriptorSetLayout(device.Get(), layoutInfo);
+	
+		std::array bindings = {
+			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr),
+			vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, nullptr) };
+
+		vk::DescriptorSetLayoutCreateInfo layoutInfo{ .bindingCount = static_cast<uint32_t>(bindings.size()), .pBindings = bindings.data() };
+		descriptorSetLayout = vk::raii::DescriptorSetLayout(device.Get(), layoutInfo);
 }
 
 void KGR::_Vulkan::VulkanCore::createDescriptorSets()
 {
-	std::vector<vk::DescriptorSetLayout> layouts(swapChain.GetImagesCount(), *descriptorSetLayout);
-	vk::DescriptorSetAllocateInfo        allocInfo{ .descriptorPool = descriptorPool, .descriptorSetCount = static_cast<uint32_t>(layouts.size()), .pSetLayouts = layouts.data() };
+	std::vector<vk::DescriptorSetLayout> layouts(swapChain.GetImagesCount(), descriptorSetLayout);
+	vk::DescriptorSetAllocateInfo        allocInfo{
+			   .descriptorPool = descriptorPool,
+			   .descriptorSetCount = static_cast<uint32_t>(layouts.size()),
+			   .pSetLayouts = layouts.data() };
 
+	descriptorSets.clear();
 	descriptorSets = device.Get().allocateDescriptorSets(allocInfo);
 
 	for (size_t i = 0; i < swapChain.GetImagesCount(); i++)
 	{
-		vk::DescriptorBufferInfo bufferInfo{ .buffer = uniformBuffers[i].Get(), .offset = 0, .range = sizeof(UniformBufferObject) };
-		vk::WriteDescriptorSet   descriptorWrite{ .dstSet = descriptorSets[i], .dstBinding = 0, .dstArrayElement = 0, .descriptorCount = 1, .descriptorType = vk::DescriptorType::eUniformBuffer, .pBufferInfo = &bufferInfo };
-		device.Get().updateDescriptorSets(descriptorWrite, {});
+		vk::DescriptorBufferInfo bufferInfo{
+			.buffer = uniformBuffers[i].Get(),
+			.offset = 0,
+			.range = sizeof(UniformBufferObject) };
+		vk::DescriptorImageInfo imageInfo{
+			.sampler = textureSampler,
+			.imageView = textureImageView,
+			.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal };
+		std::array descriptorWrites{
+			vk::WriteDescriptorSet{
+				.dstSet = descriptorSets[i],
+				.dstBinding = 0,
+				.dstArrayElement = 0,
+				.descriptorCount = 1,
+				.descriptorType = vk::DescriptorType::eUniformBuffer,
+				.pBufferInfo = &bufferInfo},
+			vk::WriteDescriptorSet{
+				.dstSet = descriptorSets[i],
+				.dstBinding = 1,
+				.dstArrayElement = 0,
+				.descriptorCount = 1,
+				.descriptorType = vk::DescriptorType::eCombinedImageSampler,
+				.pImageInfo = &imageInfo} };
+		device.Get().updateDescriptorSets(descriptorWrites, {});
 	}
 }
 
 void KGR::_Vulkan::VulkanCore::createDescriptorPool()
 {
-	vk::DescriptorPoolSize       poolSize(vk::DescriptorType::eUniformBuffer, swapChain.GetImagesCount());
-	vk::DescriptorPoolCreateInfo poolInfo{ .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, .maxSets = swapChain.GetImagesCount(), .poolSizeCount = 1, .pPoolSizes = &poolSize };
+	std::array poolSize{
+				vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, swapChain.GetImagesCount()),
+				vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, swapChain.GetImagesCount()) };
+	vk::DescriptorPoolCreateInfo poolInfo{
+		.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+		.maxSets = swapChain.GetImagesCount(),
+		.poolSizeCount = static_cast<uint32_t>(poolSize.size()),
+		.pPoolSizes = poolSize.data() };
 	descriptorPool = vk::raii::DescriptorPool(device.Get(), poolInfo);
 }
 
@@ -374,8 +414,16 @@ void KGR::_Vulkan::VulkanCore::createImage(uint32_t width, uint32_t height, vk::
 	vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image& image,
 	vk::raii::DeviceMemory& imageMemory)
 {
-	vk::ImageCreateInfo imageInfo{ .imageType = vk::ImageType::e2D, .format = format, .extent = {width, height, 1}, .mipLevels = 1, .arrayLayers = 1, .samples = vk::SampleCountFlagBits::e1, .tiling = tiling, .usage = usage, .sharingMode = vk::SharingMode::eExclusive };
-	image = vk::raii::Image(device.Get(), imageInfo);
+	vk::ImageCreateInfo imageInfo{
+		.imageType = vk::ImageType::e2D,
+		.format = format,
+		.extent = {width, height, 1},
+		.mipLevels = 1,
+		.arrayLayers = 1,
+		.samples = vk::SampleCountFlagBits::e1,
+		.tiling = tiling,
+		.usage = usage,
+		.sharingMode = vk::SharingMode::eExclusive };	image = vk::raii::Image(device.Get(), imageInfo);
 	vk::MemoryRequirements memRequirements = image.getMemoryRequirements();
 	vk::MemoryAllocateInfo allocInfo{ .allocationSize = memRequirements.size,
 		.memoryTypeIndex = Buffer::findMemoryType(memRequirements.memoryTypeBits, properties,&physicalDevice) };
@@ -386,7 +434,8 @@ void KGR::_Vulkan::VulkanCore::createImage(uint32_t width, uint32_t height, vk::
 void KGR::_Vulkan::VulkanCore::transitionImageLayout(const vk::raii::Image& image, vk::ImageLayout oldLayout,
 	vk::ImageLayout newLayout)
 {
-	auto commandBuffer = beginSingleTimeCommands();
+	auto& commandBuffer = commandBuffers.Acquire(&device);
+	commandBuffer.begin({ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
 	vk::ImageMemoryBarrier barrier{ .oldLayout = oldLayout, .newLayout = newLayout, .image = image, .subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1} };
 	vk::PipelineStageFlags sourceStage;
 	vk::PipelineStageFlags destinationStage;
@@ -408,22 +457,31 @@ void KGR::_Vulkan::VulkanCore::transitionImageLayout(const vk::raii::Image& imag
 	{
 		throw std::invalid_argument("unsupported layout transition!");
 	}
-	commandBuffer->pipelineBarrier(sourceStage, destinationStage, {}, {}, nullptr, barrier);
-	endSingleTimeCommands(*commandBuffer);
+	commandBuffer.pipelineBarrier(sourceStage, destinationStage, {}, {}, nullptr, barrier);
+	commandBuffer.end();
+	vk::SubmitInfo submitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandBuffer };
+	queue.Get().submit(submitInfo, nullptr);
+	queue.Get().waitIdle();
 }
 
 void KGR::_Vulkan::VulkanCore::copyBufferToImage(const vk::raii::Buffer& buffer, vk::raii::Image& image, uint32_t width,
 	uint32_t height)
 {
-	std::unique_ptr<vk::raii::CommandBuffer> commandBuffer = beginSingleTimeCommands();
-	vk::BufferImageCopy                      region{ .bufferOffset = 0, .bufferRowLength = 0, .bufferImageHeight = 0, .imageSubresource = {vk::ImageAspectFlagBits::eColor, 0, 0, 1}, .imageOffset = {0, 0, 0}, .imageExtent = {width, height, 1} };
-	commandBuffer->copyBufferToImage(buffer, image, vk::ImageLayout::eTransferDstOptimal, { region });
-	endSingleTimeCommands(*commandBuffer);
+	vk::raii::CommandBuffer& commandBuffer = commandBuffers.Acquire(&device);
+	vk::BufferImageCopy  region{ .bufferOffset = 0, .bufferRowLength = 0, .bufferImageHeight = 0, .imageSubresource = {vk::ImageAspectFlagBits::eColor, 0, 0, 1}, .imageOffset = {0, 0, 0}, .imageExtent = {width, height, 1} };
+	vk::CommandBufferBeginInfo beginInfo{ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit };
+	commandBuffer.begin(beginInfo);
+	commandBuffer.copyBufferToImage(buffer, image, vk::ImageLayout::eTransferDstOptimal, { region });
+	commandBuffer.end();
+	vk::SubmitInfo submitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandBuffer };
+	queue.Get().submit(submitInfo, nullptr);
+	queue.Get().waitIdle();
+	commandBuffers.ReleaseCommandBuffer(commandBuffer);
 }
 
 void KGR::_Vulkan::VulkanCore::createTextureImageView()
 {
-	textureImageView = createImageView(textureImage, vk::Format::eR8G8B8A8Srgb);
+	textureImageView = createImageView(textureImage, vk::Format::eR8G8B8A8Srgb, vk::ImageAspectFlagBits::eColor);
 }
 
 void KGR::_Vulkan::VulkanCore::createTextureSampler()
@@ -444,21 +502,15 @@ void KGR::_Vulkan::VulkanCore::createTextureSampler()
 	textureSampler = vk::raii::Sampler(device.Get(), samplerInfo);
 }
 
-std::unique_ptr<vk::raii::CommandBuffer> KGR::_Vulkan::VulkanCore::beginSingleTimeCommands()
+vk::raii::ImageView KGR::_Vulkan::VulkanCore::createImageView(vk::raii::Image& image, vk::Format format, vk::ImageAspectFlags aspectFlags)
 {
-	vk::CommandBufferAllocateInfo            allocInfo{ .commandPool = commandBuffers.GetPool(), .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1 };
-	std::unique_ptr<vk::raii::CommandBuffer> commandBuffer = std::make_unique<vk::raii::CommandBuffer>(std::move(vk::raii::CommandBuffers(device.Get(), allocInfo).front()));
-	vk::CommandBufferBeginInfo beginInfo{ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit };
-	commandBuffer->begin(beginInfo);
-	return commandBuffer;
-}
-
-void KGR::_Vulkan::VulkanCore::endSingleTimeCommands(vk::raii::CommandBuffer& commandBuffer)
-{
-	commandBuffer.end();
-	vk::SubmitInfo submitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandBuffer };
-	queue.Get().submit(submitInfo, nullptr);
-	queue.Get().waitIdle();
+	vk::ImageViewCreateInfo viewInfo{
+	.image = image,
+	.viewType = vk::ImageViewType::e2D,
+	.format = format,
+    .subresourceRange = {aspectFlags, 0, 1, 0, 1}
+	};
+	return vk::raii::ImageView(device.Get(), viewInfo);
 }
 
 

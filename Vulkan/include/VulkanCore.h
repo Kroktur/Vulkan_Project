@@ -54,11 +54,13 @@ namespace KGR
 				vk::PipelineStageFlags2 src_stage_mask,
 				vk::PipelineStageFlags2 dst_stage_mask, vk::raii::CommandBuffer& buffer);
 
+			void drawFrame();
+
 			void createSyncObjects();
 	
 			
 
-			void drawFrame();
+		
 			
 			void createUniformBuffers();
 
@@ -81,19 +83,7 @@ namespace KGR
 
 			void createTextureSampler();
 
-			vk::raii::ImageView createImageView(vk::raii::Image& image, vk::Format format)
-			{
-				vk::ImageViewCreateInfo viewInfo{
-					.image = image,
-					.viewType = vk::ImageViewType::e2D,
-					.format = format,
-					.subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1} };
-				return vk::raii::ImageView(device.Get(), viewInfo);
-			}
-
-			std::unique_ptr<vk::raii::CommandBuffer> beginSingleTimeCommands();
-
-			void endSingleTimeCommands(vk::raii::CommandBuffer& commandBuffer);
+			vk::raii::ImageView createImageView(vk::raii::Image& image, vk::Format format, vk::ImageAspectFlags aspectFlags);
 
 
 			void updateUniformBuffer(uint32_t currentImage);
