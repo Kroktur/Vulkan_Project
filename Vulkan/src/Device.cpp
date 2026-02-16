@@ -24,11 +24,11 @@ KGR::_Vulkan::Device::Device(PhysicalDevice* device, Surface* surface, ui32t cou
 	vk::StructureChain<vk::PhysicalDeviceFeatures2,
 		vk::PhysicalDeviceVulkan11Features,
 		vk::PhysicalDeviceVulkan12Features,
-		vk::PhysicalDeviceVulkan13Features> featureChain = {
+		vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT> featureChain = {
 		{.features = {.samplerAnisotropy = true } },
 		{.shaderDrawParameters = true },
 		{.bufferDeviceAddress = true },
-		{.synchronization2 = true, .dynamicRendering = true },
+		{.synchronization2 = true, .dynamicRendering = true },{}
 	};
 
 	std::vector<const char*> deviceExtensions =

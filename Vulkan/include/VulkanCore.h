@@ -20,6 +20,11 @@
 #include <chrono>
 #include <stb_image.h>
 
+#include "DescriptorLayout.h"
+#include "DescriptorPool.h"
+#include "DescriptorSet.h"
+#include "SyncObject.h"
+
 struct UniformBufferObject {
 	glm::mat4 model;
 	glm::mat4 view;
@@ -39,52 +44,50 @@ namespace KGR
 			void initVulkan();
 			void mainLoop();
 			void recreateSwapChain();
-			std::uint32_t AcquireNextImage();
 			std::uint32_t PresentImage();
 
 
 			void recordCommandBuffer(uint32_t imageIndex, vk::raii::CommandBuffer& buffer);
 
 			void transition_image_layout(
-				uint32_t                imageIndex,
+				vk::Image               image,
 				vk::ImageLayout         old_layout,
 				vk::ImageLayout         new_layout,
 				vk::AccessFlags2        src_access_mask,
 				vk::AccessFlags2        dst_access_mask,
 				vk::PipelineStageFlags2 src_stage_mask,
-				vk::PipelineStageFlags2 dst_stage_mask, vk::raii::CommandBuffer& buffer);
+				vk::PipelineStageFlags2 dst_stage_mask, vk::ImageAspectFlags    image_aspect_flags, vk::raii::CommandBuffer& buffer);
 
 			void drawFrame();
 
-			void createSyncObjects();
+			
 	
 			
 
 		
 			
-			void createUniformBuffers();
+			
 
-			void createDescriptorSetLayout();
 
-			void createDescriptorSets();
+			
 
-			void createDescriptorPool();
 
 			void createTextureImage();
-			
 			void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image& image, vk::raii::DeviceMemory& imageMemory);
-
 			void transitionImageLayout(const vk::raii::Image& image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
-
 			void copyBufferToImage(const vk::raii::Buffer& buffer, vk::raii::Image& image, uint32_t width, uint32_t height);
-
-
 			void createTextureImageView();
-
 			void createTextureSampler();
-
 			vk::raii::ImageView createImageView(vk::raii::Image& image, vk::Format format, vk::ImageAspectFlags aspectFlags);
 
+			void createDepthResources();
+
+
+			static vk::Format findSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features,PhysicalDevice* phDevice);
+
+			bool hasStencilComponent(vk::Format format);
+
+			static vk::Format findDepthFormat(PhysicalDevice* phDevice);
 
 			void updateUniformBuffer(uint32_t currentImage);
 			// callBack for instance
@@ -101,9 +104,9 @@ namespace KGR
 			SwapChain              swapChain;
 			ImagesViews            swapChainImageViews;
 
-			vk::raii::DescriptorSetLayout descriptorSetLayout = nullptr;
-			vk::raii::DescriptorPool descriptorPool = nullptr;
-			std::vector<vk::raii::DescriptorSet> descriptorSets;
+			DescriptorLayouts descriptorSetLayout;
+			DescriptorPool descriptorPool;
+			std::vector<DescriptorSet> descriptorSets;
 			Pipeline               graphicsPipeline;
 
 			Buffer vertexBuffer;
@@ -113,19 +116,17 @@ namespace KGR
 
 			std::vector<Buffer> uniformBuffers;
 
-			std::vector<vk::raii::Semaphore> presentCompleteSemaphores;
-			std::vector<vk::raii::Semaphore> renderFinishedSemaphores;
-			std::vector<vk::raii::Fence>     inFlightFences;
-			uint32_t                         frameIndex = 0;
+			SyncObject syncObject;
+
 
 			vk::raii::Image textureImage = nullptr;
 			vk::raii::DeviceMemory textureImageMemory = nullptr;
 			vk::raii::ImageView    textureImageView = nullptr;
 			vk::raii::Sampler      textureSampler = nullptr;
 
-
-
-			std::uint32_t imageIndex;
+			vk::raii::Image        depthImage = nullptr;
+			vk::raii::DeviceMemory depthImageMemory = nullptr;
+			vk::raii::ImageView    depthImageView = nullptr;
 
 			std::vector<const char*> requiredDeviceExtension = {
 				vk::KHRSwapchainExtensionName };

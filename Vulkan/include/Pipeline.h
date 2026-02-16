@@ -4,6 +4,9 @@ namespace KGR
 {
 	namespace _Vulkan
 	{
+		class PhysicalDevice;
+		class DescriptorLayouts;
+
 		struct ShaderInfo
 		{
 			const char* ShaderPath;
@@ -12,14 +15,16 @@ namespace KGR
 		};
 		class Device;
 		class SwapChain;
-
+		class DescriptorLayout;
 		class Pipeline
 		{
 		public:
 			using vkPipeline = vk::raii::Pipeline;
 			using vkPipelineLayout = vk::raii::PipelineLayout;
+			using vkDescriptorLayout = vk::raii::DescriptorSetLayout;
+
 			Pipeline() = default;
-			Pipeline(const ShaderInfo& shaderInfo,Device* device,SwapChain* swapChain, vk::raii::DescriptorSetLayout& layout);
+			Pipeline(const ShaderInfo& shaderInfo,Device* device,SwapChain* swapChain, DescriptorLayouts* layouts,PhysicalDevice* phDevice);
 
 			vkPipelineLayout& GetLayout();
 
@@ -32,6 +37,7 @@ namespace KGR
 		private:
 			vkPipelineLayout m_layout = nullptr;
 			vkPipeline m_pipeline = nullptr;
+			std::vector<vk::DescriptorSetLayout> m_layouts;
 		};
 	}
 }
