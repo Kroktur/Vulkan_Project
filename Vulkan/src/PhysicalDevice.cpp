@@ -56,6 +56,21 @@ const KGR::_Vulkan::PhysicalDevice::vkPhysicDevice& KGR::_Vulkan::PhysicalDevice
 	return m_device;
 }
 
+KGR::_Vulkan::PhysicalDevice::vkFormat KGR::_Vulkan::PhysicalDevice::findSupportedFormat(
+	const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features)
+{
+	auto formatIt = std::ranges::find_if(candidates, [&](auto const format) {
+		vk::FormatProperties props = m_device.getFormatProperties(format);
+		return (((tiling == vk::ImageTiling::eLinear) && ((props.linearTilingFeatures & features) == features)) ||
+			((tiling == vk::ImageTiling::eOptimal) && ((props.optimalTilingFeatures & features) == features)));
+	});
+	if (formatIt == candidates.end())
+	{
+		throw std::runtime_error("failed to find supported format!");
+	}
+	return *formatIt;
+}
+
 bool KGR::_Vulkan::PhysicalDevice::IsMatchingDeviceType(vk::PhysicalDeviceType get, DeviceType wanted)
 {
 	switch (wanted)

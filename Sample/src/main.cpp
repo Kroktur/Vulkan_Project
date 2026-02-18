@@ -11,6 +11,8 @@ int main(int argc, char** argv)
 
 	fileManager::SetGlobalFIlePath(projectRoot / "Ressources");
 	STBManager::SetGlobalFIlePath(projectRoot / "Ressources");
+	TOLManager::SetGlobalFIlePath(projectRoot / "Ressources");
+
 
 	KGR::_GLFW::Window::Init();
 	KGR::_GLFW::Window::AddHint(GLFW_CLIENT_API, GLFW_NO_API);

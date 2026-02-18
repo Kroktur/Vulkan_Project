@@ -3,6 +3,7 @@
 #include "CommandBuffers.h"
 #include "Queue.h"
 #include "PhysicalDevice.h"
+#include "Image.h"
 
 KGR::_Vulkan::Buffer::vkBuffer& KGR::_Vulkan::Buffer::Get()
 {
@@ -38,6 +39,20 @@ void KGR::_Vulkan::Buffer::Copy(Buffer* other, Device* device, Queue* queue, Com
 	copyBuffer(other->m_buffer, m_buffer, other->m_size , device, queue, buffers);
 }
 
+void KGR::_Vulkan::Buffer::CopyImage( Image* image, Device* device, Queue* queue, CommandBuffers* buffers)
+{
+	vk::raii::CommandBuffer& commandBuffer = buffers->Acquire(device);
+	vk::BufferImageCopy  region{ .bufferOffset = 0, .bufferRowLength = 0, .bufferImageHeight = 0, .imageSubresource = {vk::ImageAspectFlagBits::eColor, 0, 0, 1}, .imageOffset = {0, 0, 0}, .imageExtent = {image->GetWidth(), image->GetHeight(), 1} };
+	vk::CommandBufferBeginInfo beginInfo{ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit };
+	commandBuffer.begin(beginInfo);
+	commandBuffer.copyBufferToImage(m_buffer, image->Get(), vk::ImageLayout::eTransferDstOptimal, { region });
+	commandBuffer.end();
+	vk::SubmitInfo submitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandBuffer };
+	queue->Get().submit(submitInfo, nullptr);
+	queue->Get().waitIdle();
+	buffers->ReleaseCommandBuffer(commandBuffer);
+}
+
 void KGR::_Vulkan::Buffer::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
                                         vk::MemoryPropertyFlags properties, vk::raii::Buffer& buffer, vk::raii::DeviceMemory& bufferMemory,Device*device, PhysicalDevice* phDevice)
 {
@@ -50,15 +65,15 @@ void KGR::_Vulkan::Buffer::createBuffer(vk::DeviceSize size, vk::BufferUsageFlag
 }
 
 
- void KGR::_Vulkan::Buffer::copyBuffer(vk::raii::Buffer& srcBuffer, vk::raii::Buffer& dstBuffer, vk::DeviceSize size, Device* device, Queue* queue, CommandBuffers* commandBuffer)
+ void KGR::_Vulkan::Buffer::copyBuffer(vk::raii::Buffer& srcBuffer, vk::raii::Buffer& dstBuffer, vk::DeviceSize size, Device* device, Queue* queue, CommandBuffers* buffers)
 {
-	vk::CommandBufferAllocateInfo allocInfo{ .commandPool = commandBuffer->GetPool(), .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1 };
-	vk::raii::CommandBuffer       commandCopyBuffer = std::move(device->Get().allocateCommandBuffers(allocInfo).front());
-	commandCopyBuffer.begin(vk::CommandBufferBeginInfo{ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
-	commandCopyBuffer.copyBuffer(*srcBuffer, *dstBuffer, vk::BufferCopy(0, 0, size));
-	commandCopyBuffer.end();
-	queue->Get().submit(vk::SubmitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandCopyBuffer }, nullptr);
+	 vk::raii::CommandBuffer& commandBuffer = buffers->Acquire(device);
+	 commandBuffer.begin(vk::CommandBufferBeginInfo{ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+	commandBuffer.copyBuffer(*srcBuffer, *dstBuffer, vk::BufferCopy(0, 0, size));
+	commandBuffer.end();
+	queue->Get().submit(vk::SubmitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandBuffer }, nullptr);
 	queue->Get().waitIdle();
+	buffers->ReleaseCommandBuffer(commandBuffer);
 }
 
  uint32_t KGR::_Vulkan::Buffer::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties, PhysicalDevice* phDevice)

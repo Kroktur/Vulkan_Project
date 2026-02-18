@@ -14,6 +14,8 @@
 #include <memory>
 #include <stdexcept>
 
+#include "Image.h"
+
 KGR::_Vulkan::VulkanCore::VulkanCore(GLFWwindow* window_) : window(window_)
 {
 }
@@ -55,11 +57,14 @@ void KGR::_Vulkan::VulkanCore::initVulkan()
 	graphicsPipeline = _Vulkan::Pipeline(info, &device, &swapChain,&descriptorSetLayout,&physicalDevice);
 	// Command Buffer
 	commandBuffers = _Vulkan::CommandBuffers(&device);
+
+	// load Model
+	LoadModel();
 	// vertex
-	size_t vertSize = vertices2.size() * sizeof(vertices2[0]);
+	size_t vertSize = vertices.size() * sizeof(vertices[0]);
 	auto vertexTmp = _Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, vertSize);
 	vertexTmp.MapMemory(vertSize);
-	vertexTmp.Upload(vertices2);
+	vertexTmp.Upload(vertices);
 	vertexTmp.UnMapMemory();
 	vertexBuffer = _Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, vertSize);
 	vertexBuffer.Copy(&vertexTmp, &device, &queue, &commandBuffers);
@@ -75,10 +80,37 @@ void KGR::_Vulkan::VulkanCore::initVulkan()
 
 	// SyncObject
 	syncObject = SyncObject(&device, swapChain.GetImagesCount());
-	createDepthResources();
-	createTextureImage();
-	createTextureImageView();
+	// depth Resources
+	vk::Format depthFormat = physicalDevice.findSupportedFormat(
+		{ vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint },
+		vk::ImageTiling::eOptimal,
+		vk::FormatFeatureFlagBits::eDepthStencilAttachment);
+
+	auto swapChainExtent = swapChain.GetExtend();
+	depthImage = Image(swapChainExtent.width, swapChainExtent.height, depthFormat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal, &device, &physicalDevice);
+	depthImage.CreateView(depthFormat, vk::ImageAspectFlagBits::eDepth, &device);
+
+
+	// createImage
+	// load Image 
+
+	auto& image = STBManager::Load("Textures\\viking_room.png");
+	vk::DeviceSize imageSize = image.width * image.height * 4;
+
+	// record Buffers 
+	Buffer buffer = Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, imageSize);
+	buffer.MapMemory(imageSize);
+	buffer.Upload(image.pixels, imageSize);
+	buffer.UnMapMemory();
+	textureImage = Image(image.width, image.height, vk::Format::eR8G8B8A8Srgb, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal, &device, &physicalDevice);
+	transitionImageLayout(textureImage.Get(), vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+	buffer.CopyImage(&textureImage, &device, &queue, &commandBuffers);
+	transitionImageLayout(textureImage.Get(), vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+	textureImage.CreateView(vk::Format::eR8G8B8A8Srgb, vk::ImageAspectFlagBits::eColor, &device);
+
 	createTextureSampler();
+
+
 	// UniformBuffer
 	for (size_t i = 0; i < swapChain.GetImagesCount(); i++) {
 		vk::DeviceSize bufferSize = sizeof(UniformBufferObject);
@@ -102,7 +134,7 @@ void KGR::_Vulkan::VulkanCore::initVulkan()
 			.range = sizeof(UniformBufferObject) };
 		vk::DescriptorImageInfo imageInfo{
 			.sampler = textureSampler,
-			.imageView = textureImageView,
+			.imageView = textureImage.GetView(),
 			.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal };
 		std::array descriptorWrites{
 			vk::WriteDescriptorSet{
@@ -121,6 +153,7 @@ void KGR::_Vulkan::VulkanCore::initVulkan()
 				.pImageInfo = &imageInfo} };
 		device.Get().updateDescriptorSets(descriptorWrites, {});
 	}
+
 
 }
 
@@ -156,7 +189,15 @@ void KGR::_Vulkan::VulkanCore::recreateSwapChain()
 		.fragmentMain = "fragMain"
 	};
 	graphicsPipeline = _Vulkan::Pipeline(info, &device, &swapChain,&descriptorSetLayout,&physicalDevice);
-	createDepthResources();
+
+	vk::Format depthFormat = physicalDevice.findSupportedFormat(
+		{ vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint },
+		vk::ImageTiling::eOptimal,
+		vk::FormatFeatureFlagBits::eDepthStencilAttachment);
+
+	auto swapChainExtent = swapChain.GetExtend();
+	depthImage = Image(swapChainExtent.width, swapChainExtent.height, depthFormat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal, &device, &physicalDevice);
+	depthImage.CreateView(depthFormat, vk::ImageAspectFlagBits::eDepth, &device);
 }
 
 
@@ -182,7 +223,7 @@ void KGR::_Vulkan::VulkanCore::recordCommandBuffer(uint32_t imageIndex, vk::raii
 		vk::ImageAspectFlagBits::eColor,commandBuffer);
 	// Transition depth image to depth attachment optimal layout
 	transition_image_layout(
-		*depthImage,
+		*depthImage.Get(),
 		vk::ImageLayout::eUndefined,
 		vk::ImageLayout::eDepthAttachmentOptimal,
 		vk::AccessFlagBits2::eDepthStencilAttachmentWrite,
@@ -202,7 +243,7 @@ void KGR::_Vulkan::VulkanCore::recordCommandBuffer(uint32_t imageIndex, vk::raii
 		.clearValue = clearColor };
 
 	vk::RenderingAttachmentInfo depthAttachmentInfo = {
-		.imageView = depthImageView,
+		.imageView = depthImage.GetView(),
 		.imageLayout = vk::ImageLayout::eDepthAttachmentOptimal,
 		.loadOp = vk::AttachmentLoadOp::eClear,
 		.storeOp = vk::AttachmentStoreOp::eDontCare,
@@ -219,7 +260,7 @@ void KGR::_Vulkan::VulkanCore::recordCommandBuffer(uint32_t imageIndex, vk::raii
 	commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(swapChain.GetExtend().width), static_cast<float>(swapChain.GetExtend().height), 0.0f, 1.0f));
 	commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapChain.GetExtend()));
 	commandBuffer.bindVertexBuffers(0, *vertexBuffer.Get(), { 0 });
-	commandBuffer.bindIndexBuffer(*indexBuffer.Get(), 0, vk::IndexType::eUint16);
+	commandBuffer.bindIndexBuffer(*indexBuffer.Get(), 0, vk::IndexType::eUint32);
 	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, graphicsPipeline.GetLayout(), 0, *descriptorSets[syncObject.GetCurrentFrame()].Get(), nullptr);
 	commandBuffer.drawIndexed(indices.size(), 1, 0, 0, 0);
 	commandBuffer.endRendering();
@@ -239,9 +280,18 @@ void KGR::_Vulkan::VulkanCore::recordCommandBuffer(uint32_t imageIndex, vk::raii
 
 }
 
+void KGR::_Vulkan::VulkanCore::LoadModel()
+{
+	auto& obj = TOLManager::Load("Models\\viking_room.obj");
+	for (auto& v : obj.vertices)
+		vertices.emplace_back(v.pos,v.color,v.texCoord);
+	for (auto& i : obj.indices)
+		indices.push_back(i);
+}
+
 void KGR::_Vulkan::VulkanCore::transition_image_layout(vk::Image image, vk::ImageLayout old_layout,
-                                                                     vk::ImageLayout new_layout, vk::AccessFlags2 src_access_mask, vk::AccessFlags2 dst_access_mask,
-                                                                     vk::PipelineStageFlags2 src_stage_mask, vk::PipelineStageFlags2 dst_stage_mask, vk::ImageAspectFlags image_aspect_flags, vk::raii::CommandBuffer& buffer)
+                                                       vk::ImageLayout new_layout, vk::AccessFlags2 src_access_mask, vk::AccessFlags2 dst_access_mask,
+                                                       vk::PipelineStageFlags2 src_stage_mask, vk::PipelineStageFlags2 dst_stage_mask, vk::ImageAspectFlags image_aspect_flags, vk::raii::CommandBuffer& buffer)
 {
 	vk::ImageMemoryBarrier2 barrier = {
 			.srcStageMask = src_stage_mask,
@@ -354,49 +404,7 @@ void KGR::_Vulkan::VulkanCore::drawFrame()
 
 
 
-void KGR::_Vulkan::VulkanCore::createTextureImage()
-{
-	int texWidth, texHeight, texChannels;
-	stbi_uc* pixels = STBManager::Load("Textures\\texture.jpg", &texWidth, &texHeight, &texChannels);
-	vk::DeviceSize imageSize = texWidth * texHeight * 4;
 
-	if (!pixels) {
-		throw std::runtime_error("failed to load texture image!");
-	}
-	size_t size = imageSize;
-	Buffer buffer = Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, imageSize);
-	buffer.MapMemory(imageSize);
-	buffer.Upload(pixels,imageSize);
-	buffer.UnMapMemory();
-	stbi_image_free(pixels);
-	STBManager::Unload("Textures\\texture.jpg");
-	createImage(texWidth, texHeight, vk::Format::eR8G8B8A8Srgb, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal, textureImage, textureImageMemory);
-	transitionImageLayout(textureImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
-	copyBufferToImage(buffer.Get(), textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-	transitionImageLayout(textureImage, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
-}
-
-void KGR::_Vulkan::VulkanCore::createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling,
-	vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image& image,
-	vk::raii::DeviceMemory& imageMemory)
-{
-	vk::ImageCreateInfo imageInfo{
-		.imageType = vk::ImageType::e2D,
-		.format = format,
-		.extent = {width, height, 1},
-		.mipLevels = 1,
-		.arrayLayers = 1,
-		.samples = vk::SampleCountFlagBits::e1,
-		.tiling = tiling,
-		.usage = usage,
-		.sharingMode = vk::SharingMode::eExclusive,
-		.initialLayout = vk::ImageLayout::eUndefined };	image = vk::raii::Image(device.Get(), imageInfo);
-	vk::MemoryRequirements memRequirements = image.getMemoryRequirements();
-	vk::MemoryAllocateInfo allocInfo{ .allocationSize = memRequirements.size,
-		.memoryTypeIndex = Buffer::findMemoryType(memRequirements.memoryTypeBits, properties,&physicalDevice) };
-	imageMemory = vk::raii::DeviceMemory(device.Get(), allocInfo);
-	image.bindMemory(imageMemory, 0);
-}
 
 void KGR::_Vulkan::VulkanCore::transitionImageLayout(const vk::raii::Image& image, vk::ImageLayout oldLayout,
 	vk::ImageLayout newLayout)
@@ -432,26 +440,7 @@ void KGR::_Vulkan::VulkanCore::transitionImageLayout(const vk::raii::Image& imag
 	vk::SubmitInfo submitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandBuffer };
 	queue.Get().submit(submitInfo, nullptr);
 	queue.Get().waitIdle();
-}
-
-void KGR::_Vulkan::VulkanCore::copyBufferToImage(const vk::raii::Buffer& buffer, vk::raii::Image& image, uint32_t width,
-	uint32_t height)
-{
-	vk::raii::CommandBuffer& commandBuffer = commandBuffers.Acquire(&device);
-	vk::BufferImageCopy  region{ .bufferOffset = 0, .bufferRowLength = 0, .bufferImageHeight = 0, .imageSubresource = {vk::ImageAspectFlagBits::eColor, 0, 0, 1}, .imageOffset = {0, 0, 0}, .imageExtent = {width, height, 1} };
-	vk::CommandBufferBeginInfo beginInfo{ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit };
-	commandBuffer.begin(beginInfo);
-	commandBuffer.copyBufferToImage(buffer, image, vk::ImageLayout::eTransferDstOptimal, { region });
-	commandBuffer.end();
-	vk::SubmitInfo submitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandBuffer };
-	queue.Get().submit(submitInfo, nullptr);
-	queue.Get().waitIdle();
 	commandBuffers.ReleaseCommandBuffer(commandBuffer);
-}
-
-void KGR::_Vulkan::VulkanCore::createTextureImageView()
-{
-	textureImageView = createImageView(textureImage, vk::Format::eR8G8B8A8Srgb, vk::ImageAspectFlagBits::eColor);
 }
 
 void KGR::_Vulkan::VulkanCore::createTextureSampler()
@@ -472,52 +461,11 @@ void KGR::_Vulkan::VulkanCore::createTextureSampler()
 	textureSampler = vk::raii::Sampler(device.Get(), samplerInfo);
 }
 
-vk::raii::ImageView KGR::_Vulkan::VulkanCore::createImageView(vk::raii::Image& image, vk::Format format, vk::ImageAspectFlags aspectFlags)
-{
-	vk::ImageViewCreateInfo viewInfo{
-	.image = image,
-	.viewType = vk::ImageViewType::e2D,
-	.format = format,
-    .subresourceRange = {aspectFlags, 0, 1, 0, 1}
-	};
-	return vk::raii::ImageView(device.Get(), viewInfo);
-}
-
-void KGR::_Vulkan::VulkanCore::createDepthResources()
-{
-	vk::Format depthFormat = findDepthFormat(&physicalDevice);
-	auto swapChainExtent = swapChain.GetExtend();
-	createImage(swapChainExtent.width, swapChainExtent.height, depthFormat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal, depthImage, depthImageMemory);
-	depthImageView = createImageView(depthImage, depthFormat, vk::ImageAspectFlagBits::eDepth);
-}
-
-vk::Format KGR::_Vulkan::VulkanCore::findSupportedFormat(const std::vector<vk::Format>& candidates,
-	vk::ImageTiling tiling, vk::FormatFeatureFlags features, PhysicalDevice* phDevice)
-{
-	auto formatIt = std::ranges::find_if(candidates, [&](auto const format) {
-		vk::FormatProperties props = phDevice->Get().getFormatProperties(format);
-		return (((tiling == vk::ImageTiling::eLinear) && ((props.linearTilingFeatures & features) == features)) ||
-			((tiling == vk::ImageTiling::eOptimal) && ((props.optimalTilingFeatures & features) == features)));
-	});
-	if (formatIt == candidates.end())
-	{
-		throw std::runtime_error("failed to find supported format!");
-	}
-	return *formatIt;
-}
-
 bool KGR::_Vulkan::VulkanCore::hasStencilComponent(vk::Format format)
 {
 	return format == vk::Format::eD32SfloatS8Uint || format == vk::Format::eD24UnormS8Uint;
 }
 
-vk::Format KGR::_Vulkan::VulkanCore::findDepthFormat(PhysicalDevice* phDevice)
-{
-	return findSupportedFormat(
-		{ vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint },
-		vk::ImageTiling::eOptimal,
-		vk::FormatFeatureFlagBits::eDepthStencilAttachment,phDevice);
-}
 
 
 void KGR::_Vulkan::VulkanCore::updateUniformBuffer(uint32_t currentImage)

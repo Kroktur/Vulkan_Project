@@ -23,6 +23,7 @@
 #include "DescriptorLayout.h"
 #include "DescriptorPool.h"
 #include "DescriptorSet.h"
+#include "Image.h"
 #include "SyncObject.h"
 
 struct UniformBufferObject {
@@ -45,10 +46,8 @@ namespace KGR
 			void mainLoop();
 			void recreateSwapChain();
 			std::uint32_t PresentImage();
-
-
 			void recordCommandBuffer(uint32_t imageIndex, vk::raii::CommandBuffer& buffer);
-
+			void LoadModel();
 			void transition_image_layout(
 				vk::Image               image,
 				vk::ImageLayout         old_layout,
@@ -58,37 +57,18 @@ namespace KGR
 				vk::PipelineStageFlags2 src_stage_mask,
 				vk::PipelineStageFlags2 dst_stage_mask, vk::ImageAspectFlags    image_aspect_flags, vk::raii::CommandBuffer& buffer);
 
+			void transitionImageLayout(const vk::raii::Image& image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+
+
 			void drawFrame();
 
-			
-	
-			
-
-		
-			
-			
+			// to move 
+			void	createTextureSampler();
 
 
-			
-
-
-			void createTextureImage();
-			void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image& image, vk::raii::DeviceMemory& imageMemory);
-			void transitionImageLayout(const vk::raii::Image& image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
-			void copyBufferToImage(const vk::raii::Buffer& buffer, vk::raii::Image& image, uint32_t width, uint32_t height);
-			void createTextureImageView();
-			void createTextureSampler();
-			vk::raii::ImageView createImageView(vk::raii::Image& image, vk::Format format, vk::ImageAspectFlags aspectFlags);
-
-			void createDepthResources();
-
-
-			static vk::Format findSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features,PhysicalDevice* phDevice);
-
-			bool hasStencilComponent(vk::Format format);
-
-			static vk::Format findDepthFormat(PhysicalDevice* phDevice);
-
+			// never Use !!!
+			static bool hasStencilComponent(vk::Format format);
+			// find the depth format generic version
 			void updateUniformBuffer(uint32_t currentImage);
 			// callBack for instance
 			static VKAPI_ATTR vk::Bool32 VKAPI_CALL debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT severity, vk::DebugUtilsMessageTypeFlagsEXT type, const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData, void*);
@@ -119,17 +99,18 @@ namespace KGR
 			SyncObject syncObject;
 
 
-			vk::raii::Image textureImage = nullptr;
-			vk::raii::DeviceMemory textureImageMemory = nullptr;
-			vk::raii::ImageView    textureImageView = nullptr;
+			Image textureImage;
 			vk::raii::Sampler      textureSampler = nullptr;
 
-			vk::raii::Image        depthImage = nullptr;
-			vk::raii::DeviceMemory depthImageMemory = nullptr;
-			vk::raii::ImageView    depthImageView = nullptr;
+
+
+			Image depthImage;
 
 			std::vector<const char*> requiredDeviceExtension = {
 				vk::KHRSwapchainExtensionName };
+
+			std::vector<Vertex> vertices;
+			std::vector<uint32_t> indices;
 		};
 	}
 }

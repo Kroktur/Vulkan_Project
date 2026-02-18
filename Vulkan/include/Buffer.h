@@ -8,6 +8,7 @@ namespace KGR
 		class Device;
 		class Queue;
 		class PhysicalDevice;
+		class Image;
 		class Buffer
 		{
 		public:
@@ -28,6 +29,7 @@ namespace KGR
 
 
 			void Copy(Buffer* other, Device* device, Queue* queue, CommandBuffers* buffers);
+			void CopyImage(Image* image, Device* device, Queue* queue, CommandBuffers* buffers);
 			static void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
 				vk::MemoryPropertyFlags properties, vk::raii::Buffer& buffer, vk::raii::DeviceMemory& bufferMemory, Device* device, PhysicalDevice* phDevice);
 			static void copyBuffer(vk::raii::Buffer& srcBuffer, vk::raii::Buffer& dstBuffer, vk::DeviceSize size, Device* device, Queue* queue, CommandBuffers* commandBuffer);

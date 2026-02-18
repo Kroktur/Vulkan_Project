@@ -86,7 +86,10 @@ KGR::_Vulkan::Pipeline::Pipeline(const ShaderInfo& shaderInfo, Device* device, S
 
 	m_layout = vk::raii::PipelineLayout(device->Get(), pipelineLayoutInfo);
 
-	vk::Format depthFormat = VulkanCore::findDepthFormat(phDevice);
+	vk::Format depthFormat = phDevice->findSupportedFormat(
+		{ vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint },
+		vk::ImageTiling::eOptimal,
+		vk::FormatFeatureFlagBits::eDepthStencilAttachment);
 
 
 	vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipelineCreateInfoChain = {
