@@ -30,6 +30,11 @@ constexpr bool enableValidationLayers = true;
 
 #include"vma/vk_mem_alloc.h"
 
+
+#define GLM_ENABLE_EXPERIMENTAL
+#include <tiny_obj_loader.h>
+#include <glm/gtx/hash.hpp>
+
 using ui32t = uint32_t;
 using i32t = int32_t;
 
@@ -49,7 +54,21 @@ struct Vertex
 		};
 
 	}
+	bool operator==(const Vertex& other) const
+	{
+		return pos == other.pos && color == other.color && texCoord == other.texCoord;
+	}
 };
+
+template <>
+struct std::hash<Vertex>
+{
+	size_t operator()(Vertex const& vertex) const noexcept
+	{
+		return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texCoord) << 1);
+	}
+};
+
 
 const std::vector<Vertex> vertices2 = {
 	{{-0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
@@ -96,3 +115,10 @@ namespace KGR
 
 	}
 }
+
+
+struct UniformBufferObject {
+	glm::mat4 model;
+	glm::mat4 view;
+	glm::mat4 proj;
+};

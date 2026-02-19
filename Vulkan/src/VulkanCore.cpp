@@ -15,6 +15,7 @@
 #include <stdexcept>
 
 #include "Image.h"
+#include "../../ImGui/include/imgui.h"
 
 KGR::_Vulkan::VulkanCore::VulkanCore(GLFWwindow* window_) : window(window_)
 {
@@ -87,14 +88,15 @@ void KGR::_Vulkan::VulkanCore::initVulkan()
 		vk::FormatFeatureFlagBits::eDepthStencilAttachment);
 
 	auto swapChainExtent = swapChain.GetExtend();
-	depthImage = Image(swapChainExtent.width, swapChainExtent.height, depthFormat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal, &device, &physicalDevice);
+	depthImage = Image(swapChainExtent.width, swapChainExtent.height,1, depthFormat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal, &device, &physicalDevice);
 	depthImage.CreateView(depthFormat, vk::ImageAspectFlagBits::eDepth, &device);
 
 
 	// createImage
 	// load Image 
-
 	auto& image = STBManager::Load("Textures\\viking_room.png");
+	//auto& image = STBManager::Load("Textures\\BaseTexture.png");
+
 	vk::DeviceSize imageSize = image.width * image.height * 4;
 
 	// record Buffers 
@@ -102,12 +104,14 @@ void KGR::_Vulkan::VulkanCore::initVulkan()
 	buffer.MapMemory(imageSize);
 	buffer.Upload(image.pixels, imageSize);
 	buffer.UnMapMemory();
-	textureImage = Image(image.width, image.height, vk::Format::eR8G8B8A8Srgb, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal, &device, &physicalDevice);
-	transitionImageLayout(textureImage.Get(), vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
-	buffer.CopyImage(&textureImage, &device, &queue, &commandBuffers);
-	transitionImageLayout(textureImage.Get(), vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
-	textureImage.CreateView(vk::Format::eR8G8B8A8Srgb, vk::ImageAspectFlagBits::eColor, &device);
 
+	uint32_t mipLevel = static_cast<uint32_t>(std::floor(std::log2(std::max(image.width, image.height)))) + 1;
+	textureImage = Image(image.width, image.height, mipLevel, vk::Format::eR8G8B8A8Srgb, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal, &device, &physicalDevice);
+	transitionImageLayout(textureImage.Get(), vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, textureImage.GetMimMap());
+	buffer.CopyImage(&textureImage, &device, &queue, &commandBuffers);
+//	transitionImageLayout(textureImage.Get(), vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, textureImage.GetMimMap());
+	textureImage.CreateView(vk::Format::eR8G8B8A8Srgb, vk::ImageAspectFlagBits::eColor, &device);
+	generateMipmaps(textureImage.Get(), vk::Format::eR8G8B8A8Srgb,textureImage.GetWidth(), textureImage.GetHeight(), textureImage.GetMimMap());
 	createTextureSampler();
 
 
@@ -196,7 +200,7 @@ void KGR::_Vulkan::VulkanCore::recreateSwapChain()
 		vk::FormatFeatureFlagBits::eDepthStencilAttachment);
 
 	auto swapChainExtent = swapChain.GetExtend();
-	depthImage = Image(swapChainExtent.width, swapChainExtent.height, depthFormat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal, &device, &physicalDevice);
+	depthImage = Image(swapChainExtent.width, swapChainExtent.height,1, depthFormat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal, &device, &physicalDevice);
 	depthImage.CreateView(depthFormat, vk::ImageAspectFlagBits::eDepth, &device);
 }
 
@@ -282,7 +286,11 @@ void KGR::_Vulkan::VulkanCore::recordCommandBuffer(uint32_t imageIndex, vk::raii
 
 void KGR::_Vulkan::VulkanCore::LoadModel()
 {
+	
+
 	auto& obj = TOLManager::Load("Models\\viking_room.obj");
+
+	//auto& obj = TOLManager::Load("Models\\briet_claire_decorsfantasy_grpB.obj");
 	for (auto& v : obj.vertices)
 		vertices.emplace_back(v.pos,v.color,v.texCoord);
 	for (auto& i : obj.indices)
@@ -407,11 +415,11 @@ void KGR::_Vulkan::VulkanCore::drawFrame()
 
 
 void KGR::_Vulkan::VulkanCore::transitionImageLayout(const vk::raii::Image& image, vk::ImageLayout oldLayout,
-	vk::ImageLayout newLayout)
+	vk::ImageLayout newLayout,uint32_t mipLevels)
 {
 	auto& commandBuffer = commandBuffers.Acquire(&device);
 	commandBuffer.begin({ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
-	vk::ImageMemoryBarrier barrier{ .oldLayout = oldLayout, .newLayout = newLayout, .image = image, .subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1} };
+	vk::ImageMemoryBarrier barrier{ .oldLayout = oldLayout, .newLayout = newLayout, .image = image, .subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, mipLevels, 0, 1} };
 	vk::PipelineStageFlags sourceStage;
 	vk::PipelineStageFlags destinationStage;
 
@@ -443,21 +451,96 @@ void KGR::_Vulkan::VulkanCore::transitionImageLayout(const vk::raii::Image& imag
 	commandBuffers.ReleaseCommandBuffer(commandBuffer);
 }
 
+void KGR::_Vulkan::VulkanCore::generateMipmaps(vk::raii::Image& image, vk::Format imageFormat, int32_t texWidth,
+	int32_t texHeight, uint32_t mipLevels)
+{
+	// Check if image format supports linear blit-ing
+	vk::FormatProperties formatProperties = physicalDevice.Get().getFormatProperties(imageFormat);
+
+	if (!(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eSampledImageFilterLinear))
+	{
+		throw std::runtime_error("texture image format does not support linear blitting!");
+	}
+
+	vk::raii::CommandBuffer& commandBuffer = commandBuffers.Acquire(&device);
+	vk::CommandBufferBeginInfo beginInfo{
+		.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit };
+	commandBuffer.begin(beginInfo);
+
+	vk::ImageMemoryBarrier barrier = { .srcAccessMask = vk::AccessFlagBits::eTransferWrite, .dstAccessMask = vk::AccessFlagBits::eTransferRead, .oldLayout = vk::ImageLayout::eTransferDstOptimal, .newLayout = vk::ImageLayout::eTransferSrcOptimal, .srcQueueFamilyIndex = vk::QueueFamilyIgnored, .dstQueueFamilyIndex = vk::QueueFamilyIgnored, .image = image };
+	barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+	barrier.subresourceRange.baseArrayLayer = 0;
+	barrier.subresourceRange.layerCount = 1;
+	barrier.subresourceRange.levelCount = 1;
+
+	int32_t mipWidth = texWidth;
+	int32_t mipHeight = texHeight;
+
+	for (uint32_t i = 1; i < mipLevels; i++)
+	{
+		barrier.subresourceRange.baseMipLevel = i - 1;
+		barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+		barrier.newLayout = vk::ImageLayout::eTransferSrcOptimal;
+		barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+		barrier.dstAccessMask = vk::AccessFlagBits::eTransferRead;
+
+		commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, {}, {}, {}, barrier);
+
+		vk::ArrayWrapper1D<vk::Offset3D, 2> offsets, dstOffsets;
+		offsets[0] = vk::Offset3D(0, 0, 0);
+		offsets[1] = vk::Offset3D(mipWidth, mipHeight, 1);
+		dstOffsets[0] = vk::Offset3D(0, 0, 0);
+		dstOffsets[1] = vk::Offset3D(mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1);
+		vk::ImageBlit blit = { .srcSubresource = {}, .srcOffsets = offsets, .dstSubresource = {}, .dstOffsets = dstOffsets };
+		blit.srcSubresource = vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, i - 1, 0, 1);
+		blit.dstSubresource = vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, i, 0, 1);
+
+		commandBuffer.blitImage(image, vk::ImageLayout::eTransferSrcOptimal, image, vk::ImageLayout::eTransferDstOptimal, { blit }, vk::Filter::eLinear);
+
+		barrier.oldLayout = vk::ImageLayout::eTransferSrcOptimal;
+		barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+		barrier.srcAccessMask = vk::AccessFlagBits::eTransferRead;
+		barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+		commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, {}, {}, barrier);
+
+		if (mipWidth > 1)
+			mipWidth /= 2;
+		if (mipHeight > 1)
+			mipHeight /= 2;
+	}
+
+	barrier.subresourceRange.baseMipLevel = mipLevels - 1;
+	barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+	barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+	barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+	barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+	commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, {}, {}, barrier);
+	commandBuffer.end();
+	vk::SubmitInfo submitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandBuffer };
+	queue.Get().submit(submitInfo,nullptr);
+	queue.Get().waitIdle();
+	commandBuffers.ReleaseCommandBuffer(commandBuffer);
+}
+
 void KGR::_Vulkan::VulkanCore::createTextureSampler()
 {
 	vk::PhysicalDeviceProperties properties = physicalDevice.Get().getProperties();
 	vk::SamplerCreateInfo        samplerInfo{
-		.magFilter = vk::Filter::eLinear,
-		.minFilter = vk::Filter::eLinear,
-		.mipmapMode = vk::SamplerMipmapMode::eLinear,
-		.addressModeU = vk::SamplerAddressMode::eRepeat,
-		.addressModeV = vk::SamplerAddressMode::eRepeat,
-		.addressModeW = vk::SamplerAddressMode::eRepeat,
-		.mipLodBias = 0.0f,
-		.anisotropyEnable = vk::True,
-		.maxAnisotropy = properties.limits.maxSamplerAnisotropy,
-		.compareEnable = vk::False,
-		.compareOp = vk::CompareOp::eAlways };
+			   .magFilter = vk::Filter::eLinear,
+			   .minFilter = vk::Filter::eLinear,
+			   .mipmapMode = vk::SamplerMipmapMode::eLinear,
+			   .addressModeU = vk::SamplerAddressMode::eRepeat,
+			   .addressModeV = vk::SamplerAddressMode::eRepeat,
+			   .addressModeW = vk::SamplerAddressMode::eRepeat,
+			   .mipLodBias = 0.0f,
+			   .anisotropyEnable = vk::True,
+			   .maxAnisotropy = properties.limits.maxSamplerAnisotropy,
+			   .compareEnable = vk::False,
+			   .compareOp = vk::CompareOp::eAlways,
+			   .minLod = 0,
+			   .maxLod = vk::LodClampNone };
 	textureSampler = vk::raii::Sampler(device.Get(), samplerInfo);
 }
 
@@ -476,7 +559,8 @@ void KGR::_Vulkan::VulkanCore::updateUniformBuffer(uint32_t currentImage)
 	float time = std::chrono::duration<float>(currentTime - startTime).count();
 
 	UniformBufferObject ubo{};
-	ubo.model = rotate(glm::mat4(1.0f), {time * glm::radians(90.0f)}, glm::vec3(1.0f, 1.0f, 1.0f));
+	ubo.model = rotate(glm::mat4(1.0f), {time * glm::radians(90.0f)}, glm::vec3(0.0f, 1.0f, 0.0f));
+	//ubo.model = glm::mat4(1.0f);
 	ubo.view = lookAt(glm::vec3(0.0f, 0.0f, 2.0f)
 	               ,glm::vec3(0.0f, 0.0f, 0.0f)
 	                 , glm::vec3(0.0f, 1.0f, 0.0f));

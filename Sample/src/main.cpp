@@ -42,8 +42,7 @@ int main(int argc, char** argv)
 	
 }
 
-
-
+//#include "Global.h"
 //#include <algorithm>
 //#include <array>
 //#include <assert.h>
@@ -57,9 +56,6 @@ int main(int argc, char** argv)
 //#include <stdexcept>
 //#include <vector>
 //
-//#include "Core/ManagerImple.h"
-//#define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
-//
 //#if defined(__INTELLISENSE__) || !defined(USE_CPP20_MODULES)
 //#	include <vulkan/vulkan_raii.hpp>
 //#else
@@ -71,65 +67,24 @@ int main(int argc, char** argv)
 //
 //#define GLM_FORCE_RADIANS
 //#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+//#define GLM_ENABLE_EXPERIMENTAL
 //#include <glm/glm.hpp>
 //#include <glm/gtc/matrix_transform.hpp>
+//#include <glm/gtx/hash.hpp>
 //
+//#define STB_IMAGE_IMPLEMENTATION
+//#include <stb_image.h>
 //
+//#define TINYOBJLOADER_IMPLEMENTATION
+//#include <tiny_obj_loader.h>
 //
 //constexpr uint32_t WIDTH = 800;
 //constexpr uint32_t HEIGHT = 600;
+//const std::string  MODEL_PATH = "C:/Users/arthu/Desktop/Vulkan_Project/Vulkan_Project/Ressources/Models/viking_room.obj";
+//const std::string  TEXTURE_PATH = "C:/Users/arthu/Desktop/Vulkan_Project/Vulkan_Project/Ressources/Textures/viking_room.png";
 //constexpr int      MAX_FRAMES_IN_FLIGHT = 2;
 //
-//const std::vector<char const*> validationLayers = {
-//	"VK_LAYER_KHRONOS_validation" };
 //
-//#ifdef NDEBUG
-//constexpr bool enableValidationLayers = false;
-//#else
-//constexpr bool enableValidationLayers = true;
-//#endif
-//
-//struct Vertex
-//{
-//	glm::vec3 pos;
-//	glm::vec3 color;
-//	glm::vec2 texCoord;
-//
-//	static vk::VertexInputBindingDescription getBindingDescription()
-//	{
-//		return { 0, sizeof(Vertex), vk::VertexInputRate::eVertex };
-//	}
-//
-//	static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions()
-//	{
-//		return {
-//			vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, pos)),
-//			vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, color)),
-//			vk::VertexInputAttributeDescription(2, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, texCoord)) };
-//	}
-//};
-//
-//struct UniformBufferObject
-//{
-//	glm::mat4 model;
-//	glm::mat4 view;
-//	glm::mat4 proj;
-//};
-//
-//const std::vector<Vertex> vertices = {
-//	{{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-//	{{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-//	{{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-//	{{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
-//
-//	{{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-//	{{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-//	{{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-//	{{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}} };
-//
-//const std::vector<uint16_t> indices = {
-//	0, 1, 2, 2, 3, 0,
-//	4, 5, 6, 6, 7, 4 };
 //
 //class HelloTriangleApplication
 //{
@@ -166,11 +121,14 @@ int main(int argc, char** argv)
 //	vk::raii::DeviceMemory depthImageMemory = nullptr;
 //	vk::raii::ImageView    depthImageView = nullptr;
 //
+//	uint32_t               mipLevels = 0;
 //	vk::raii::Image        textureImage = nullptr;
 //	vk::raii::DeviceMemory textureImageMemory = nullptr;
 //	vk::raii::ImageView    textureImageView = nullptr;
 //	vk::raii::Sampler      textureSampler = nullptr;
 //
+//	std::vector<Vertex>    vertices;
+//	std::vector<uint32_t>  indices;
 //	vk::raii::Buffer       vertexBuffer = nullptr;
 //	vk::raii::DeviceMemory vertexBufferMemory = nullptr;
 //	vk::raii::Buffer       indexBuffer = nullptr;
@@ -194,9 +152,7 @@ int main(int argc, char** argv)
 //	bool framebufferResized = false;
 //
 //	std::vector<const char*> requiredDeviceExtension = {
-//		vk::KHRSwapchainExtensionName,
-//		vk::KHRSpirv14ExtensionName,
-//		vk::KHRSynchronization2ExtensionName };
+//		vk::KHRSwapchainExtensionName };
 //
 //	void initWindow()
 //	{
@@ -232,6 +188,7 @@ int main(int argc, char** argv)
 //		createTextureImage();
 //		createTextureImageView();
 //		createTextureSampler();
+//		loadModel();
 //		createVertexBuffer();
 //		createIndexBuffer();
 //		createUniformBuffers();
@@ -290,7 +247,6 @@ int main(int argc, char** argv)
 //											  .pEngineName = "No Engine",
 //											  .engineVersion = VK_MAKE_VERSION(1, 0, 0),
 //											  .apiVersion = vk::ApiVersion14 };
-//
 //		// Get the required layers
 //		std::vector<char const*> requiredLayers;
 //		if (enableValidationLayers)
@@ -485,7 +441,7 @@ int main(int argc, char** argv)
 //
 //	void createGraphicsPipeline()
 //	{
-//		vk::raii::ShaderModule shaderModule = createShaderModule(readFile("Shaders/slang.spv"));
+//		vk::raii::ShaderModule shaderModule = createShaderModule(readFile("C:/Users/arthu/Desktop/Vulkan_Project/Vulkan_Project/Ressources/Shaders/slang.spv"));
 //
 //		vk::PipelineShaderStageCreateInfo vertShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eVertex, .module = shaderModule, .pName = "vertMain" };
 //		vk::PipelineShaderStageCreateInfo fragShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eFragment, .module = shaderModule, .pName = "fragMain" };
@@ -570,25 +526,30 @@ int main(int argc, char** argv)
 //	{
 //		vk::Format depthFormat = findDepthFormat();
 //
-//		createImage(swapChainExtent.width, swapChainExtent.height, depthFormat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal, depthImage, depthImageMemory);
-//		depthImageView = createImageView(depthImage, depthFormat, vk::ImageAspectFlagBits::eDepth);
+//		createImage(swapChainExtent.width, swapChainExtent.height, 1, depthFormat, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal, depthImage, depthImageMemory);
+//		depthImageView = createImageView(depthImage, depthFormat, vk::ImageAspectFlagBits::eDepth, 1);
 //	}
 //
-//	vk::Format findSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features)
+//	vk::Format findSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features) const
 //	{
-//		auto formatIt = std::ranges::find_if(candidates, [&](auto const format) {
-//			vk::FormatProperties props = physicalDevice.getFormatProperties(format);
-//			return (((tiling == vk::ImageTiling::eLinear) && ((props.linearTilingFeatures & features) == features)) ||
-//				((tiling == vk::ImageTiling::eOptimal) && ((props.optimalTilingFeatures & features) == features)));
-//			});
-//		if (formatIt == candidates.end())
+//		for (const auto format : candidates)
 //		{
-//			throw std::runtime_error("failed to find supported format!");
+//			vk::FormatProperties props = physicalDevice.getFormatProperties(format);
+//
+//			if (tiling == vk::ImageTiling::eLinear && (props.linearTilingFeatures & features) == features)
+//			{
+//				return format;
+//			}
+//			if (tiling == vk::ImageTiling::eOptimal && (props.optimalTilingFeatures & features) == features)
+//			{
+//				return format;
+//			}
 //		}
-//		return *formatIt;
+//
+//		throw std::runtime_error("failed to find supported format!");
 //	}
 //
-//	vk::Format findDepthFormat()
+//	[[nodiscard]] vk::Format findDepthFormat() const
 //	{
 //		return findSupportedFormat(
 //			{ vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint },
@@ -596,7 +557,7 @@ int main(int argc, char** argv)
 //			vk::FormatFeatureFlagBits::eDepthStencilAttachment);
 //	}
 //
-//	bool hasStencilComponent(vk::Format format)
+//	static bool hasStencilComponent(vk::Format format)
 //	{
 //		return format == vk::Format::eD32SfloatS8Uint || format == vk::Format::eD24UnormS8Uint;
 //	}
@@ -604,8 +565,9 @@ int main(int argc, char** argv)
 //	void createTextureImage()
 //	{
 //		int            texWidth, texHeight, texChannels;
-//		stbi_uc* pixels = STBManager::Load("Textures\\texture.jpg", &texWidth, &texHeight, &texChannels);
+//		stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 //		vk::DeviceSize imageSize = texWidth * texHeight * 4;
+//		mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
 //
 //		if (!pixels)
 //		{
@@ -622,16 +584,83 @@ int main(int argc, char** argv)
 //
 //		stbi_image_free(pixels);
 //
-//		createImage(texWidth, texHeight, vk::Format::eR8G8B8A8Srgb, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal, textureImage, textureImageMemory);
+//		createImage(texWidth, texHeight, mipLevels, vk::Format::eR8G8B8A8Srgb, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal, textureImage, textureImageMemory);
 //
-//		transitionImageLayout(textureImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+//		transitionImageLayout(textureImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, mipLevels);
 //		copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-//		transitionImageLayout(textureImage, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+//
+//		generateMipmaps(textureImage, vk::Format::eR8G8B8A8Srgb, texWidth, texHeight, mipLevels);
+//	}
+//
+//	void generateMipmaps(vk::raii::Image& image, vk::Format imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels)
+//	{
+//		// Check if image format supports linear blit-ing
+//		vk::FormatProperties formatProperties = physicalDevice.getFormatProperties(imageFormat);
+//
+//		if (!(formatProperties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eSampledImageFilterLinear))
+//		{
+//			throw std::runtime_error("texture image format does not support linear blitting!");
+//		}
+//
+//		std::unique_ptr<vk::raii::CommandBuffer> commandBuffer = beginSingleTimeCommands();
+//
+//		vk::ImageMemoryBarrier barrier = { .srcAccessMask = vk::AccessFlagBits::eTransferWrite, .dstAccessMask = vk::AccessFlagBits::eTransferRead, .oldLayout = vk::ImageLayout::eTransferDstOptimal, .newLayout = vk::ImageLayout::eTransferSrcOptimal, .srcQueueFamilyIndex = vk::QueueFamilyIgnored, .dstQueueFamilyIndex = vk::QueueFamilyIgnored, .image = image };
+//		barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+//		barrier.subresourceRange.baseArrayLayer = 0;
+//		barrier.subresourceRange.layerCount = 1;
+//		barrier.subresourceRange.levelCount = 1;
+//
+//		int32_t mipWidth = texWidth;
+//		int32_t mipHeight = texHeight;
+//
+//		for (uint32_t i = 1; i < mipLevels; i++)
+//		{
+//			barrier.subresourceRange.baseMipLevel = i - 1;
+//			barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+//			barrier.newLayout = vk::ImageLayout::eTransferSrcOptimal;
+//			barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+//			barrier.dstAccessMask = vk::AccessFlagBits::eTransferRead;
+//
+//			commandBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, {}, {}, {}, barrier);
+//
+//			vk::ArrayWrapper1D<vk::Offset3D, 2> offsets, dstOffsets;
+//			offsets[0] = vk::Offset3D(0, 0, 0);
+//			offsets[1] = vk::Offset3D(mipWidth, mipHeight, 1);
+//			dstOffsets[0] = vk::Offset3D(0, 0, 0);
+//			dstOffsets[1] = vk::Offset3D(mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1);
+//			vk::ImageBlit blit = { .srcSubresource = {}, .srcOffsets = offsets, .dstSubresource = {}, .dstOffsets = dstOffsets };
+//			blit.srcSubresource = vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, i - 1, 0, 1);
+//			blit.dstSubresource = vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, i, 0, 1);
+//
+//			commandBuffer->blitImage(image, vk::ImageLayout::eTransferSrcOptimal, image, vk::ImageLayout::eTransferDstOptimal, { blit }, vk::Filter::eLinear);
+//
+//			barrier.oldLayout = vk::ImageLayout::eTransferSrcOptimal;
+//			barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+//			barrier.srcAccessMask = vk::AccessFlagBits::eTransferRead;
+//			barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+//
+//			commandBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, {}, {}, barrier);
+//
+//			if (mipWidth > 1)
+//				mipWidth /= 2;
+//			if (mipHeight > 1)
+//				mipHeight /= 2;
+//		}
+//
+//		barrier.subresourceRange.baseMipLevel = mipLevels - 1;
+//		barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+//		barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+//		barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+//		barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+//
+//		commandBuffer->pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, {}, {}, barrier);
+//
+//		endSingleTimeCommands(*commandBuffer);
 //	}
 //
 //	void createTextureImageView()
 //	{
-//		textureImageView = createImageView(textureImage, vk::Format::eR8G8B8A8Srgb, vk::ImageAspectFlagBits::eColor);
+//		textureImageView = createImageView(textureImage, vk::Format::eR8G8B8A8Srgb, vk::ImageAspectFlagBits::eColor, mipLevels);
 //	}
 //
 //	void createTextureSampler()
@@ -648,27 +677,29 @@ int main(int argc, char** argv)
 //				   .anisotropyEnable = vk::True,
 //				   .maxAnisotropy = properties.limits.maxSamplerAnisotropy,
 //				   .compareEnable = vk::False,
-//				   .compareOp = vk::CompareOp::eAlways };
+//				   .compareOp = vk::CompareOp::eAlways,
+//				   .minLod = 0.0f,
+//				   .maxLod = vk::LodClampNone };
 //		textureSampler = vk::raii::Sampler(device, samplerInfo);
 //	}
 //
-//	vk::raii::ImageView createImageView(vk::raii::Image& image, vk::Format format, vk::ImageAspectFlags aspectFlags)
+//	[[nodiscard]] vk::raii::ImageView createImageView(const vk::raii::Image& image, vk::Format format, vk::ImageAspectFlags aspectFlags, uint32_t mipLevels) const
 //	{
 //		vk::ImageViewCreateInfo viewInfo{
 //			.image = image,
 //			.viewType = vk::ImageViewType::e2D,
 //			.format = format,
-//			.subresourceRange = {aspectFlags, 0, 1, 0, 1} };
+//			.subresourceRange = {aspectFlags, 0, mipLevels, 0, 1} };
 //		return vk::raii::ImageView(device, viewInfo);
 //	}
 //
-//	void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image& image, vk::raii::DeviceMemory& imageMemory)
+//	void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image& image, vk::raii::DeviceMemory& imageMemory)
 //	{
 //		vk::ImageCreateInfo imageInfo{
 //			.imageType = vk::ImageType::e2D,
 //			.format = format,
 //			.extent = {width, height, 1},
-//			.mipLevels = 1,
+//			.mipLevels = mipLevels,
 //			.arrayLayers = 1,
 //			.samples = vk::SampleCountFlagBits::e1,
 //			.tiling = tiling,
@@ -685,15 +716,15 @@ int main(int argc, char** argv)
 //		image.bindMemory(imageMemory, 0);
 //	}
 //
-//	void transitionImageLayout(const vk::raii::Image& image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout)
+//	void transitionImageLayout(const vk::raii::Image& image, const vk::ImageLayout oldLayout, const vk::ImageLayout newLayout, uint32_t mipLevels)
 //	{
-//		auto commandBuffer = beginSingleTimeCommands();
+//		const auto commandBuffer = beginSingleTimeCommands();
 //
 //		vk::ImageMemoryBarrier barrier{
 //			.oldLayout = oldLayout,
 //			.newLayout = newLayout,
 //			.image = image,
-//			.subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1} };
+//			.subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, mipLevels, 0, 1} };
 //
 //		vk::PipelineStageFlags sourceStage;
 //		vk::PipelineStageFlags destinationStage;
@@ -722,7 +753,7 @@ int main(int argc, char** argv)
 //		endSingleTimeCommands(*commandBuffer);
 //	}
 //
-//	void copyBufferToImage(const vk::raii::Buffer& buffer, vk::raii::Image& image, uint32_t width, uint32_t height)
+//	void copyBufferToImage(const vk::raii::Buffer& buffer, const vk::raii::Image& image, uint32_t width, uint32_t height)
 //	{
 //		std::unique_ptr<vk::raii::CommandBuffer> commandBuffer = beginSingleTimeCommands();
 //		vk::BufferImageCopy                      region{
@@ -734,6 +765,48 @@ int main(int argc, char** argv)
 //								 .imageExtent = {width, height, 1} };
 //		commandBuffer->copyBufferToImage(buffer, image, vk::ImageLayout::eTransferDstOptimal, { region });
 //		endSingleTimeCommands(*commandBuffer);
+//	}
+//
+//	void loadModel()
+//	{
+//		tinyobj::attrib_t                attrib;
+//		std::vector<tinyobj::shape_t>    shapes;
+//		std::vector<tinyobj::material_t> materials;
+//		std::string                      warn, err;
+//
+//		if (!LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str()))
+//		{
+//			throw std::runtime_error(warn + err);
+//		}
+//
+//		std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+//
+//		for (const auto& shape : shapes)
+//		{
+//			for (const auto& index : shape.mesh.indices)
+//			{
+//				Vertex vertex{};
+//
+//				vertex.pos = {
+//					attrib.vertices[3 * index.vertex_index + 0],
+//					attrib.vertices[3 * index.vertex_index + 1],
+//					attrib.vertices[3 * index.vertex_index + 2] };
+//
+//				vertex.texCoord = {
+//					attrib.texcoords[2 * index.texcoord_index + 0],
+//					1.0f - attrib.texcoords[2 * index.texcoord_index + 1] };
+//
+//				vertex.color = { 1.0f, 1.0f, 1.0f };
+//
+//				if (!uniqueVertices.contains(vertex))
+//				{
+//					uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+//					vertices.push_back(vertex);
+//				}
+//
+//				indices.push_back(uniqueVertices[vertex]);
+//			}
+//		}
 //	}
 //
 //	void createVertexBuffer()
@@ -870,7 +943,7 @@ int main(int argc, char** argv)
 //		return commandBuffer;
 //	}
 //
-//	void endSingleTimeCommands(vk::raii::CommandBuffer& commandBuffer)
+//	void endSingleTimeCommands(const vk::raii::CommandBuffer& commandBuffer) const
 //	{
 //		commandBuffer.end();
 //
@@ -949,7 +1022,7 @@ int main(int argc, char** argv)
 //
 //		vk::RenderingAttachmentInfo depthAttachmentInfo = {
 //			.imageView = depthImageView,
-//			.imageLayout = vk::ImageLayout::eDepthAttachmentOptimal,
+//			.imageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal,
 //			.loadOp = vk::AttachmentLoadOp::eClear,
 //			.storeOp = vk::AttachmentStoreOp::eDontCare,
 //			.clearValue = clearDepth };
@@ -965,7 +1038,7 @@ int main(int argc, char** argv)
 //		commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(swapChainExtent.width), static_cast<float>(swapChainExtent.height), 0.0f, 1.0f));
 //		commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapChainExtent));
 //		commandBuffer.bindVertexBuffers(0, *vertexBuffer, { 0 });
-//		commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexType::eUint16);
+//		commandBuffer.bindIndexBuffer(*indexBuffer, 0, vk::IndexType::eUint32);
 //		commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, *descriptorSets[frameIndex], nullptr);
 //		commandBuffer.drawIndexed(indices.size(), 1, 0, 0, 0);
 //		commandBuffer.endRendering();
@@ -1031,7 +1104,7 @@ int main(int argc, char** argv)
 //		}
 //	}
 //
-//	void updateUniformBuffer(uint32_t currentImage)
+//	void updateUniformBuffer(uint32_t currentImage) const
 //	{
 //		static auto startTime = std::chrono::high_resolution_clock::now();
 //
@@ -1148,7 +1221,7 @@ int main(int argc, char** argv)
 //			vk::PresentModeKHR::eFifo;
 //	}
 //
-//	vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities)
+//	[[nodiscard]] vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities) const
 //	{
 //		if (capabilities.currentExtent.width != 0xFFFFFFFF)
 //		{
@@ -1162,7 +1235,7 @@ int main(int argc, char** argv)
 //			std::clamp<uint32_t>(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height) };
 //	}
 //
-//	std::vector<const char*> getRequiredExtensions()
+//	[[nodiscard]] std::vector<const char*> getRequiredExtensions() const
 //	{
 //		uint32_t glfwExtensionCount = 0;
 //		auto     glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -1188,26 +1261,21 @@ int main(int argc, char** argv)
 //
 //	static std::vector<char> readFile(const std::string& filename)
 //	{
-//		auto& file = fileManager::Load(filename);
-//		file.seekg(0, std::ios::end);
-//		auto fileSize = file.tellg();
-//		std::vector<char> buffer(fileSize);
+//		std::ifstream file(filename, std::ios::ate | std::ios::binary);
+//		if (!file.is_open())
+//		{
+//			throw std::runtime_error("failed to open file!");
+//		}
+//		std::vector<char> buffer(file.tellg());
 //		file.seekg(0, std::ios::beg);
 //		file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
 //		file.close();
-//		fileManager::Unload(filename);
 //		return buffer;
 //	}
 //};
 //
-//int main(int argc, char** argv)
+//int main()
 //{
-//
-//	std::filesystem::path exePath = argv[0];
-//	std::filesystem::path projectRoot = exePath.parent_path().parent_path().parent_path().parent_path().parent_path();
-//
-//	fileManager::SetGlobalFIlePath(projectRoot / "Ressources");
-//	STBManager::SetGlobalFIlePath(projectRoot / "Ressources");
 //	try
 //	{
 //		HelloTriangleApplication app;

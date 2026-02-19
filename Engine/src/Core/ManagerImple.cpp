@@ -71,6 +71,7 @@ std::unique_ptr<Obj> LoadFile3(const std::string& filePath)
 		{
 			Vertex2 vertex{};
 
+			// store like this X0,Y0,Z0 so 3 * index.vertex_index + the offset
 			vertex.pos = {
 				attrib.vertices[3 * index.vertex_index + 0],
 				attrib.vertices[3 * index.vertex_index + 1],
@@ -82,12 +83,13 @@ std::unique_ptr<Obj> LoadFile3(const std::string& filePath)
 
 			vertex.color = { 1.0f, 1.0f, 1.0f };
 
+			// if vertex is unique add it 
 			if (!uniqueVertices.contains(vertex))
 			{
 				uniqueVertices[vertex] = static_cast<uint32_t>(result->vertices.size());
 				result->vertices.push_back(vertex);
 			}
-
+			// add the index
 			result->indices.push_back(uniqueVertices[vertex]);
 		}
 	}

@@ -26,11 +26,7 @@
 #include "Image.h"
 #include "SyncObject.h"
 
-struct UniformBufferObject {
-	glm::mat4 model;
-	glm::mat4 view;
-	glm::mat4 proj;
-};
+
 
 
 
@@ -57,7 +53,9 @@ namespace KGR
 				vk::PipelineStageFlags2 src_stage_mask,
 				vk::PipelineStageFlags2 dst_stage_mask, vk::ImageAspectFlags    image_aspect_flags, vk::raii::CommandBuffer& buffer);
 
-			void transitionImageLayout(const vk::raii::Image& image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+			void transitionImageLayout(const vk::raii::Image& image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout,uint32_t mipLevels);
+
+			void generateMipmaps(vk::raii::Image& image, vk::Format imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
 
 
 			void drawFrame();

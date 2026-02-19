@@ -14,7 +14,7 @@ namespace KGR
 			using vkImageView = vk::raii::ImageView;
 			using vkDeviceMemory = vk::raii::DeviceMemory;
 			Image() = default;
-			Image(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling,
+			Image(uint32_t width, uint32_t height,  uint32_t mipLevel, vk::Format format, vk::ImageTiling tiling,
 				vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties,Device* device,PhysicalDevice* physicalDevice);
 			void CreateView(vk::Format format, vk::ImageAspectFlags aspectFlags, Device* device);
 			vkImageView& GetView();
@@ -26,12 +26,12 @@ namespace KGR
 			const vkImage& Get() const;
 
 
-			static void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling,
+			static void createImage(uint32_t width, uint32_t height,uint32_t mimMapLevel, vk::Format format, vk::ImageTiling tiling,
 			                        vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image& image,
 			                        vk::raii::DeviceMemory& imageMemory,Device* device,PhysicalDevice* physicalDevice);
 
 
-			static vkImageView createImageView(vk::raii::Image& image, vk::Format format, vk::ImageAspectFlags aspectFlags,Device* device);
+			static vkImageView createImageView(vk::raii::Image& image, vk::Format format, vk::ImageAspectFlags aspectFlags, uint32_t mipMapLevel,Device* device);
 
 			uint32_t GetHeight() const 
 			{
@@ -41,8 +41,13 @@ namespace KGR
 			{
 				return m_width;
 			}
+			uint32_t GetMimMap() const
+			{
+				return m_mipmapLevel;
+			}
 		private:
-			uint32_t m_width = 0, m_height = 0;
+			
+			uint32_t m_width = 0, m_height = 0,m_mipmapLevel = 1;
 			vkImage m_image = nullptr;
 			vkImageView m_imageView = nullptr;
 			vkDeviceMemory m_imageMemory = nullptr;
