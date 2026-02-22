@@ -30,6 +30,10 @@
 
 
 
+
+
+
+
 namespace KGR
 {
 	namespace _Vulkan

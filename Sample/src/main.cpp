@@ -3,6 +3,9 @@
 #include "VulkanCore.h"
 #include "_GLFW.h"
 #include "Core/ManagerImple.h"
+
+
+
 int main(int argc, char** argv)
 {
 
@@ -28,6 +31,9 @@ int main(int argc, char** argv)
 
 	app.initVulkan();
 
+
+
+	
 	do
 	{
 		KGR::_GLFW::Window::PollEvent();

@@ -379,7 +379,6 @@ void KGR::_Vulkan::VulkanCore::drawFrame()
 
 
 	updateUniformBuffer(syncObject.GetCurrentFrame());
-
 	recordCommandBuffer(syncObject.GetCurrentImage(), buffer);
 
 	vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
