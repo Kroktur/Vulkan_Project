@@ -1,63 +1,111 @@
 #pragma once
 
-/// @brief this file contain all the event struct for the event system
-//The event system is a simple struct that contain the data of the event and a boolean to know if the event is handled or not
+/** 
+ * @brief the event struct for the event system
+ */
 struct Event
 {
 	virtual ~Event() = default;
-	bool handled = false;
+	bool m_handled = false;
 };
 
-//The event struct for the key event
+/**
+ * @brief the event struct for the key event
+ */
 struct KeyEvent : public Event
 {
-	KeyEvent(int k, int a) : key(k), action(a) {}
-	int key;
-	int action;
+	/**
+	 * @brief the constructor for the key event
+	 * \param key
+	 * \param action
+	 */
+	KeyEvent(int key, int action) : m_key(key), m_action(action) {}
+	int m_key;
+	int m_action;
 };
 
-//The event struct for the mouse event
+/**
+ * @brief the event struct for the mouse event
+ */
 struct MouseEvent : public Event
 {
+	/**
+	 * @brief the constructor for the mouse event
+	 * \param x
+	 * \param y
+	 */
 	MouseEvent(double x, double y) : xPos(x), yPos(y) {}
 	double xPos;
 	double yPos;
 };
 
-//The event struct for the mouse button event
+/**
+ * @brief the event struct for the mouse button event
+ */
 struct MouseButtonEvent : public Event
 {
-	MouseButtonEvent(int b, int a) : button(b), action(a) {}
-	int button;
-	int action;
+	/**
+	 * @brief the constructor for the mouse button event
+	 * \param button
+	 * \param action
+	 */
+	MouseButtonEvent(int button, int action) : m_button(button), m_action(action) {}
+	int m_button;
+	int m_action;
 };
 
-//The event struct for the scroll event
+/**
+ * @brief the event struct for the scroll event
+ */
 struct ScrollEvent : public Event
 {
+	/**
+	 * @brief the constructor for the scroll event
+	 * \param x
+	 * \param y
+	 */
 	ScrollEvent(double x, double y) : xOffset(x), yOffset(y) {}
 	double xOffset;
 	double yOffset;
 };
 
-//The event struct for the window resize event
+/**
+ * @brief the event struct for the window resize event
+ */
 struct WindowResizeEvent : public Event
 {
-	WindowResizeEvent(int w, int h) : width(w), height(h) {}
-	int width;
-	int height;
+	/**
+	 * @brief the constructor for the window resize event
+	 * \param width
+	 * \param height
+	 */
+	WindowResizeEvent(int width, int height) : m_width(width), m_height(height) {}
+	int m_width;
+	int m_height;
 };
 
-//The event struct for the window close event
+/**
+ * @brief the event struct for the window close event
+ */
 struct WindowCloseEvent : public Event
 {
+	/**
+	 * @brief the constructor for the window close event
+	 */
 	WindowCloseEvent() = default;
 };
 
-//The event struct for the framebuffer resize event
+/**
+ * @brief the event struct for the framebuffer resize event
+ */
 struct FramebufferResizeEvent : public Event
 {
-	FramebufferResizeEvent(int w, int h) : width(w), height(h) {}
-	int width;
-	int height;
+	/**
+	 * @brief the constructor for the framebuffer resize event
+	 * \param width
+	 * \param height
+	 */
+	FramebufferResizeEvent(int width, int height) : m_width(width), m_height(height) {}
+	int m_width;
+	int m_height;
 };
