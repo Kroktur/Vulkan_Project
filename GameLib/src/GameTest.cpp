@@ -6,4 +6,5 @@
 //       Input manager :: VALIDATED
 //       AABB, OOBB, Sphere classes :: VALIDATED
 //       Testing on gce:: every collision type :: VALIDATED
+//       Load des mesh sur vulkan : TODO
 

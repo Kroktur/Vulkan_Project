@@ -582,6 +582,15 @@ void KGR::Core_Vulkan::CreateDevice()
 {
 	m_device = _Vulkan::_Device(&m_physicalDevice);
 	m_graphicsQueue = _Vulkan::_Queue(&m_device, &m_physicalDevice);
+
+	//INIT VMA
+	VmaAllocatorCreateInfo info{};
+	info.instance = *m_instance.GetInstance(); 
+	info.physicalDevice = *m_physicalDevice.GetDevice();
+	info.device = *m_device.GetDevice();
+
+	vmaCreateAllocator(&info, &KGR::_Vulkan::vmaContext.allocator);
+
 }
 
 void KGR::Core_Vulkan::CreateSwapchain(_GLFW::Window* window)
@@ -796,6 +805,12 @@ void KGR::Core_Vulkan::Cleanup()
 	m_surface.Clear();
 	m_physicalDevice.Clear();
 	m_instance.Clear();
+
+	if (KGR::_Vulkan::vmaContext.allocator != VK_NULL_HANDLE)
+	{
+		vmaDestroyAllocator(KGR::_Vulkan::vmaContext.allocator);
+		KGR::_Vulkan::vmaContext.allocator = VK_NULL_HANDLE;
+	}
 }
 
 KGR::_Vulkan::_Instance& KGR::Core_Vulkan::GetInstance()
@@ -861,6 +876,253 @@ vk::ImageView KGR::Core_Vulkan::GetCurrentImageView()
 ui32t KGR::Core_Vulkan::GetCurrentFrame() const
 {
 	return m_currentFrame;
+}
+
+const std::vector<KGR::_Vulkan::_Mesh>& KGR::Core_Vulkan::GetMeshes() const
+{
+	return m_meshes;
+}
+
+std::vector<glm::vec3> KGR::Core_Vulkan::ComputeNormals(const rapidobj::Result& result)
+{
+	const size_t vertexCount = result.attributes.positions.size() / 3;
+	std::vector<glm::vec3> normals(vertexCount, glm::vec3(0.0f));
+
+	for (const auto& shape : result.shapes)
+	{
+		const auto& indices = shape.mesh.indices;
+
+		for (size_t i = 0; i < indices.size(); i += 3)
+		{
+			const auto& i0 = indices[i + 0];
+			const auto& i1 = indices[i + 1];
+			const auto& i2 = indices[i + 2];
+
+			glm::vec3 p0(result.attributes.positions[3 * i0.position_index + 0],
+						 result.attributes.positions[3 * i0.position_index + 1],
+						 result.attributes.positions[3 * i0.position_index + 2]);
+			glm::vec3 p1(result.attributes.positions[3 * i1.position_index + 0],
+						 result.attributes.positions[3 * i1.position_index + 1],
+						 result.attributes.positions[3 * i1.position_index + 2]);
+			glm::vec3 p2(result.attributes.positions[3 * i2.position_index + 0],
+						 result.attributes.positions[3 * i2.position_index + 1],
+						 result.attributes.positions[3 * i2.position_index + 2]);
+
+			glm::vec3 n = glm::normalize(glm::cross(p1 - p0, p2 - p0));
+
+			auto accumulate = [&](int idx){
+				normals[idx] += n;};
+
+			accumulate(i0.position_index);
+			accumulate(i1.position_index);
+			accumulate(i2.position_index);
+		}
+	}
+
+	for (auto& n : normals)
+		n = glm::normalize(n);
+
+	return normals;
+}
+
+
+void KGR::Core_Vulkan::LoadMesh(const std::string& path)
+{
+	rapidobj::Result result = rapidobj::ParseFile(path);
+	if (result.error)
+		throw std::runtime_error("OBJ orror: " + result.error.code.message());
+	rapidobj::Triangulate(result);
+
+	std::vector<glm::vec3> computedNormals;
+	const bool hasNormalsInFile = !result.attributes.normals.empty();
+
+	if (!hasNormalsInFile)
+		computedNormals = ComputeNormals(result);
+
+	std::vector<KGR::_Vulkan::_Vertex> vertices;
+	std::vector<uint32_t> indices;
+	vertices.reserve(result.attributes.positions.size() / 3);
+	if (!result.shapes.empty())
+		indices.reserve(result.shapes[0].mesh.indices.size());
+
+	for (const auto& shape : result.shapes)
+	{
+		for (const auto& idx : shape.mesh.indices)
+		{
+			KGR::_Vulkan::_Vertex vertex{};
+
+			//Position
+			if (idx.position_index >= 0)
+			{
+				const auto posIdx = 3 * idx.position_index;
+				vertex.pos =
+				{
+					result.attributes.positions[posIdx + 0],
+					result.attributes.positions[posIdx + 1],
+					result.attributes.positions[posIdx + 2]
+				};
+			}
+
+			//Normal
+			if (hasNormalsInFile && idx.normal_index >= 0)
+			{
+				const auto normalIdx = 3 * idx.normal_index;
+				vertex.normal =
+				{
+					result.attributes.normals[normalIdx + 0],
+					result.attributes.normals[normalIdx + 1],
+					result.attributes.normals[normalIdx + 2]
+				};
+			}
+			else if (!hasNormalsInFile && idx.position_index >= 0)
+				vertex.normal = computedNormals[idx.position_index];
+
+			//UV
+			if (idx.texcoord_index >= 0)
+			{
+				const auto txtcoordIdx = 2 * idx.texcoord_index;
+				vertex.uv =
+				{
+					result.attributes.texcoords[txtcoordIdx + 0],
+					1.0f - result.attributes.texcoords[txtcoordIdx + 1]
+				};
+			}
+
+			vertices.push_back(vertex);
+			indices.push_back(static_cast<uint32_t>(indices.size()));
+		}
+	}
+
+	KGR::_Vulkan::_Mesh mesh = CreateMeshFromCPUData(vertices, indices);
+	m_meshes.push_back(mesh);
+}
+
+KGR::_Vulkan::_Mesh KGR::Core_Vulkan::CreateMeshFromCPUData(
+	const std::vector<KGR::_Vulkan::_Vertex>& vertices,
+	const std::vector<uint32_t>& indices)
+{
+	KGR::_Vulkan::_Mesh mesh{};
+	VkDevice device = *m_device.GetDevice();
+
+	VmaAllocator allocator = KGR::_Vulkan::vmaContext.allocator;
+	VkDeviceSize vertexSize = vertices.size() * sizeof(KGR::_Vulkan::_Vertex);
+	VkDeviceSize indexSize  = indices.size() * sizeof(uint32_t);
+
+	//Staging Vertex
+	VkBufferCreateInfo vertBuffStagingInfo{};
+	vertBuffStagingInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	vertBuffStagingInfo.size  = vertexSize;
+	vertBuffStagingInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+	VmaAllocationCreateInfo vertBuffStagingAllocInfo{};
+	vertBuffStagingAllocInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
+
+	VkBuffer vertBuffStaging;
+	VmaAllocation vertBuffStagingAlloc;
+	vmaCreateBuffer(
+		allocator,
+		&vertBuffStagingInfo,
+		&vertBuffStagingAllocInfo,
+		&vertBuffStaging,
+		&vertBuffStagingAlloc,
+		nullptr);
+
+	void* data = nullptr;
+	vmaMapMemory(allocator, vertBuffStagingAlloc, &data);
+	std::memcpy(data, vertices.data(), static_cast<size_t>(vertexSize));
+	vmaUnmapMemory(allocator, vertBuffStagingAlloc);
+
+	//Staging Index
+	VkBufferCreateInfo idxBuffStagingInfo = vertBuffStagingInfo;
+	idxBuffStagingInfo.size = indexSize;
+
+	VmaAllocationCreateInfo idxBuffStagingAllocInfo = vertBuffStagingAllocInfo;
+
+	VkBuffer idxBuffStaging;
+	VmaAllocation idxBuffStagingAlloc;
+	vmaCreateBuffer(allocator, &idxBuffStagingInfo, &idxBuffStagingAllocInfo,
+		&idxBuffStaging, &idxBuffStagingAlloc, nullptr);
+
+	vmaMapMemory(allocator, idxBuffStagingAlloc, &data);
+	std::memcpy(data, indices.data(), static_cast<size_t>(indexSize));
+	vmaUnmapMemory(allocator, idxBuffStagingAlloc);
+
+	//GPU Vertex Buffezr
+	VkBufferCreateInfo vertBuffInfo{};
+	vertBuffInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	vertBuffInfo.size  = vertexSize;
+	vertBuffInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+	VmaAllocationCreateInfo vertBuffAllocInfo{};
+	vertBuffAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+	vmaCreateBuffer(allocator, &vertBuffInfo, &vertBuffAllocInfo,
+		&mesh.vertexBuffer, &mesh.vertexAlloc, nullptr);
+
+	//GPU index buffer
+	VkBufferCreateInfo idxBuffInfo{};
+	idxBuffInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	idxBuffInfo.size  = indexSize;
+	idxBuffInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+	VmaAllocationCreateInfo idxBuffAllocInfo{};
+	idxBuffAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+	vmaCreateBuffer(allocator, &idxBuffInfo, &idxBuffAllocInfo,
+		&mesh.indexBuffer, &mesh.indexAlloc, nullptr);
+
+	//Copy via one-shot command buffer
+	VkCommandBuffer cb = BeginSingleTimeCommands();
+
+	VkBufferCopy copyRegion{};
+	copyRegion.size = vertexSize;
+	vkCmdCopyBuffer(cb, vertBuffStaging, mesh.vertexBuffer, 1, &copyRegion);
+
+	copyRegion.size = indexSize;
+	vkCmdCopyBuffer(cb, idxBuffStaging, mesh.indexBuffer, 1, &copyRegion);
+
+	EndSingleTimeCommands(cb);
+
+	//Cleanup staging
+	vmaDestroyBuffer(allocator, vertBuffStaging, vertBuffStagingAlloc);
+	vmaDestroyBuffer(allocator, idxBuffStaging, idxBuffStagingAlloc);
+
+	mesh.indexCount = static_cast<uint32_t>(indices.size());
+	return mesh;
+}
+
+VkCommandBuffer KGR::Core_Vulkan::BeginSingleTimeCommands()
+{
+	VkCommandBufferAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandPool = *m_commandPool.GetPool();
+	allocInfo.commandBufferCount = 1;
+
+	VkCommandBuffer cb = VK_NULL_HANDLE;
+	vkAllocateCommandBuffers(*m_device.GetDevice(), &allocInfo, &cb);
+
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	vkBeginCommandBuffer(cb, &beginInfo);
+	return cb;
+}
+
+void KGR::Core_Vulkan::EndSingleTimeCommands(VkCommandBuffer cb)
+{
+	vkEndCommandBuffer(cb);
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &cb;
+
+	vkQueueSubmit(*m_graphicsQueue.GetQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(*m_graphicsQueue.GetQueue());
+
+	vkFreeCommandBuffers(*m_device.GetDevice(), *m_commandPool.GetPool(), 1, &cb);
 }
 
 void KGR::Core_Vulkan::TransitionImage(

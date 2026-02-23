@@ -85,7 +85,18 @@ Rem )
      EXIT /B 1
  )
 
+ECHO Update de rapidobj
+CALL "%LOCAL_VCPKG_DIR%\vcpkg.exe" remove rapidobj
+CALL "%LOCAL_VCPKG_DIR%\vcpkg.exe" install rapidobj
+IF %ERRORLEVEL% NEQ 0 (
+    ECHO Erreur lors de la mise à jour de rapidobj.
+    PAUSE
+    EXIT /B 1
+)
+
 GOTO GLOBALCHOICE
+
+
 
 :INSTALLALL
 Rem installer ici toutes les libs vcpkg
@@ -109,6 +120,13 @@ Rem )
      EXIT /B 1
  )
 
+ ECHO Installation de rapidobj ...
+ CALL "%LOCAL_VCPKG_DIR%\vcpkg.exe" install rapidobj 
+ IF %ERRORLEVEL% NEQ 0 (
+     ECHO Erreur lors de l'installation de rapidobj .
+     PAUSE
+     EXIT /B 1
+ )
 
 
 GOTO GLOBALCHOICE

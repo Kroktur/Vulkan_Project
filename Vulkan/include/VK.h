@@ -3,6 +3,9 @@
 #include <vma/vk_mem_alloc.h>
 #include "_GLFW.h"
 #include "Core/ManagerImple.h"
+
+#include "rapidobj/rapidobj.hpp"
+
 using namespace vk::raii;
 using ui32t = uint32_t;
 using i32t = int32_t;
@@ -27,6 +30,13 @@ namespace KGR
 		private:
 			vk::ApplicationInfo m_Info;
 		};
+
+		struct VmaContext
+		{
+			VmaAllocator allocator = nullptr;
+		};
+
+		inline static VmaContext vmaContext;
 
 		struct _Instance
 		{
@@ -207,6 +217,27 @@ namespace KGR
 			Pipeline m_pipeline = nullptr;
 			PipelineLayout m_layout = nullptr;
 		};
+
+		struct _Vertex
+		{
+			glm::vec3 pos;
+			glm::vec3 normal;
+			glm::vec2 uv;
+		};
+
+		struct _Mesh
+		{
+			VkBuffer vertexBuffer = VK_NULL_HANDLE;
+			VmaAllocation vertexAlloc = VK_NULL_HANDLE;
+
+			VkBuffer indexBuffer = VK_NULL_HANDLE;
+			VmaAllocation indexAlloc = VK_NULL_HANDLE;
+
+			uint32_t indexCount = 0;
+		private:
+			_Device m_device = nullptr;
+		};
+
 	}
 
 	class Core_Vulkan
@@ -245,8 +276,11 @@ namespace KGR
 		_Vulkan::_Swapchain& GetSwapchain();
 
 		void CreatePipeline();
-
 		_Vulkan::_PipeLine& GetPipeline();
+
+		std::vector<glm::vec3> ComputeNormals(const rapidobj::Result& result);
+		void LoadMesh(const std::string& path);
+		const std::vector<_Vulkan::_Mesh>& GetMeshes() const;
 
 		ui32t GetFrameCount() const;
 		ui32t GetCurrentImageIndex() const;
@@ -276,6 +310,16 @@ namespace KGR
 			ui32t baseArrayLayer,
 			ui32t layerCount);
 
+		// Helpers
+		_Vulkan::_Mesh CreateMeshFromCPUData(
+			const std::vector<_Vulkan::_Vertex>& vertices,
+			const std::vector<uint32_t>& indices);
+
+		VkCommandBuffer BeginSingleTimeCommands();
+		void EndSingleTimeCommands(VkCommandBuffer cb);
+
+
+
 	private:
 		Context m_vkContext;
 
@@ -292,6 +336,7 @@ namespace KGR
 		std::vector<vk::Image> m_scImages;
 		std::vector<ImageView> m_viewImages;
 		std::vector<_Vulkan::_FrameData> m_frameData;
+		std::vector<_Vulkan::_Mesh> m_meshes;
 
 		ui32t m_currentFrame = 0;
 		ui32t m_currentImageIndex = 0;

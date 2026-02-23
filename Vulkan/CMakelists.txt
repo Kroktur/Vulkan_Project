@@ -44,6 +44,7 @@ source_group(
 #    CONFIG REQUIRED
 # )
 find_package(glfw3 CONFIG REQUIRED)
+find_package(RapidObj REQUIRED)
 
 # Manual Lib here
 # Dont forget to link lib
@@ -88,6 +89,7 @@ target_link_libraries(${PROJECT_NAME}
         ${VulkanLib}/vulkan-1.lib
         GLFW_
         GameLib
+        rapidobj::rapidobj
 	Engine
   # YourLib
   # ${MYLIB_LIB}/YourLib.lib

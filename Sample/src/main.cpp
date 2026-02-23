@@ -4,11 +4,6 @@
 #include <filesystem>
 #include <iostream>
 
-
-
-
-
-
 #include <algorithm>
 #include <assert.h>
 #include <cstdlib>
@@ -66,6 +61,7 @@ int main(int argc, char** argv)
 
 	KGR::Core_Vulkan vulkan;
 	vulkan.Init(&window);
+	vulkan.LoadMesh("Ressources\Textures\orc.obj");
 
 	do
 	{
@@ -108,7 +104,25 @@ int main(int argc, char** argv)
 
 		cb.setScissor(0, vk::Rect2D({ 0,0 }, extent));
 
-		cb.draw(3, 1, 0, 0);
+		auto& meshes = vulkan.GetMeshes();
+		if (!meshes.empty())
+		{
+			const auto& mesh = meshes[0];
+
+			// Convert VkBuffer → vk::Buffer
+			vk::Buffer vbo(mesh.vertexBuffer);
+			vk::Buffer ibo(mesh.indexBuffer);
+
+			std::array<vk::Buffer, 1> vertexBuffers = { vbo };
+			std::array<vk::DeviceSize, 1> offsets = { 0 };
+
+			cb.bindVertexBuffers(0, vertexBuffers, offsets);
+			cb.bindIndexBuffer(ibo, 0, vk::IndexType::eUint32);
+
+			cb.drawIndexed(mesh.indexCount, 1, 0, 0, 0);
+		}
+
+		/*cb.draw(3, 1, 0, 0);*/
 		cb.endRendering();
 
 		vulkan.TransitionFromColorAttachmentToPresent(cb, currentImage);
