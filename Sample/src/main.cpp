@@ -69,16 +69,18 @@ int main(int argc, char** argv)
 
 	ImGui_ImplVulkan_Init(&init_info);
 
+	bool show_demo_window = true;
 	bool show_another_window = false;
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
 	do
 	{
-		KGR::_GLFW::Window::PollEvent();
-
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
+
+		if (show_demo_window)
+			 ImGui::ShowDemoWindow(&show_demo_window);
 
 		{
 			static float f = 0.0f;
@@ -86,6 +88,7 @@ int main(int argc, char** argv)
 
 			ImGui::Begin("Hello, world!");
 			ImGui::Text("This is some useful text.");
+			ImGui::Checkbox("Demo Window", &show_demo_window);
 			ImGui::Checkbox("Another Window", &show_another_window);
 
 			ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
@@ -111,8 +114,7 @@ int main(int argc, char** argv)
 			ImGui::End();
 		}
 
-		ImGui::Render();
-		app.drawFrame();
+		 ImGui::Render();
 
 	} 
 	while (!window.ShouldClose());
