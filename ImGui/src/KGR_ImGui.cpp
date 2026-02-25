@@ -3,18 +3,6 @@
 #include "Backends/imgui_impl_glfw.h"
 #include "Backends/imgui_impl_vulkan.h"
 
-KGR::_ImGui::ImGuiCore::ImGuiCore()
-{
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGui::StyleColorsDark();
-}
-
-KGR::_ImGui::ImGuiCore::~ImGuiCore()
-{
-	Destroy();
-}
-
 void KGR::_ImGui::ImGuiCore::InitImGui(KGR::_Vulkan::VulkanCore* vulkanCore, KGR::_GLFW::Window* engineWindow)
 {
 	m_VulkanCore = vulkanCore;
@@ -73,32 +61,34 @@ void KGR::_ImGui::ImGuiCore::Destroy()
     ImGui::DestroyContext(m_EngineContext);
 }
 
-void KGR::_ImGui::ImGuiCore::InitInfo(ImGuiInitInfo& initInfo)
+void KGR::_ImGui::ImGuiCore::InitInfo()
 {
-    initInfo.ApiVersion = VK_API_VERSION_1_4;
-    initInfo.Instance = Get<VkInstance>(m_VulkanCore->GetInstance());
-    initInfo.PhysicalDevice = Get<VkPhysicalDevice>(m_VulkanCore->GetPhysicalDevice());
-    initInfo.Device = Get<VkDevice>(m_VulkanCore->GetDevice());
-    initInfo.Queue = Get<VkQueue>(m_VulkanCore->GetQueue());
-    initInfo.QueueFamily = m_VulkanCore->GetDevice().GetQueueIndex();
-    initInfo.DescriptorPool = Get<VkDescriptorPool>(m_VulkanCore->GetDescriptorPool());
-    initInfo.MinImageCount = m_VulkanCore->GetSwapChain().GetImagesCount();
-    initInfo.ImageCount = m_VulkanCore->GetSwapChain().GetImagesCount();
-    initInfo.UseDynamicRendering = true;
+    m_InitInfo.ApiVersion = VK_API_VERSION_1_4;
+    m_InitInfo.Instance = Get<VkInstance>(m_VulkanCore->GetInstance());
+    m_InitInfo.PhysicalDevice = Get<VkPhysicalDevice>(m_VulkanCore->GetPhysicalDevice());
+    m_InitInfo.Device = Get<VkDevice>(m_VulkanCore->GetDevice());
+    m_InitInfo.Queue = Get<VkQueue>(m_VulkanCore->GetQueue());
+    m_InitInfo.QueueFamily = m_VulkanCore->GetDevice().GetQueueIndex();
+    m_InitInfo.DescriptorPool = Get<VkDescriptorPool>(m_VulkanCore->GetDescriptorPool());
+    m_InitInfo.MinImageCount = m_VulkanCore->GetSwapChain().GetImagesCount();
+    m_InitInfo.ImageCount = m_VulkanCore->GetSwapChain().GetImagesCount();
+    m_InitInfo.UseDynamicRendering = true;
 
-    initInfo.ColorFormat = static_cast<VkFormat>(m_VulkanCore->GetSwapChain().GetFormat().format);
-    initInfo.DepthFormat = static_cast<VkFormat>(m_VulkanCore->GetPhysicalDevice().findSupportedFormat(
+    VkFormat ColorFormat = static_cast<VkFormat>(m_VulkanCore->GetSwapChain().GetFormat().format);
+    VkFormat DepthFormat = static_cast<VkFormat>(m_VulkanCore->GetPhysicalDevice().findSupportedFormat(
         { vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint },
         vk::ImageTiling::eOptimal,
         vk::FormatFeatureFlagBits::eDepthStencilAttachment));
 
-    initInfo.PipelineInfoMain.PipelineRenderingCreateInfo =
+    m_InitInfo.PipelineInfoMain.PipelineRenderingCreateInfo =
     {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
         .colorAttachmentCount = 1,
-        .pColorAttachmentFormats = &initInfo.ColorFormat,
-        .depthAttachmentFormat = initInfo.DepthFormat
+        .pColorAttachmentFormats = &ColorFormat,
+        .depthAttachmentFormat = DepthFormat
     };
+
+    ImGui_ImplVulkan_Init((ImGui_ImplVulkan_InitInfo*)&m_InitInfo);
 }
 
 void KGR::_ImGui::ImGuiCore::InitContext(ImGuiContext*& context, KGR::_Vulkan::VulkanCore* vulkanCore,
@@ -110,8 +100,5 @@ void KGR::_ImGui::ImGuiCore::InitContext(ImGuiContext*& context, KGR::_Vulkan::V
 
 	ImGui_ImplGlfw_InitForVulkan(&window->GetWindow(), true);
     
-    ImGuiInitInfo initInfo;
-    InitInfo(initInfo);
-
-    ImGui_ImplVulkan_Init((ImGui_ImplVulkan_InitInfo*)&initInfo);
+    InitInfo();
 }

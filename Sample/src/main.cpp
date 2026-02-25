@@ -34,20 +34,13 @@ int main(int argc, char** argv)
 
 	app.initVulkan();
 
+	imguiCore.InitImGui(&app, &window);
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
 	ImGuiStyle& style = ImGui::GetStyle();
-	style.ScaleAllSizes(1.5f);
-	style.FontScaleDpi = 1.5f;
-
-	imguiCore.InitImGui(&app, &window);
-
-	bool show_demo_window = true;
-	bool show_another_window = false;
-
-	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+	style.ScaleAllSizes(1.f);
+	style.FontScaleDpi = 3.0f;
 
 	do
 	{
@@ -55,37 +48,14 @@ int main(int argc, char** argv)
 
 		imguiCore.BeginFrame(KGR::_ImGui::ContextTarget::Engine);
 
-		if (show_demo_window)
-			 ImGui::ShowDemoWindow(&show_demo_window);
-
 		{
-			static float f = 0.0f;
-			static int counter = 0;
+			static int counter;
 
-			ImGui::Begin("Hello, world!");
-			ImGui::Text("This is some useful text.");
-			ImGui::Checkbox("Demo Window", &show_demo_window);
-			ImGui::Checkbox("Another Window", &show_another_window);
-
-			ImGui::SliderFloat("float", &f, 0.0f, 1.0f);
-			ImGui::ColorEdit3("clear color", (float*)&clear_color);
-
-			if (ImGui::Button("Button"))
+			ImGui::Begin("LE H");
+			if (ImGui::Button("Click on me daddy"))
 				counter++;
 
-			ImGui::SameLine();
-			ImGui::Text("counter = %d", counter);
-
-			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-			ImGui::End();
-		}
-
-		if (show_another_window)
-		{
-			ImGui::Begin("Another Window", &show_another_window);
-			ImGui::Text("Hello from another window!");
-			if (ImGui::Button("Close Me"))
-				show_another_window = false;
+			ImGui::Text("Daddy Ludwig <3 = %d", counter);
 
 			ImGui::End();
 		}

@@ -37,10 +37,10 @@ namespace KGR
 		class ImGuiCore
 		{
 		public:
-			ImGuiCore();
-			~ImGuiCore();
 
 			void InitImGui(KGR::_Vulkan::VulkanCore* vulkanCore, KGR::_GLFW::Window* engineWindow);
+			void InitInfo();
+			void InitContext(ImGuiContext*& context, KGR::_Vulkan::VulkanCore* vulkanCore, KGR::_GLFW::Window* window);
 
 			void BeginFrame(ContextTarget target);
 			void EndFrame(ContextTarget target, VkCommandBuffer commandBuffer);
@@ -57,12 +57,10 @@ namespace KGR
 				return static_cast<ReturnType>(*type.Get());
 			}
 
-			void InitInfo(ImGuiInitInfo& initInfo);
-			void InitContext(ImGuiContext*& context, KGR::_Vulkan::VulkanCore* vulkanCore, KGR::_GLFW::Window* window);
-
 			KGR::_Vulkan::VulkanCore* m_VulkanCore = nullptr;
 			ImGuiContext* m_EngineContext = nullptr;
 			ImGuiContext* m_GameContext = nullptr;
+			ImGuiInitInfo m_InitInfo = {};
 
 			char		m_ObjFilePath[512] = "";
 			std::string m_LoadedObjName    = "";
