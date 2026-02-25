@@ -65,7 +65,7 @@ void KGR::_Vulkan::VulkanCore::initVulkan()
 	descriptorSetLayout.Add(std::move(layout));
 
 	graphicsPipeline = _Vulkan::Pipeline(info, &device, &swapChain,&descriptorSetLayout,&physicalDevice,vk::PolygonMode::eFill);
-	debugPipeline = _Vulkan::Pipeline(debugInfo, &device, &swapChain, &descriptorSetLayout, &physicalDevice, vk::PolygonMode::eLine);
+	/*debugPipeline = _Vulkan::Pipeline(debugInfo, &device, &swapChain, &descriptorSetLayout, &physicalDevice, vk::PolygonMode::eLine);*/
 
 	// Command Buffer
 	commandBuffers = _Vulkan::CommandBuffers(&device);

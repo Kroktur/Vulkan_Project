@@ -43,10 +43,6 @@ int main(int argc, char** argv)
 	CameraComponent cam = CameraComponent :: Create(45.0f,static_cast<float>(window.GetSize().x),static_cast<float>(window.GetSize().y),0.01f,1000.0f,CameraComponent::Type::Perspective);
 	TransformComponent camTransform;
 
-
-
-
-
 	do
 	{
 		// event
