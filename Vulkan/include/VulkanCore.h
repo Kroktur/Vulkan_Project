@@ -100,8 +100,8 @@ namespace KGR
 			void RegisterRender(MeshComponent& mesh, TransformComponent& transform);
 			void Render(const glm::vec4& color = { 0,0,0,1 });
 		private:
-			void BeginRendering(const glm::vec4& color = {0,0,0,1});
-			void EndRendering();
+			int BeginRendering(const glm::vec4& color = {0,0,0,1});
+			int EndRendering();
 			// window
 			GLFWwindow* window = nullptr;
 

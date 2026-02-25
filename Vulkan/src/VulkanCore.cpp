@@ -388,7 +388,7 @@ void KGR::_Vulkan::VulkanCore::createTextureSampler()
 	textureSampler = vk::raii::Sampler(device.Get(), samplerInfo);
 }
 
-void KGR::_Vulkan::VulkanCore::BeginRendering(const glm::vec4& color)
+int KGR::_Vulkan::VulkanCore::BeginRendering(const glm::vec4& color)
 {
 	// Note: inFlightFences, presentCompleteSemaphores, and commandBuffers are indexed by frameIndex,
 	//       while renderFinishedSemaphores is indexed by imageIndex
@@ -407,7 +407,7 @@ void KGR::_Vulkan::VulkanCore::BeginRendering(const glm::vec4& color)
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
 	{
 		recreateSwapChain();
-		return;
+		return -1;
 	}
 	// On other success codes than eSuccess and eSuboptimalKHR we just throw an exception.
 
@@ -470,9 +470,10 @@ void KGR::_Vulkan::VulkanCore::BeginRendering(const glm::vec4& color)
 	m_currentBuffer->setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(swapChain.GetExtend().width), static_cast<float>(swapChain.GetExtend().height), 0.0f, 1.0f));
 	m_currentBuffer->setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapChain.GetExtend()));
 
+	return 0;
 }
 
-void KGR::_Vulkan::VulkanCore::EndRendering()
+int KGR::_Vulkan::VulkanCore::EndRendering()
 {
 	m_currentBuffer->endRendering();
 	// After rendering, transition the swapchain image to PRESENT_SRC
@@ -511,10 +512,12 @@ void KGR::_Vulkan::VulkanCore::EndRendering()
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
 	{
 		recreateSwapChain();
+		return -1;
 	}
 	commandBuffers.ReleaseCommandBuffer(*m_currentBuffer);
 	syncObject.IncrementFrame();
 	device.Get().waitIdle();
+	return 0;
 }
 
 bool KGR::_Vulkan::VulkanCore::hasStencilComponent(vk::Format format)
@@ -557,8 +560,14 @@ void KGR::_Vulkan::VulkanCore::Render(const glm::vec4& color )
 	// Update the Camera
 	uniformBuffers.Upload(&m_ubo.value(), sizeof(UniformBufferObject));
 
-
-	BeginRendering(color);
+	int result = 0;
+	result = BeginRendering(color);
+	if (result == -1)
+	{
+		m_ubo.reset();
+		m_toRenderObject.clear();
+		return;
+	}
 	for (auto& it: m_toRenderObject)
 	{
 		for (int i = 0; i < it.second->mesh->GetSubMeshesCount(); ++i)
@@ -569,7 +578,13 @@ void KGR::_Vulkan::VulkanCore::Render(const glm::vec4& color )
 			m_currentBuffer->drawIndexed(it.second->mesh->GetSubMesh(i).IndexCount(), 1, 0, 0, 0);
 		}
 	}
-	EndRendering();
+	result = EndRendering();
+	if (result == -1)
+	{
+		m_ubo.reset();
+		m_toRenderObject.clear();
+		return;
+	}
 	m_ubo.reset();
 	m_toRenderObject.clear();
 }
