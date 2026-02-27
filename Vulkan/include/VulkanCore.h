@@ -26,6 +26,8 @@
 #include "Image.h"
 #include "RTTI.h"
 #include "SyncObject.h"
+#include "Core/LightComponent.h"
+#include "Core/TrasformComponent.h"
 #include "Core/Vertex.h"
 
 struct CameraComponent;
@@ -94,8 +96,8 @@ namespace KGR
 			// callBack for instance
 			static VKAPI_ATTR vk::Bool32 VKAPI_CALL debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT severity, vk::DebugUtilsMessageTypeFlagsEXT type, const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData, void*);
 
-
-
+			template<LightData::Type Type>
+			void RegisterLight(LightComponent<Type>& light, TransformComponent& transform);
 			void RegisterCam(CameraComponent& cam, TransformComponent& transform);
 			void RegisterRender(MeshComponent& mesh, TransformComponent& transform);
 			void Render(const glm::vec4& color = { 0,0,0,1 });
@@ -138,8 +140,12 @@ namespace KGR
 			std::vector<const char*> requiredDeviceExtension = {
 				vk::KHRSwapchainExtensionName };
 
-			//std::vector<Vertex> vertices;
-			//std::vector<uint32_t> indices;
+
+			std::vector<LightData> m_lights;
+			DescriptorSet m_LightSet;
+			Buffer m_lightBuffer;
+			Buffer m_lightCount;
+
 
 			vk::raii::CommandBuffer* m_currentBuffer;
 
@@ -147,5 +153,23 @@ namespace KGR
 			std::optional<UniformBufferObject> m_ubo;
 			std::vector<pair> m_toRenderObject;
 		};
+
+		template <LightData::Type Type>
+		void VulkanCore::RegisterLight(LightComponent<Type>& light, TransformComponent& transform)
+		{
+			LightData lightData = light.ToData();
+			if constexpr (Type == LightData::Type::Point)
+				lightData.pos = transform.GetPosition();
+			else if constexpr (Type == LightData::Type::Directional)
+			{
+				lightData.dir = transform.GetLocalAxe<RotData::Dir::Forward>();
+			}
+			else
+			{
+				lightData.pos = transform.GetPosition();
+				lightData.dir = transform.GetLocalAxe<RotData::Dir::Forward>();
+			}
+			m_lights.push_back(lightData);
+		}
 	}
 }

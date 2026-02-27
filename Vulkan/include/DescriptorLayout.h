@@ -29,7 +29,7 @@ namespace KGR
 			size_t Size();
 
 		private:
-			std::vector<DescriptorLayout::vkDescriptorLayout*>& GetLayouts();
+			std::vector<DescriptorLayout::vkDescriptorLayout*> GetLayouts()  ;
 			std::vector<DescriptorLayout> m_layouts;
 			std::vector<DescriptorLayout::vkDescriptorLayout*> m_realLayouts;
 		};

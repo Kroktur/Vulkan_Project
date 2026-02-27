@@ -38,7 +38,12 @@ size_t KGR::_Vulkan::DescriptorLayouts::Size()
 	return m_layouts.size();
 }
 
-std::vector<KGR::_Vulkan::DescriptorLayout::vkDescriptorLayout*>& KGR::_Vulkan::DescriptorLayouts::GetLayouts()
+std::vector<KGR::_Vulkan::DescriptorLayout::vkDescriptorLayout*> KGR::_Vulkan::DescriptorLayouts::GetLayouts()
 {
-	return m_realLayouts;
+	std::vector<DescriptorLayout::vkDescriptorLayout*> result;
+	for (auto& it : m_layouts)
+	{
+		result.push_back(&it.Get());
+	}
+	return result;
 }

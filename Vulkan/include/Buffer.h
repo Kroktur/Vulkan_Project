@@ -36,6 +36,7 @@ namespace KGR
 			static uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties, PhysicalDevice* phDevice);
 			void MapMemory(size_t size);
 			void UnMapMemory();
+			size_t GetSize() const;
 		private:
 			void* dest = nullptr;
 			size_t m_size = 0;

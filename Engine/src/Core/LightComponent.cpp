@@ -1,134 +1,152 @@
 #include "Core/LightComponent.h"
 #include <stdexcept>
 
-glm::vec3 PointLightComponent::GetLightColor() const
+glm::vec3 LightComponent < LightData::Type::Point > ::GetLightColor() const
 {
 	return m_lightColor;
 }
 
-glm::vec3 PointLightComponent::GetSpecularColor() const
+glm::vec3 LightComponent<LightData::Type::Point>::GetSpecularColor() const
 {
 	return m_specularColor;
 }
 
-float PointLightComponent::GetIntensity() const
+float LightComponent<LightData::Type::Point>::GetIntensity() const
 {
 	return m_intensity;
 }
 
-float PointLightComponent::GetShiny() const
+float LightComponent<LightData::Type::Point>::GetShiny() const
 {
 	return m_shiny;
 }
 
-void PointLightComponent::SetColor(const glm::vec3& lightColor, const glm::vec3& specularColor)
+void LightComponent<LightData::Type::Point>::SetColor(const glm::vec3& lightColor, const glm::vec3& specularColor)
 {
 	m_lightColor = lightColor;
 	m_specularColor = specularColor;
 }
 
-void PointLightComponent::SetParam(float intensity, float shiny)
+void LightComponent<LightData::Type::Point>::SetParam(float intensity, float shiny)
 {
 	m_intensity = intensity;
 	m_shiny = shiny;
 }
 
-LightData PointLightComponent::ToData() const
+LightData LightComponent<LightData::Type::Point>::ToData() const
 {
 	LightData result;
 	result.lightColor = m_lightColor;
 	result.specularColor = m_specularColor;
 	result.intensity = m_intensity;
 	result.shiny = m_shiny;
-	result.type = LightData::Point;
+	result.type = static_cast<std::uint32_t>(LightData::Type::Point);
 	return result;
-	
 }
-glm::vec3 DirectionalLightComponent::GetLightColor() const
+
+LightComponent<LightData::Type::Point> LightComponent<LightData::Type::Point>::Create(const glm::vec3& lightColor,
+	const glm::vec3& specularColor, float intensity, float shiny)
+{
+	LightComponent<LightData::Type::Point> result;
+	result.SetColor(lightColor, specularColor);
+	result.SetParam(intensity, shiny);
+	return result;
+}
+
+glm::vec3 LightComponent<LightData::Type::Directional>::GetLightColor() const
 {
 	return m_lightColor;
 }
 
-glm::vec3 DirectionalLightComponent::GetSpecularColor() const
+glm::vec3 LightComponent<LightData::Type::Directional>::GetSpecularColor() const
 {
 	return m_specularColor;
 }
 
-float DirectionalLightComponent::GetShiny() const
+float LightComponent<LightData::Type::Directional>::GetShiny() const
 {
 	return m_shiny;
 }
 
-void DirectionalLightComponent::SetColor(const glm::vec3& lightColor, const glm::vec3& specularColor)
+void LightComponent<LightData::Type::Directional>::SetColor(const glm::vec3& lightColor, const glm::vec3& specularColor)
 {
 	m_lightColor = lightColor;
 	m_specularColor = specularColor;
 }
 
-void DirectionalLightComponent::SetParam(float shiny)
+void LightComponent<LightData::Type::Directional>::SetParam(float shiny)
 {
 	m_shiny = shiny;
 }
 
-LightData DirectionalLightComponent::ToData() const
+LightData LightComponent<LightData::Type::Directional>::ToData() const
 {
 	LightData result;
 	result.lightColor = m_lightColor;
 	result.specularColor = m_specularColor;
 	result.shiny = m_shiny;
-	result.type = LightData::Directional;
+	result.type = static_cast<std::uint32_t>(LightData::Type::Directional);
 	return result;
 }
 
-glm::vec3 SpotLightComponent::GetLightColor() const
+LightComponent<LightData::Type::Directional> LightComponent<LightData::Type::Directional>::Create(
+	const glm::vec3& lightColor, const glm::vec3& specularColor, float shiny)
+{
+	LightComponent<LightData::Type::Directional> result;
+	result.SetColor(lightColor, specularColor);
+	result.SetParam(shiny);
+	return result;
+}
+
+glm::vec3 LightComponent<LightData::Type::Spot>::GetLightColor() const
 {
 	return m_lightColor;
 }
 
-glm::vec3 SpotLightComponent::GetSpecularColor() const
+glm::vec3 LightComponent<LightData::Type::Spot>::GetSpecularColor() const
 {
 	return m_specularColor;
 }
 
-float SpotLightComponent::GetIntensity() const
+float LightComponent<LightData::Type::Spot>::GetIntensity() const
 {
 	return m_intensity;
 }
 
-float SpotLightComponent::GetShiny() const
+float LightComponent<LightData::Type::Spot>::GetShiny() const
 {
 	return m_shiny;
 }
 
-float SpotLightComponent::GetOpenAngle() const
+float LightComponent<LightData::Type::Spot>::GetOpenAngle() const
 {
 	return m_openAngle;
 }
 
-float SpotLightComponent::GetAdditionalSmooth() const
+float LightComponent<LightData::Type::Spot>::GetAdditionalSmooth() const
 {
 	return m_additionalSmooth;
 }
 
-void SpotLightComponent::SetColor(const glm::vec3& lightColor, const glm::vec3& specularColor)
+void LightComponent<LightData::Type::Spot>::SetColor(const glm::vec3& lightColor, const glm::vec3& specularColor)
 {
 	m_lightColor = lightColor;
 	m_specularColor = specularColor;
 }
 
-void SpotLightComponent::SetParam(float intensity, float shiny)
+void LightComponent<LightData::Type::Spot>::SetParam(float intensity, float shiny)
 {
 	m_intensity = intensity;
 	m_shiny = shiny;
 }
 
-void SpotLightComponent::SetAngle(float angle, float additionalSmooth)
+void LightComponent<LightData::Type::Spot>::SetAngle(float angle, float additionalSmooth)
 {
 	m_openAngle = angle;
 	m_additionalSmooth = additionalSmooth;
 }
 
-LightData SpotLightComponent::ToData() const
+LightData LightComponent<LightData::Type::Spot>::ToData() const
 {
 	LightData result;
 	result.lightColor = m_lightColor;
@@ -137,8 +155,16 @@ LightData SpotLightComponent::ToData() const
 	result.shiny = m_shiny;
 	result.openAngle = m_openAngle;
 	result.additionalSmooth = m_additionalSmooth;
-	result.type = LightData::Spot;
+	result.type = static_cast<std::uint32_t>(LightData::Type::Spot);
 	return result;
 }
 
-
+LightComponent<LightData::Type::Spot> LightComponent<LightData::Type::Spot>::Create(const glm::vec3& lightColor,
+	const glm::vec3& specularColor, float intensity, float shiny, float openAngle, float addSmooth)
+{
+	LightComponent<LightData::Type::Spot> result;
+	result.SetColor(lightColor, specularColor);
+	result.SetParam(intensity, shiny);
+	result.SetAngle(openAngle,addSmooth);
+	return result;
+}

@@ -105,4 +105,9 @@ void KGR::_Vulkan::Buffer::UnMapMemory()
 	dest = nullptr;
 }
 
+size_t KGR::_Vulkan::Buffer::GetSize() const
+{
+	return m_size;
+}
+
 

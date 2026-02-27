@@ -54,8 +54,18 @@ void KGR::_Vulkan::VulkanCore::initVulkan()
 			vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr),
 			vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, nullptr) };
 
+
+
 	auto layout = DescriptorLayout(bindings, &device);
 	descriptorSetLayout.Add(std::move(layout));
+
+	std::vector<vk::DescriptorSetLayoutBinding> bindings2 = {
+					vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eFragment, nullptr),
+					vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eFragment, nullptr)
+
+	};
+	auto layout2 = DescriptorLayout(bindings2, &device);
+	descriptorSetLayout.Add(std::move(layout2));
 
 	graphicsPipeline = _Vulkan::Pipeline(info, &device, &swapChain,&descriptorSetLayout,&physicalDevice,vk::PolygonMode::eFill);
 	// Command Buffer
@@ -124,23 +134,46 @@ void KGR::_Vulkan::VulkanCore::initVulkan()
 		bufferD.MapMemory(bufferSize);
 		uniformBuffers = std::move(bufferD);
 	
+
+	// light Buffer 
+		vk::DeviceSize bufferSize2 = (StorageContainer < LightData, 200 >::Capacity() );
+		auto bufferD2 = Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eStorageBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, bufferSize2);
+		bufferD2.MapMemory(bufferSize2);
+		m_lightBuffer = std::move(bufferD2);
+
+		vk::DeviceSize bufferSize3 = sizeof(uint32_t);
+		auto bufferD3= Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eUniformBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, bufferSize3);
+		bufferD3.MapMemory(bufferSize3);
+		m_lightCount = std::move(bufferD3);
+
 	// descriptorPool
 	std::vector<vk::DescriptorPoolSize> poolSize{
 				vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, swapChain.GetImagesCount()),
-				vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, swapChain.GetImagesCount()) };
+				vk::DescriptorPoolSize(vk::DescriptorType::eCombinedImageSampler, swapChain.GetImagesCount()),
+		        vk::DescriptorPoolSize(vk::DescriptorType::eStorageBuffer, swapChain.GetImagesCount())
+	};
 	descriptorPool = DescriptorPool(poolSize, 100, &device);
 	
 	// DescriptorSet
 	descriptorSets = DescriptorSet(&device, &descriptorPool, &descriptorSetLayout.Get(0));
+	m_LightSet = DescriptorSet(&device, &descriptorPool, &descriptorSetLayout.Get(1));
 	
 		vk::DescriptorBufferInfo bufferInfo{
 			.buffer = uniformBuffers.Get(),
 			.offset = 0,
-			.range = sizeof(UniformBufferObject) };
+			.range = uniformBuffers.GetSize() };
 		vk::DescriptorImageInfo imageInfo{
 			.sampler = textureSampler,
 			.imageView = textureImage.GetView(),
 			.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal };
+		vk::DescriptorBufferInfo bufferInfo2{
+		.buffer = m_lightBuffer.Get(),
+		.offset = 0,
+		.range = m_lightBuffer.GetSize() };
+		vk::DescriptorBufferInfo bufferInfo3{
+			.buffer = m_lightCount.Get(),
+			.offset = 0,
+			.range = m_lightCount.GetSize()};
 		std::array descriptorWrites{
 			vk::WriteDescriptorSet{
 				.dstSet = descriptorSets.Get(),
@@ -155,10 +188,29 @@ void KGR::_Vulkan::VulkanCore::initVulkan()
 				.dstArrayElement = 0,
 				.descriptorCount = 1,
 				.descriptorType = vk::DescriptorType::eCombinedImageSampler,
-				.pImageInfo = &imageInfo} };
+				.pImageInfo = &imageInfo},
+			vk::WriteDescriptorSet{
+					.dstSet = m_LightSet.Get(),
+					.dstBinding = 0,
+					.dstArrayElement = 0,
+					.descriptorCount = 1,
+					.descriptorType = vk::DescriptorType::eStorageBuffer,
+					.pBufferInfo = &bufferInfo2},
+			vk::WriteDescriptorSet{
+					.dstSet = m_LightSet.Get(),
+					.dstBinding = 1,
+					.dstArrayElement = 0,
+					.descriptorCount = 1,
+					.descriptorType = vk::DescriptorType::eUniformBuffer,
+					.pBufferInfo = &bufferInfo3}
+		};
 		device.Get().updateDescriptorSets(descriptorWrites, {});
 
 
+
+
+
+		
 }
 
 
@@ -558,7 +610,10 @@ void KGR::_Vulkan::VulkanCore::Render(const glm::vec4& color )
 	if (!m_ubo.has_value())
 		throw std::runtime_error("need to register Camera");
 	// Update the Camera
-	uniformBuffers.Upload(&m_ubo.value(), sizeof(UniformBufferObject));
+	uniformBuffers.Upload(&m_ubo.value(),uniformBuffers.GetSize());
+	StorageContainer<LightData, 200> lData = StorageContainer < LightData, 200> ::FromVec(m_lights);
+	m_lightBuffer.Upload(lData.Data(), lData.UploadSize());
+	m_lightCount.Upload(lData.GetSizeData(), m_lightCount.GetSize());
 
 	int result = 0;
 	result = BeginRendering(color);
@@ -575,6 +630,8 @@ void KGR::_Vulkan::VulkanCore::Render(const glm::vec4& color )
 			it.second->mesh->Bind(m_currentBuffer, i);
 			m_currentBuffer->pushConstants<glm::mat4>(graphicsPipeline.GetLayout(), vk::ShaderStageFlagBits::eVertex, 0, it.first);
 			m_currentBuffer->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, graphicsPipeline.GetLayout(), 0, *descriptorSets.Get(), nullptr);
+			m_currentBuffer->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, graphicsPipeline.GetLayout(), 1, *m_LightSet.Get(), nullptr);
+
 			m_currentBuffer->drawIndexed(it.second->mesh->GetSubMesh(i).IndexCount(), 1, 0, 0, 0);
 		}
 	}
@@ -583,10 +640,12 @@ void KGR::_Vulkan::VulkanCore::Render(const glm::vec4& color )
 	{
 		m_ubo.reset();
 		m_toRenderObject.clear();
+		m_lights.clear();
 		return;
 	}
 	m_ubo.reset();
 	m_toRenderObject.clear();
+	m_lights.clear();
 }
 
 

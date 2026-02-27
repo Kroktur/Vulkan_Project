@@ -8,11 +8,11 @@
 
 struct alignas(16) LightData
 {
-	enum Type
+	enum class Type : std::uint32_t
 	{
-		Point,
-		Directional,
-		Spot
+		Point = 0,
+		Directional = 1,
+		Spot = 2
 	};
 	PadData<glm::vec3,16> pos = glm::vec3();
 	PadData <glm::vec3,16> dir = glm::vec3();
@@ -22,10 +22,15 @@ struct alignas(16) LightData
 	float openAngle = 0.0f;
 	float additionalSmooth = 0.0f;
 	float shiny =0.0f;
-	PadData <Type,16> type = LightData::Type::Point;
+	PadData <uint32_t,16> type =static_cast<std::uint32_t>(LightData::Type::Point);
 };
 
-struct PointLightComponent
+
+template<LightData::Type type>
+struct LightComponent;
+
+template<>
+struct LightComponent<LightData::Type::Point>
 {
 	glm::vec3 GetLightColor() const;
 	glm::vec3 GetSpecularColor() const;
@@ -34,6 +39,8 @@ struct PointLightComponent
 	void SetColor(const glm::vec3& lightColor, const glm::vec3& specularColor);
 	void SetParam(float intensity, float shiny);
 	LightData ToData() const;
+	static LightComponent<LightData::Type::Point> Create(const glm::vec3& lightColor,const glm::vec3& specularColor,float intensity,float shiny);
+
 private :
 	glm::vec3 m_lightColor = glm::vec3{ 1.0f,1.0f,1.0f };
 	glm::vec3 m_specularColor = glm::vec3{ 1.0f,1.0f,1.0f };
@@ -41,7 +48,8 @@ private :
 	float m_shiny = 100.0f;
 };
 
-struct DirectionalLightComponent
+template<>
+struct LightComponent<LightData::Type::Directional>
 {
 	glm::vec3 GetLightColor() const;
 	glm::vec3 GetSpecularColor() const;
@@ -49,13 +57,15 @@ struct DirectionalLightComponent
 	void SetColor(const glm::vec3& lightColor, const glm::vec3& specularColor);
 	void SetParam(float shiny);
 	LightData ToData() const;
+	static LightComponent<LightData::Type::Directional> Create(const glm::vec3& lightColor, const glm::vec3& specularColor, float shiny);
 private:
 	glm::vec3 m_lightColor = glm::vec3{ 1.0f,1.0f,1.0f };
 	glm::vec3 m_specularColor = glm::vec3{ 1.0f,1.0f,1.0f };
 	float m_shiny = 100.0f;
 };
 
-struct SpotLightComponent
+template<>
+struct LightComponent<LightData::Type::Spot>
 {
 	glm::vec3 GetLightColor() const;
 	glm::vec3 GetSpecularColor() const;
@@ -67,6 +77,8 @@ struct SpotLightComponent
 	void SetParam(float intensity, float shiny);
 	void SetAngle(float angle, float additionalSmooth);
 	LightData ToData() const;
+	static LightComponent<LightData::Type::Spot> Create(const glm::vec3& lightColor, const glm::vec3& specularColor,float intensity, float shiny,float openAngle,float addSmooth);
+
 private:
 	glm::vec3 m_lightColor = glm::vec3{ 1.0f,1.0f,1.0f };
 	glm::vec3 m_specularColor = glm::vec3{ 1.0f,1.0f,1.0f };

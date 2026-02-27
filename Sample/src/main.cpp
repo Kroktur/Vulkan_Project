@@ -47,8 +47,26 @@ int main(int argc, char** argv)
 	CameraComponent cam = CameraComponent :: Create(45.0f,static_cast<float>(window.GetSize().x),static_cast<float>(window.GetSize().y),0.01f,1000.0f,CameraComponent::Type::Perspective);
 	TransformComponent camTransform;
 
+	auto lComp = LightComponent<LightData::Type::Directional>::Create({ 1,1,1 }, { 1,1,1 }, 10.0f);
+	
+	TransformComponent lTransform;
+	//lTransform.SetPosition({ 0,1,0 });
 
-	std::cout << sizeof(LightData);
+	lTransform.LookAtDir({ 1,-1,1 });
+	auto loclAxes = lTransform.GetLocalAxe<RotData::Dir::Forward>();
+	std::cout << loclAxes.z;
+
+
+	auto lComp2 = LightComponent<LightData::Type::Point>::Create({ 0,0,1 }, { 1,1,1 }, 10.0f, 10.0f);
+
+	TransformComponent lTransform2;
+	lTransform2.SetPosition({ 5,1,0 });
+
+	auto lComp3 = LightComponent<LightData::Type::Spot>::Create({ 0,1,0 }, { 1,1,1 }, 100.0f, 10.0f,glm::radians(45.0f),10.0f);
+
+	TransformComponent lTransform3;
+	lTransform3.SetPosition({ -5,1,0 });
+	lTransform3.LookAtDir({1,-1,0});
 
 	do
 	{
@@ -68,7 +86,7 @@ int main(int argc, char** argv)
 
 		float radius = 5.0f;
 		float camX = std::cos(angle) * radius;
-		float camY = 1.0f;
+		float camY = 5.0f;
 		float camZ = std::sin(angle) * radius;
 
 		camTransform.SetPosition({ camX, camY, camZ });
@@ -79,6 +97,10 @@ int main(int argc, char** argv)
 		
 		app.RegisterCam(cam, camTransform);
 		app.RegisterRender(meshComp2, transform2);
+		app.RegisterLight(lComp,lTransform);
+		app.RegisterLight(lComp2, lTransform2);
+		app.RegisterLight(lComp3, lTransform3);
+
 		app.Render({0.53f,0.81f,0.92f ,1.0f});
 		
 	}
