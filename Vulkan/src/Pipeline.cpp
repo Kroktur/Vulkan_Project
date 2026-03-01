@@ -7,7 +7,15 @@
 #include "Core/ManagerImple.h"
 #include "PhysicalDevice.h"
 
-KGR::_Vulkan::Pipeline::Pipeline(const ShaderInfo& shaderInfo, Device* device, SwapChain* swapChain , DescriptorLayouts* layouts,PhysicalDevice* phDevice, vk::PolygonMode mode)
+KGR::_Vulkan::Pipeline::Pipeline(
+	const ShaderInfo& shaderInfo,
+	Device* device,
+	SwapChain* swapChain ,
+	DescriptorLayouts* layouts,
+	PhysicalDevice* phDevice,
+	vk::PolygonMode mode,
+	vk::PrimitiveTopology topology,
+	vk::CullModeFlagBits cullMode )
 {
 
 	//
@@ -37,7 +45,7 @@ KGR::_Vulkan::Pipeline::Pipeline(const ShaderInfo& shaderInfo, Device* device, S
 			.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),
 			.pVertexAttributeDescriptions = attributeDescriptions.data() };
 	vk::PipelineInputAssemblyStateCreateInfo inputAssembly{
-		.topology = vk::PrimitiveTopology::eTriangleList,
+		.topology = topology,
 		.primitiveRestartEnable = vk::False };
 	vk::PipelineViewportStateCreateInfo viewportState{
 		.viewportCount = 1,
@@ -46,7 +54,7 @@ KGR::_Vulkan::Pipeline::Pipeline(const ShaderInfo& shaderInfo, Device* device, S
 		.depthClampEnable = vk::False,
 		.rasterizerDiscardEnable = vk::False,
 		.polygonMode = mode,
-		.cullMode = vk::CullModeFlagBits::eBack,
+		.cullMode = cullMode,
 		.frontFace = vk::FrontFace::eCounterClockwise,
 		.depthBiasEnable = vk::False,
 		.lineWidth = 1.0f };
@@ -81,7 +89,7 @@ KGR::_Vulkan::Pipeline::Pipeline(const ShaderInfo& shaderInfo, Device* device, S
 	vk::PushConstantRange pushRange{
 	vk::ShaderStageFlagBits::eVertex, 
 	0,                                
-	sizeof(glm::mat4)                 
+	80                 
 	};
 
 	vk::PipelineLayoutCreateInfo pipelineLayoutInfo{ .setLayoutCount = static_cast<uint32_t>(layouts->GetLayouts().size()),
@@ -114,7 +122,6 @@ KGR::_Vulkan::Pipeline::Pipeline(const ShaderInfo& shaderInfo, Device* device, S
 
 	m_pipeline = vk::raii::Pipeline(device->Get(), nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
 }
-
 
 KGR::_Vulkan::Pipeline::vkPipelineLayout& KGR::_Vulkan::Pipeline::GetLayout()
 {

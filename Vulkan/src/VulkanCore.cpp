@@ -55,6 +55,8 @@ void KGR::_Vulkan::VulkanCore::initVulkan()
 		.fragmentMain = "fragMain"
 	};
 
+	debugRenderer = DebugRenderer(&device, &physicalDevice);
+
 
 	// Layouts 
 	std::vector<vk::DescriptorSetLayoutBinding> bindings = {
@@ -64,12 +66,11 @@ void KGR::_Vulkan::VulkanCore::initVulkan()
 	auto layout = DescriptorLayout(bindings, &device);
 	descriptorSetLayout.Add(std::move(layout));
 
-	graphicsPipeline = _Vulkan::Pipeline(info, &device, &swapChain,&descriptorSetLayout,&physicalDevice,vk::PolygonMode::eFill);
-	/*debugPipeline = _Vulkan::Pipeline(debugInfo, &device, &swapChain, &descriptorSetLayout, &physicalDevice, vk::PolygonMode::eLine);*/
+	graphicsPipeline = _Vulkan::Pipeline(info, &device, &swapChain,&descriptorSetLayout,&physicalDevice,vk::PolygonMode::eFill, vk::PrimitiveTopology::eTriangleList, vk::CullModeFlagBits::eBack);
+	debugPipeline = _Vulkan::Pipeline(debugInfo, &device, &swapChain, &descriptorSetLayout, &physicalDevice, vk::PolygonMode::eLine, vk::PrimitiveTopology::eTriangleList, vk::CullModeFlagBits::eNone);
 
 	// Command Buffer
 	commandBuffers = _Vulkan::CommandBuffers(&device);
-
 	// load Model
 	//LoadModel();
 	//// vertex
@@ -194,7 +195,7 @@ void KGR::_Vulkan::VulkanCore::recreateSwapChain()
 		.vertexMain = "vertMain",
 		.fragmentMain = "fragMain"
 	};
-	graphicsPipeline = _Vulkan::Pipeline(info, &device, &swapChain, &descriptorSetLayout, &physicalDevice,vk::PolygonMode::eLine);
+	graphicsPipeline = _Vulkan::Pipeline(info, &device, &swapChain, &descriptorSetLayout, &physicalDevice,vk::PolygonMode::eFill, vk::PrimitiveTopology::eTriangleList, vk::CullModeFlagBits::eBack);
 
 	vk::Format depthFormat = physicalDevice.findSupportedFormat(
 		{ vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint },
@@ -255,7 +256,9 @@ void KGR::_Vulkan::VulkanCore::recordCommandBuffer(uint32_t imageIndex, vk::raii
 		.colorAttachmentCount = 1,
 		.pColorAttachments = &colorAttachmentInfo,
 		.pDepthAttachment = &depthAttachmentInfo };
+
 	commandBuffer.beginRendering(renderingInfo);
+	//Mesh Pipeline
 	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline.Get());
 	commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(swapChain.GetExtend().width), static_cast<float>(swapChain.GetExtend().height), 0.0f, 1.0f));
 	commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapChain.GetExtend()));
@@ -263,6 +266,7 @@ void KGR::_Vulkan::VulkanCore::recordCommandBuffer(uint32_t imageIndex, vk::raii
 	commandBuffer.bindIndexBuffer(*indexBuffer.Get(), 0, vk::IndexType::eUint32);
 	commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, graphicsPipeline.GetLayout(), 0, *descriptorSets[syncObject.GetCurrentFrame()].Get(), nullptr);
 	//commandBuffer.drawIndexed(indices.size(), 1, 0, 0, 0);
+
 	commandBuffer.endRendering();
 	// After rendering, transition the swapchain image to PRESENT_SRC
 	transition_image_layout(
@@ -581,9 +585,7 @@ void KGR::_Vulkan::VulkanCore::BeginRendering()
 	device.Get().resetFences(*syncObject.GetCurrentFence());
 
 	if (fenceResult != vk::Result::eSuccess)
-	{
 		throw std::runtime_error("failed to wait for fence!");
-	}
 
 	std::uint32_t result = syncObject.AcquireNextImage(&swapChain, &device);
 
@@ -595,16 +597,11 @@ void KGR::_Vulkan::VulkanCore::BeginRendering()
 		return;
 	}
 	// On other success codes than eSuccess and eSuboptimalKHR we just throw an exception.
-
-
+	// 
 	// Only reset the fence if we are submitting work
 	m_currentBuffer = &commandBuffers.Acquire(&device);
 	m_currentBuffer->reset();
-	
 
-
-
-	
 	m_currentBuffer->begin({});
 	// Before starting rendering, transition the swapchain image to COLOR_ATTACHMENT_OPTIMAL
 	transition_image_layout(
@@ -654,11 +651,19 @@ void KGR::_Vulkan::VulkanCore::BeginRendering()
 	m_currentBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline.Get());
 	m_currentBuffer->setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(swapChain.GetExtend().width), static_cast<float>(swapChain.GetExtend().height), 0.0f, 1.0f));
 	m_currentBuffer->setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapChain.GetExtend()));
-
 }
 
 void KGR::_Vulkan::VulkanCore::EndRendering()
 {
+	//Debug Pipeline
+	if (showDebug)
+	{
+		debugRenderer.Upload();
+		m_currentBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics,*debugPipeline.Get());
+		m_currentBuffer->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *debugPipeline.GetLayout(), 0, { *descriptorSets[syncObject.GetCurrentImage()].Get() },{});
+		debugRenderer.Render(*m_currentBuffer, debugPipeline);
+	}
+
 	m_currentBuffer->endRendering();
 	// After rendering, transition the swapchain image to PRESENT_SRC
 	transition_image_layout(

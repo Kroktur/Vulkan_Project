@@ -94,6 +94,8 @@ namespace KGR
 					return graphicsPipeline;
 				else if constexpr (std::is_same_v<Type, CommandBuffers>)
 					return commandBuffers;
+				else if constexpr(std::is_same_v<Type, DebugRenderer>)
+					return debugRenderer;
 				else static_assert("Type not supported");
 
 			}
@@ -103,14 +105,16 @@ namespace KGR
 			void updateUniformBuffer(uint32_t currentImage);
 			// callBack for instance
 			static VKAPI_ATTR vk::Bool32 VKAPI_CALL debugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT severity, vk::DebugUtilsMessageTypeFlagsEXT type, const vk::DebugUtilsMessengerCallbackDataEXT* pCallbackData, void*);
+			bool showDebug = false;
 		private:
 			// window
 			GLFWwindow* window = nullptr;
+			glm::mat4 lastModelMatrixUsedForMesh = glm::mat4(1.0f);
+			vk::RenderingInfo renderingInfo;
 
 			Instance               instance;
 			Surface                surface;
 			PhysicalDevice         physicalDevice ;
-			Device				   device;
 			Queue				   queue ;
 			SwapChain              swapChain;
 			ImagesViews            swapChainImageViews;
@@ -120,22 +124,18 @@ namespace KGR
 			std::vector<DescriptorSet> descriptorSets;
 			Pipeline               graphicsPipeline;
 			// --- DEBUG ---
-			DebugRenderer debugRenderer;
 			Pipeline debugPipeline;
 
 			Buffer vertexBuffer;
 			Buffer indexBuffer;
-			CommandBuffers         commandBuffers;
-
 			std::vector<Buffer> uniformBuffers;
+			CommandBuffers         commandBuffers;
 
 			SyncObject syncObject;
 
-
 			Image textureImage;
-			vk::raii::Sampler      textureSampler = nullptr;
-
 			Image depthImage;
+			vk::raii::Sampler      textureSampler = nullptr;
 
 			std::vector<const char*> requiredDeviceExtension = {
 				vk::KHRSwapchainExtensionName };
@@ -144,6 +144,8 @@ namespace KGR
 			//std::vector<uint32_t> indices;
 
 			vk::raii::CommandBuffer* m_currentBuffer;
+			DebugRenderer debugRenderer;
+			Device				   device;
 		};
 	}
 }

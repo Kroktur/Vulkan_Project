@@ -6,6 +6,8 @@
 #include "Core/ManagerImple.h"
 #include "Core/Mesh.h"
 #include "Core/TrasformComponent.h"
+#include "DebugRenderer.h"
+#include "InputManager.h"
 
 int main(int argc, char** argv)
 {
@@ -22,12 +24,13 @@ int main(int argc, char** argv)
 	KGR::_GLFW::Window::AddHint(GLFW_RESIZABLE, GLFW_TRUE);
 	KGR::_GLFW::Window window;
 
+
+
 	window.CreateMyWindow({ 1280, 720 }, "GC goes Vulkan", nullptr, nullptr);
 
 	KGR::_Vulkan::VulkanCore app(&window.GetWindow());
 
 	app.initVulkan();
-
 
 	MeshComponent meshComp;
 	meshComp.mesh = &MeshLoader::Load("Models\\viking_room.obj", &app);
@@ -42,6 +45,8 @@ int main(int argc, char** argv)
 
 	CameraComponent cam = CameraComponent :: Create(45.0f,static_cast<float>(window.GetSize().x),static_cast<float>(window.GetSize().y),0.01f,1000.0f,CameraComponent::Type::Perspective);
 	TransformComponent camTransform;
+	KGR::InputManager input;
+	input.Initialize(window.GetWindowPtr());
 
 	do
 	{
@@ -58,7 +63,6 @@ int main(int argc, char** argv)
 
 		angle += deltaTime * rotationSpeed;
 
-
 		float radius = 5.0f;
 		float camX = std::cos(angle) * radius;
 		float camY = 0.0f;
@@ -67,8 +71,19 @@ int main(int argc, char** argv)
 		camTransform.SetPosition({ camX, camY, camZ });
 		camTransform.LookAt({ 0.0f, 0.0f, 0.0f });
 		cam.UpdateCamera(camTransform.GetFullTransform());
+		input.Update();
+
 		// Render
 		app.BeginRendering();
+		app.Get<KGR::_Vulkan::DebugRenderer>().BeginFrame();
+
+		if (input.IsKeyDown(KGR::Key::A))
+		{
+			app.showDebug = true;
+			glm::mat4 model = transform.GetFullTransform();
+			app.Get<KGR::_Vulkan::DebugRenderer>().DrawMeshWireframe(meshComp, model, { 1,0,0 });
+		}
+
 		app.SetCamera(cam, camTransform);
 		app.DrawMesh(meshComp, transform);
 		//app.DrawMesh(meshComp2, transform2);

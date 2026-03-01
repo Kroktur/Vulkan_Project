@@ -14,8 +14,6 @@ namespace KGR
 			const char* fragmentMain;
 		};
 
-
-
 		class Device;
 		class SwapChain;
 		class DescriptorLayout;
@@ -27,8 +25,8 @@ namespace KGR
 			using vkDescriptorLayout = vk::raii::DescriptorSetLayout;
 
 			Pipeline() = default;
-			Pipeline(const ShaderInfo& shaderInfo, Device* device, SwapChain* swapChain, DescriptorLayouts* layouts, PhysicalDevice* phDevice, vk::PolygonMode mode);
-		
+			Pipeline(const ShaderInfo& shaderInfo, Device* device, SwapChain* swapChain, DescriptorLayouts* layouts, PhysicalDevice* phDevice, vk::PolygonMode mode, vk::PrimitiveTopology topology, vk::CullModeFlagBits cullMode);
+
 
 			vkPipelineLayout& GetLayout();
 

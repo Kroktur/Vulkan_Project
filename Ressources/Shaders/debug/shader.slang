@@ -1,8 +1,6 @@
 struct VSInput {
-    float3 inPosition;
-    float3 normal;
-    float4 inColor;
-    float2 inTexCoord;
+    float3 inPos   : POSITION;
+    float3 inColor : COLOR0;  
 };
 
 struct UniformBuffer {
@@ -15,7 +13,6 @@ struct UniformBuffer {
 struct PushConstant
 {
     float4x4 model;
-     float4 color;
 }
 
 struct Data
@@ -30,20 +27,21 @@ ConstantBuffer<PushConstant> pushConstantData;
 struct VSOutput
 {
     float4 pos : SV_Position;
-    float4 fragColor;
+    float3 color : COLOR0;
 };
 
 [shader("vertex")]
 VSOutput vertMain(VSInput input) {
     VSOutput output;
 
-    float4 wsPos = mul(pushConstantData.model, float4(input.inPosition, 1.0f));
+    float4 wsPos = mul(pushConstantData.model, float4(input.inPos, 1.0f));
     output.pos = mul(data.CamUbo.proj, mul(data.CamUbo.view, wsPos));
-    output.fragColor = pushConstantData.color;
+    output.color = input.inColor;
+
     return output;
 }
 
 [shader("fragment")]
-float4 fragMain(VSOutput vertIn) : SV_TARGET {
-    return float4(vertIn.fragColor);
+float4 fragMain(VSOutput input) : SV_TARGET {
+    return float4(input.color, 1.0f);
 }
