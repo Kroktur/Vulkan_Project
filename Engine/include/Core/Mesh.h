@@ -12,10 +12,11 @@ namespace KGR::_Vulkan
 {
 	class VulkanCore;
 }
-
+class Mesh;
 class SubMeshes
 {
 public:
+	friend Mesh;
 	~SubMeshes();
 	SubMeshes(std::vector<Vertex> vertices, std::vector<uint32_t> indices, const std::string tag,KGR::_Vulkan::VulkanCore* core);
 	std::vector<Vertex> GetVertices() const;
@@ -24,27 +25,30 @@ public:
 	size_t IndexCount() const;
 	uint64_t GetID() const;
 	
-	void BindVertices(const vk::raii::CommandBuffer* buffer);
-	void BindIndices(const vk::raii::CommandBuffer* buffer);
+	
 private:
 	std::vector<Vertex> m_vertices;
 	KGR::_Vulkan::Buffer m_vertexBuffer;
 	std::vector<uint32_t> m_indices;
 	KGR::_Vulkan::Buffer m_indexBuffer;
 	uint64_t m_id;
+	void BindVertices(const vk::raii::CommandBuffer* buffer);
+	void BindIndices(const vk::raii::CommandBuffer* buffer);
 };
 
 class Mesh
 {
 public:
+	friend KGR::_Vulkan::VulkanCore;
 	Mesh() = default;
 	uint32_t GetSubMeshesCount() const;
 	const SubMeshes& GetSubMesh(const std::string& name) const;
 	const SubMeshes& GetSubMesh(uint32_t id) const;
-	void Bind(const vk::raii::CommandBuffer* buffer, uint32_t index);
 	void AddSubMesh(std::unique_ptr<SubMeshes> mesh);
 private:
 	std::vector <std::unique_ptr<SubMeshes>> m_subMeshes;
+	void Bind(const vk::raii::CommandBuffer* buffer, uint32_t index);
+
 };
 
 struct MeshComponent

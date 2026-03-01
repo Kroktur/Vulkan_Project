@@ -29,10 +29,10 @@ int main(int argc, char** argv)
 	window.CreateMyWindow({ 1280, 720 }, "GC goes Vulkan", nullptr, nullptr);
 
 
-	KGR::_Vulkan::VulkanCore app(&window.GetWindow());
+	KGR::_Vulkan::VulkanCore app{};
 
 
-	app.initVulkan();
+	app.initVulkan(&window.GetWindow());
 
 
 	MeshComponent meshComp;
@@ -71,8 +71,8 @@ int main(int argc, char** argv)
 
 
 	TextureComponent texture;
-	//texture.texture = &TextureLoader::Load("Textures\\BaseTexture.png", &app);
-	texture.texture = &TextureLoader::Load("Textures\\viking_room.png", &app);
+	texture.texture = &TextureLoader::Load("Textures\\BaseTexture.png", &app);
+	//texture.texture = &TextureLoader::Load("Textures\\viking_room.png", &app);
 
 	do
 	{
@@ -102,12 +102,15 @@ int main(int argc, char** argv)
 		// Render
 		
 		app.RegisterCam(cam, camTransform);
+
+		for(int i = 0; i < 1; ++i)
 		app.RegisterRender(meshComp2, transform2,texture);
+		for (int i = 0; i < 1; ++i)
 		app.RegisterLight(lComp,lTransform);
 		app.RegisterLight(lComp2, lTransform2);
 		app.RegisterLight(lComp3, lTransform3);
 
-		app.Render({0.53f,0.81f,0.92f ,1.0f});
+		app.Render(&window.GetWindow(),{0.53f,0.81f,0.92f ,1.0f});
 		
 	}
 	while (!window.ShouldClose());

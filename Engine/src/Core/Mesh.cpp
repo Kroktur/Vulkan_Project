@@ -14,25 +14,8 @@ SubMeshes::~SubMeshes()
 
 SubMeshes::SubMeshes(std::vector<Vertex> vertices, std::vector<uint32_t> indices, const std::string tag, KGR::_Vulkan::VulkanCore* core) : m_vertices(vertices),m_indices(indices),m_id(Hash::FNV1aHash(tag.c_str(),tag.size()))
 {
-	auto& device = core->Get<KGR::_Vulkan::Device>();
-	auto& physicalDevice = core->Get<KGR::_Vulkan::PhysicalDevice>();
-	auto& queue = core->Get<KGR::_Vulkan::Queue>();
-	auto& commandBuffers = core->Get<KGR::_Vulkan::CommandBuffers>();
-	size_t vertSize = vertices.size() * sizeof(vertices[0]);
-	auto vertexTmp = KGR::_Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, vertSize);
-	vertexTmp.MapMemory(vertSize);
-	vertexTmp.Upload(vertices);
-	vertexTmp.UnMapMemory();
-	m_vertexBuffer = KGR::_Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, vertSize);
-	m_vertexBuffer.Copy(&vertexTmp, &device, &queue, &commandBuffers);
-	// index
-	size_t indexSize = indices.size() * sizeof(indices[0]);
-	auto indexTmp = KGR::_Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, indexSize);
-	indexTmp.MapMemory(indexSize);
-	indexTmp.Upload(indices);
-	indexTmp.UnMapMemory();
-	m_indexBuffer = KGR::_Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, indexSize);
-	m_indexBuffer.Copy(&indexTmp, &device, &queue, &commandBuffers);
+	m_vertexBuffer = core->CreateVertexBuffer(vertices);
+	m_indexBuffer = core->CreateIndexBuffer(indices);
 }
 
 std::vector<Vertex> SubMeshes::GetVertices() const
