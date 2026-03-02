@@ -1,129 +1,129 @@
-﻿#include "AllFiles.h"
-#include "Core/ManagerImple.h"
-#include <fstream>
-#include <filesystem>
+﻿#include <filesystem>
 #include <iostream>
-
-
-
-
-
-
-#include <algorithm>
-#include <assert.h>
-#include <cstdlib>
-#include <cstring>
-#include <fstream>
-#include <iostream>
-#include <limits>
-#include <memory>
-#include <stdexcept>
-#include <vector>
-
+#include "Core/CameraComponent.h"
+#include "VulkanCore.h"
+#include "_GLFW.h"
 #include "Core/ManagerImple.h"
-#define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
-
-#if defined(__INTELLISENSE__) || !defined(USE_CPP20_MODULES)
-#	include <vulkan/vulkan_raii.hpp>
-#else
-import vulkan_hpp;
-#endif
-
-#define GLFW_INCLUDE_VULKAN        // REQUIRED only for GLFW CreateWindowSurface.
-#include <GLFW/glfw3.h>
-
-constexpr uint32_t WIDTH = 800;
-constexpr uint32_t HEIGHT = 600;
-constexpr int      MAX_FRAMES_IN_FLIGHT = 2;
-
-const std::vector<char const*> validationLayers = {
-	"VK_LAYER_KHRONOS_validation" };
-
-#ifdef NDEBUG
-constexpr bool enableValidationLayers = false;
-#else
-constexpr bool enableValidationLayers = true;
-#endif
-
+#include "Core/Mesh.h"
+#include "Core/TrasformComponent.h"
+#include "Core/LightComponent.h"
+#include "Core/Texture.h"
+#include "Core/Window.h"
+#include "ECS/Registry.h"
+#include "ECS/Entities.h"
 int main(int argc, char** argv)
 {
-
 	std::filesystem::path exePath = argv[0];
 	std::filesystem::path projectRoot = exePath.parent_path().parent_path().parent_path().parent_path().parent_path();
+	KGR::RenderWindow::Init();
+	KGR::RenderWindow window{ {1000,1000},"test",projectRoot / "Ressources" };
+	using ecsType = KGR::ECS::Registry<KGR::ECS::Entity::_64, 100>;
+	auto registry = ecsType{};
+	// Cam
+	{
+	auto cam = registry.CreateEntity();
+	CameraComponent camComp = CameraComponent::Create(45.0f, static_cast<float>(window.GetSize().x), static_cast<float>(window.GetSize().y), 0.01f, 1000.0f, CameraComponent::Type::Perspective);
+	registry.AddComponents<CameraComponent, TransformComponent>(cam, std::move(camComp), std::move(TransformComponent{}));
+	}
 
-	fileManager::SetGlobalFIlePath(projectRoot / "Ressources");
+	// entity
+	{
+		auto mesh = registry.CreateEntity();
+		MeshComponent meshComp;
+		meshComp.mesh = &MeshLoader::Load("Models\\briet_claire_decorsfantasy_grpB.obj", window.App());
+		TransformComponent transform;
+		TextureComponent texture;
+		texture.SetSize(meshComp.mesh->GetSubMeshesCount());
+		for (int i = 0; i < meshComp.mesh->GetSubMeshesCount(); ++i)
+			texture.AddTexture(i, &TextureLoader::Load("Textures\\BaseTexture.png", window.App()));
+		registry.AddComponents<MeshComponent, TransformComponent, TextureComponent>(mesh, std::move(meshComp), std::move(transform), std::move(texture));
+	}
 
-	std::cout << projectRoot;
-	KGR::_GLFW::Window::Init();
-	KGR::_GLFW::Window::AddHint(GLFW_CLIENT_API, GLFW_NO_API);
-	KGR::_GLFW::Window::AddHint(GLFW_RESIZABLE, GLFW_TRUE);
-	KGR::_GLFW::Window window;
+	auto colorTransform = [](const glm::vec3& color)
+	{
+			glm::vec3 result;
+			result.x = color.x * 1 / 255;
+			result.y = color.y * 1 / 255;
+			result.y = color.y * 1 / 255;
+			result.y = color.y * 1 / 255;
+			result.z = color.z * 1 / 255;
+			return result;
+	};
+	{
+		auto light = registry.CreateEntity();
+		auto lComp = LightComponent<LightData::Type::Directional>::Create(colorTransform({ 154,36,69 }), { 1,1,1 }, 1.0f);
+		TransformComponent lTransform;
+		lTransform.LookAt({ 0,-1,0});
+		registry.AddComponents<LightComponent<LightData::Type::Directional>, TransformComponent>(light, std::move(lComp), std::move(lTransform));
+	}
+	
+	
 
 
-	window.CreateMyWindow({ 1280, 720 }, "GC goes Vulkan", nullptr, nullptr);
-
-	KGR::Core_Vulkan vulkan;
-	vulkan.Init(&window);
 
 	do
 	{
-		KGR::_GLFW::Window::PollEvent();
-		if (vulkan.Begin() == -1)
+		// event
+		KGR::RenderWindow::PollEvent();
+		//Update
+		static auto lastTime = std::chrono::high_resolution_clock::now();
+		static float angle = 0.0f;
+		const float rotationSpeed = 1.0f;
+
+		auto currentTime = std::chrono::high_resolution_clock::now();
+		float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
+		lastTime = currentTime;
+
+		angle += deltaTime * rotationSpeed;
+
+		float radius = 5.0f;
+		float camX = std::cos(angle) * radius;
+		float camY = 5.0f;
+		float camZ = std::sin(angle) * radius;
+	{	
+		auto es = registry.GetAllComponentsView<CameraComponent, TransformComponent>();
+		if (es.Size() != 1)
+			throw std::runtime_error("need one and one cam");
+		for (auto& e : es)
 		{
-			vulkan.RecreateSwapchain();
-			continue;
+			registry.GetComponent<TransformComponent>(e).SetPosition({ camX, camY, camZ });
+			registry.GetComponent<TransformComponent>(e).LookAt({ 0.0f, 0.0f, 0.0f });
+			registry.GetComponent<CameraComponent>(e).UpdateCamera(registry.GetComponent<TransformComponent>(e).GetFullTransform());
+			window.RegisterCam(registry.GetComponent<CameraComponent>(e), registry.GetComponent<TransformComponent>(e));
 		}
+	}
 
-		auto& cb = vulkan.GetCommandBuffer(vulkan.GetCurrentFrame()).GetBuffer();
-		auto& currentImage = vulkan.GetCurrentImage();
-		auto extent = vulkan.GetSwapchain().GetSwapchainExtent();
 
-		vulkan.Transition(KGR::_Vulkan::TransitionType::ColorAttachment, cb);
+		// Render Mesh
+	{
+		auto es = registry.GetAllComponentsView<MeshComponent, TransformComponent,TextureComponent>();
 
-		vk::RenderingAttachmentInfo attachmentInfo
-		{
-			.imageView = vulkan.GetCurrentImageView(),
-			.imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
-			.loadOp = vk::AttachmentLoadOp::eClear,
-			.storeOp = vk::AttachmentStoreOp::eStore,
-			.clearValue = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f)
-		};
+		for (auto& e : es)
+				window.RegisterRender(registry.GetComponent<MeshComponent>(e), registry.GetComponent<TransformComponent>(e), registry.GetComponent<TextureComponent>(e));
+	}
 
-		vk::RenderingInfo renderingInfo
-		{
-			.renderArea = vk::Rect2D{{0,0}, extent},
-			.layerCount = 1,
-			.colorAttachmentCount = 1,
-			.pColorAttachments = &attachmentInfo
-		};
+	{
+		auto es = registry.GetAllComponentsView<LightComponent<LightData::Type::Point>, TransformComponent>();
+		for (auto& e : es)
+		window.RegisterLight(registry.GetComponent<LightComponent<LightData::Type::Point>>(e), registry.GetComponent<TransformComponent>(e));
+	}
+	{
+		auto es = registry.GetAllComponentsView<LightComponent<LightData::Type::Spot>, TransformComponent>();
+		for (auto& e : es)
+			window.RegisterLight(registry.GetComponent<LightComponent<LightData::Type::Spot>>(e), registry.GetComponent<TransformComponent>(e));
+	}
 
-		cb.beginRendering(renderingInfo);
-		cb.bindPipeline(vk::PipelineBindPoint::eGraphics, *vulkan.GetPipeline().GetPipeline());
+	{
+		auto es = registry.GetAllComponentsView<LightComponent<LightData::Type::Directional>, TransformComponent>();
+		for (auto& e : es)
+			window.RegisterLight(registry.GetComponent<LightComponent<LightData::Type::Directional>>(e), registry.GetComponent<TransformComponent>(e));
+	}
+		window.Render({0.53f,0.81f,0.92f ,1.0f});
+	}
+	while (!window.ShouldClose());
 
-		cb.setViewport(0, vk::Viewport(0.f, 0.f,
-			static_cast<float>(extent.width),
-			static_cast<float>(extent.height), 0.f, 1.f));
 
-		cb.setScissor(0, vk::Rect2D({ 0,0 }, extent));
-
-		cb.draw(3, 1, 0, 0);
-		cb.endRendering();
-
-		vulkan.Transition(KGR::_Vulkan::TransitionType::Present, cb);
-
-		if (vulkan.End() == -1)
-		{
-			vulkan.RecreateSwapchain();
-			continue;
-		}
-
-	} while (!window.ShouldClose());
-
-	vulkan.WaitIdle();
-	vulkan.Cleanup();
-
-	window.DestroyMyWindow();
-	KGR::_GLFW::Window::Destroy();
-
-	return 0;
+	 window.Destroy();
+	 KGR::RenderWindow::End();
 }
+
