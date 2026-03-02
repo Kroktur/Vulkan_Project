@@ -577,6 +577,9 @@ void KGR::_Vulkan::VulkanCore::RegisterCam(CameraComponent& cam, TransformCompon
 
 void KGR::_Vulkan::VulkanCore::RegisterRender(MeshComponent& mesh, TransformComponent& transform, TextureComponent& texture)
 {
+	if (!mesh.mesh)
+		return;
+
 	m_toRenderObject.push_back(MeshData{ transform.GetFullTransform() ,&mesh,&texture });
 }
 

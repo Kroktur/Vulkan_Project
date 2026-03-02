@@ -2,17 +2,13 @@
 #include <iostream>
 #include "Core/CameraComponent.h"
 
-#include "imgui.h"
 #include "VulkanCore.h"
 #include "_GLFW.h"
-#include "Backends/imgui_impl_glfw.h"
-#include "Backends/imgui_impl_vulkan.h"
 #include "Core/ManagerImple.h"
-#include "Core/Mesh.h"
-#include "Core/TrasformComponent.h"
 #include "Core/LightComponent.h"
-#include "Core/Texture.h"
 #include "KGR_ImGui.h"
+#include "ObjectState.h"
+#include "ObjectEditor.h"
 
 int main(int argc, char** argv)
 {
@@ -36,19 +32,16 @@ int main(int argc, char** argv)
 	app.initVulkan(&window.GetWindow());
 	imguiCore.InitImGui(&app, &window);
 
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	ImGuiIO& io = imguiCore.GetIO(); (void)io;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 
-	MeshComponent meshComp;
-
-	TransformComponent transform;
-	transform.SetPosition(glm::vec3(0, 0, 0));
-	transform.SetScale({ 2, 2, 2 });
-	transform.RotateQuat<RotData::Orientation::Pitch>(glm::radians(-90.0f));
-	TransformComponent transform2;
-	transform2.SetScale({ 10,0.1,10 });
 	CameraComponent cam = CameraComponent::Create(45.0f, static_cast<float>(window.GetSize().x), static_cast<float>(window.GetSize().y), 0.01f, 1000.0f, CameraComponent::Type::Perspective);
+	
 	TransformComponent camTransform;
+	camTransform.SetPosition({ 0.0f, 5.0f, 5.0f });
+	camTransform.LookAt({ 0.0f, 0.0f, 0.0f });
+	cam.UpdateCamera(camTransform.GetFullTransform());
+	imguiCore.SetCamera(&cam, &camTransform);
 
 	auto lComp = LightComponent<LightData::Type::Directional>::Create({ 1,1,1 }, { 1,1,1 }, 10.0f);
 
@@ -72,18 +65,15 @@ int main(int argc, char** argv)
 	lTransform3.LookAtDir({ 1,-1,0 });
 
 
-	TextureComponent texture;
-	texture.texture = &TextureLoader::Load("Textures\\BaseTexture.png", &app);
+	TextureComponent baseTexture;
+	baseTexture.texture = &TextureLoader::Load("Textures\\BaseTexture.png", &app);
 
-	glm::vec3 objPosition = { 0.0f, 0.0f, 0.0f };
-	glm::vec3 objScale	  = { 1.0f, 1.0f, 1.0f };
-	glm::vec3 objRotation = { 0.0f, 0.0f, 0.0f };
+	std::vector<ObjectState> objects;
+	int selectedObj = -1;
 
 	auto  lastTime = std::chrono::high_resolution_clock::now();
-	float angle = 0.0f;
 
-	std::string modelPath;
-	std::string modelName;
+	ObjectEditor objEditor(imguiCore, app);
 
 	do
 	{
@@ -94,54 +84,70 @@ int main(int argc, char** argv)
 		float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
 		lastTime = currentTime;
 
-		float radius = 5.0f;
-		float camX	 = std::cos(angle) * radius;
-		float camY	 = 5.0f;
-		float camZ	 = std::sin(angle) * radius;
+		imguiCore.UpdateCamera(deltaTime);
 
-		camTransform.SetPosition({ camX, camY, camZ });
-		camTransform.LookAt({ 0.0f, 0.0f, 0.0f });
-		cam.UpdateCamera(camTransform.GetFullTransform());
+		for (auto& obj : objects)
+			if (obj.isAnimating)
+				obj.rotation.y -= glm::radians(90.0f) * deltaTime;
 
 		// ImGui
 		imguiCore.BeginFrame(KGR::_ImGui::ContextTarget::Engine);
 		{
-			KGR::_ImGui::ImGuiCore::SetWindow({ 20, 20 }, { 360, 150 }, "Toto");
-			ImGui::Text("File : %s", modelName.c_str());
-			if (imguiCore.IsButton(KGR::_ImGui::ButtonType::Load))
+			KGR::_ImGui::ImGuiCore::SetWindow({ 400, 20 }, { 500, 200 }, "KGR Engine");
+			ImGui::Text("Welcome to the KGR Engine !\n\nUse right click and ZQSD to move the camera.");
+
+			if (imguiCore.IsButton(KGR::_ImGui::ButtonType::Object))
 			{
-				if (imguiCore.LoadMesh(meshComp, modelPath, app))
-				{
-					modelName   = std::filesystem::path(modelPath).filename().string();
-					objPosition = { 0.0f, 0.0f, 0.0f };
-					objScale	= { 1.0f, 1.0f, 1.0f };
-					objRotation = { 0.0f, 0.0f, 0.0f };
-				}
+				ObjectState& obj = objects.emplace_back();
+				obj.name		 = "Object " + std::to_string(objects.size() - 1);
+				obj.texture		 = baseTexture;
+				selectedObj		 = static_cast<int>(objects.size() - 1);
 			}
 
 			ImGui::Separator();
 
-			ImGui::DragFloat3("Position",	&objPosition.x, 0.05f);
-			ImGui::DragFloat3("Scale",		&objScale.x,	0.05f, 0.01f, 50.0f);
-			ImGui::SliderAngle("Pitch (x)", &objRotation.x, -180.0f, 180.0f);
-			ImGui::SliderAngle("Yaw (y)",	&objRotation.y, -180.0f, 180.0f);
-			ImGui::SliderAngle("Roll (z)",	&objRotation.z, -180.0f, 180.0f);
+			for (int i = 0; i < (int)objects.size(); i++)
+				if (ImGui::Selectable(objects[i].name.c_str(), selectedObj == i))
+					selectedObj = i;
+
 			ImGui::End();
+
+			if (selectedObj >= 0 && selectedObj < static_cast<int>(objects.size()))
+			{
+				objEditor.SetTarget(&objects[selectedObj]);
+
+				bool stillOpen = objEditor.Render();
+
+				if (objEditor.DeleteObject())
+				{
+					app.GetDevice().Get().waitIdle();
+
+					if (!objects[selectedObj].modelPath.empty())
+						MeshLoader::Unload(objects[selectedObj].modelPath);
+
+					objects.erase(objects.begin() + selectedObj);
+					selectedObj = -1;
+				}
+				else if (!stillOpen)
+					selectedObj = -1;
+			}
 		}
-		ImGui::Render();
 
-		transform.SetPosition(objPosition);
-		transform.SetScale(objScale);
-		transform.SetRotation(objRotation);
+		imguiCore.EndFrame();
 
-		app.RegisterCam(cam, camTransform);
-		app.RegisterRender(meshComp, transform, texture);
+		for (auto& obj : objects)
+		{
+			obj.ApplyTransform();
+			app.RegisterRender(obj.mesh, obj.transform, obj.texture);
+		}
+
+		app.RegisterCam(imguiCore.GetCam(), imguiCore.GetCamTransform());
 
 		app.RegisterLight(lComp, lTransform);
 		app.RegisterLight(lComp2, lTransform2);
 		app.RegisterLight(lComp3, lTransform3);
 
-		app.Render(&window.GetWindow(), { 0.53f, 0.81f, 0.92f, 1.0f }, ImGui::GetDrawData());
+		app.Render(&window.GetWindow(), { 0.53f, 0.81f, 0.92f, 1.0f }, imguiCore.GetDrawData());
 
 	} while (!window.ShouldClose());
 

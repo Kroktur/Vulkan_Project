@@ -4,10 +4,12 @@
 #include "Backends/imgui_impl_vulkan.h"
 #include <Windows.h>
 #include "Core/Mesh.h"
+#include "Core/CameraComponent.h"
 
 void KGR::_ImGui::ImGuiCore::InitImGui(KGR::_Vulkan::VulkanCore* vulkanCore, KGR::_GLFW::Window* engineWindow)
 {
 	m_VulkanCore = vulkanCore;
+	m_Window     = engineWindow;
 	IMGUI_CHECKVERSION();
 
 	InitContext(m_EngineContext, vulkanCore, engineWindow);
@@ -20,8 +22,10 @@ bool KGR::_ImGui::ImGuiCore::LoadMesh(MeshComponent& meshComponent, std::string&
 		return false;
 
 	vkCore.GetDevice().Get().waitIdle();
+
 	if (!path.empty())
 		MeshLoader::Unload(path);
+
 	path = newPath;
 	meshComponent.mesh = &MeshLoader::Load(path, &vkCore);
 
@@ -36,27 +40,116 @@ void KGR::_ImGui::ImGuiCore::BeginFrame(ContextTarget target)
 	ImGui::NewFrame();
 }
 
-void KGR::_ImGui::ImGuiCore::EndFrame(ContextTarget target, VkCommandBuffer commandBuffer)
-{
-    SetContext(target);
-	ImGui::Render();
-	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
-}
-
-void KGR::_ImGui::ImGuiCore::Render(ContextTarget target)
-{
-}
-
 void KGR::_ImGui::ImGuiCore::SetContext(ContextTarget target)
 {
     ImGui::SetCurrentContext(target == ContextTarget::Engine ? m_EngineContext : m_GameContext);
 }
 
-void KGR::_ImGui::ImGuiCore::SetWindow(const ImVec2& position, const ImVec2& size, const char* name)
+void KGR::_ImGui::ImGuiCore::SetWindow(const ImVec2& position, const ImVec2& size, const char* name, bool* p_open)
 {
     ImGui::SetNextWindowPos(position, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(size, ImGuiCond_FirstUseEver);
-    ImGui::Begin(name);
+    ImGui::Begin(name, p_open);
+}
+
+void KGR::_ImGui::ImGuiCore::SetCamera(CameraComponent* cam, TransformComponent* transform, float speed)
+{
+    m_Camera       = cam;
+    m_CamTransform = transform;
+    m_CamSpeed     = speed;
+
+    glm::vec3 forward = transform->GetLocalAxe<RotData::Dir::Forward>();
+    m_Pitch = glm::asin(glm::clamp(forward.y, -1.0f, 1.0f));
+    m_Yaw   = std::atan2(forward.x, -forward.z);
+}
+
+void KGR::_ImGui::ImGuiCore::UpdateCamera(float deltaTime)
+{
+    if (!m_Camera || !m_CamTransform || !m_Window)
+        return;
+
+    bool rightHeld = glfwGetMouseButton(&m_Window->GetWindow(), GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS;
+    if (rightHeld)
+    {
+        glm::dvec2 mousePos;
+        glfwGetCursorPos(&m_Window->GetWindow(), &mousePos.x, &mousePos.y);
+
+        if (!m_IsRightClickActive)
+        {
+            m_LastMousePos       = mousePos;
+            m_IsRightClickActive = true;
+            glfwSetInputMode(&m_Window->GetWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        }
+        else
+        {
+            glm::dvec2 delta = mousePos - m_LastMousePos;
+            m_LastMousePos   = mousePos;
+
+            m_Yaw   -= glm::radians(static_cast<float>(delta.x)  *m_MouseSensitivity);
+            m_Pitch -= glm::radians(static_cast<float>(delta.y)  *m_MouseSensitivity);
+            m_Pitch  = glm::clamp(m_Pitch, glm::radians(-89.0f), glm::radians(89.0f));
+
+            glm::quat yawQuat   = glm::angleAxis(m_Yaw,   glm::vec3(0.0f, 1.0f, 0.0f));
+            glm::quat pitchQuat = glm::angleAxis(m_Pitch, glm::vec3(1.0f, 0.0f, 0.0f));
+            m_CamTransform->SetOrientation(yawQuat * pitchQuat);
+            m_Camera->UpdateCamera(m_CamTransform->GetFullTransform());
+        }
+    }
+    else if (m_IsRightClickActive)
+    {
+        m_IsRightClickActive = false;
+        glfwSetInputMode(&m_Window->GetWindow(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+
+    if (ImGui::GetIO().WantCaptureKeyboard)
+        return;
+
+    glm::vec3 move(0.0f);
+
+    if (glfwGetKey(&m_Window->GetWindow(), GLFW_KEY_W) == GLFW_PRESS)
+        move += m_CamTransform->GetLocalAxe<RotData::Dir::Forward>();
+    if (glfwGetKey(&m_Window->GetWindow(), GLFW_KEY_S) == GLFW_PRESS)
+        move -= m_CamTransform->GetLocalAxe<RotData::Dir::Forward>();
+    if (glfwGetKey(&m_Window->GetWindow(), GLFW_KEY_A) == GLFW_PRESS)
+        move -= m_CamTransform->GetLocalAxe<RotData::Dir::Right>();
+    if (glfwGetKey(&m_Window->GetWindow(), GLFW_KEY_D) == GLFW_PRESS)
+        move += m_CamTransform->GetLocalAxe<RotData::Dir::Right>();
+    if (glfwGetKey(&m_Window->GetWindow(), GLFW_KEY_Q) == GLFW_PRESS)
+        move += glm::vec3(0.0f, 1.0f, 0.0f);
+    if (glfwGetKey(&m_Window->GetWindow(), GLFW_KEY_E) == GLFW_PRESS)
+        move -= glm::vec3(0.0f, 1.0f, 0.0f);
+
+    if (glm::length(move) > 0.0f)
+    {
+        move = glm::normalize(move) * m_CamSpeed * deltaTime;
+        m_CamTransform->Translate(move);
+        m_Camera->UpdateCamera(m_CamTransform->GetFullTransform());
+    }
+}
+
+CameraComponent& KGR::_ImGui::ImGuiCore::GetCam()
+{
+    return *m_Camera;
+}
+
+TransformComponent& KGR::_ImGui::ImGuiCore::GetCamTransform()
+{
+    return *m_CamTransform;
+}
+
+void KGR::_ImGui::ImGuiCore::EndFrame()
+{
+    ImGui::Render();
+}
+
+ImDrawData* KGR::_ImGui::ImGuiCore::GetDrawData()
+{
+    return ImGui::GetDrawData();
+}
+
+ImGuiIO& KGR::_ImGui::ImGuiCore::GetIO()
+{
+    return ImGui::GetIO();
 }
 
 void KGR::_ImGui::ImGuiCore::Destroy()
@@ -135,5 +228,12 @@ bool KGR::_ImGui::ImGuiCore::IsButton(ButtonType type)
         return ImGui::Button("Scene");
     else if (type == ButtonType::Load)
         return ImGui::Button("Load");
+	else if (type == ButtonType::PlayAnimation)
+		return ImGui::Button("Play Animation");
+	else if (type == ButtonType::StopAnimation)
+		return ImGui::Button("Stop Animation");
+	else if (type == ButtonType::ResetObject)
+		return ImGui::Button("Reset Object");
+
 	return false;
 }
