@@ -8,7 +8,6 @@ KGR::_GLFW::Window::Window()
 	, m_lasWindowedPos(0, 0)
 	, m_lasWindowedSize(0, 0)
 {
-
 }
 
 

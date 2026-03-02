@@ -37,7 +37,7 @@ KGR::_Vulkan::Pipeline::Pipeline(const ShaderInfo& shaderInfo, Device* device, S
 			.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),
 			.pVertexAttributeDescriptions = attributeDescriptions.data() };
 	vk::PipelineInputAssemblyStateCreateInfo inputAssembly{
-		.topology = topology,
+		.topology = vk::PrimitiveTopology::eTriangleList,
 		.primitiveRestartEnable = vk::False };
 	vk::PipelineViewportStateCreateInfo viewportState{
 		.viewportCount = 1,
@@ -46,7 +46,7 @@ KGR::_Vulkan::Pipeline::Pipeline(const ShaderInfo& shaderInfo, Device* device, S
 		.depthClampEnable = vk::False,
 		.rasterizerDiscardEnable = vk::False,
 		.polygonMode = mode,
-		.cullMode = cullMode,
+		.cullMode = vk::CullModeFlagBits::eBack,
 		.frontFace = vk::FrontFace::eCounterClockwise,
 		.depthBiasEnable = vk::False,
 		.lineWidth = 1.0f };

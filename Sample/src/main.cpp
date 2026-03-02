@@ -11,19 +11,31 @@
 #include "Core/Window.h"
 #include "ECS/Registry.h"
 #include "ECS/Entities.h"
+// to move 
+struct ControllerComponent
+{
+};
+
+
+
 int main(int argc, char** argv)
 {
+
+
 	std::filesystem::path exePath = argv[0];
 	std::filesystem::path projectRoot = exePath.parent_path().parent_path().parent_path().parent_path().parent_path();
 	KGR::RenderWindow::Init();
 	KGR::RenderWindow window{ {1000,1000},"test",projectRoot / "Ressources" };
+	window.GetInputManager()->SetMode(GLFW_CURSOR_DISABLED);
 	using ecsType = KGR::ECS::Registry<KGR::ECS::Entity::_64, 100>;
 	auto registry = ecsType{};
 	// Cam
 	{
 	auto cam = registry.CreateEntity();
 	CameraComponent camComp = CameraComponent::Create(45.0f, static_cast<float>(window.GetSize().x), static_cast<float>(window.GetSize().y), 0.01f, 1000.0f, CameraComponent::Type::Perspective);
-	registry.AddComponents<CameraComponent, TransformComponent>(cam, std::move(camComp), std::move(TransformComponent{}));
+	TransformComponent transform;
+	transform.SetPosition({ 0,3,5 });
+	registry.AddComponents<CameraComponent, TransformComponent, ControllerComponent>(cam, std::move(camComp), std::move(transform),std::move(ControllerComponent{}));
 	}
 
 	// entity
@@ -36,7 +48,7 @@ int main(int argc, char** argv)
 		texture.SetSize(meshComp.mesh->GetSubMeshesCount());
 		for (int i = 0; i < meshComp.mesh->GetSubMeshesCount(); ++i)
 			texture.AddTexture(i, &TextureLoader::Load("Textures\\BaseTexture.png", window.App()));
-		registry.AddComponents<MeshComponent, TransformComponent, TextureComponent>(mesh, std::move(meshComp), std::move(transform), std::move(texture));
+		registry.AddComponents<MeshComponent, TransformComponent, TextureComponent,ControllerComponent>(mesh, std::move(meshComp), std::move(transform), std::move(texture),std::move(ControllerComponent{}));
 	}
 
 	auto colorTransform = [](const glm::vec3& color)
@@ -65,6 +77,7 @@ int main(int argc, char** argv)
 	{
 		// event
 		KGR::RenderWindow::PollEvent();
+		window.Update();
 		//Update
 		static auto lastTime = std::chrono::high_resolution_clock::now();
 		static float angle = 0.0f;
@@ -80,14 +93,42 @@ int main(int argc, char** argv)
 		float camX = std::cos(angle) * radius;
 		float camY = 5.0f;
 		float camZ = std::sin(angle) * radius;
+		{
+			auto es = registry.GetAllComponentsView<ControllerComponent, TransformComponent,CameraComponent>();
+			auto* inputData = window.GetInputManager();
+			for (auto& e : es)
+			{
+				auto& transform = registry.GetComponent<TransformComponent>(e);
+				glm::vec3 dir = {0.0f,0.0f,0.0f};
+				if (inputData->IsKeyDown(KGR::Key::Z))
+					dir.z = -1;
+				if (inputData->IsKeyDown(KGR::Key::S))
+					dir.z = 1;
+				if (inputData->IsKeyDown(KGR::Key::Q))
+					dir.x = -1;
+				if (inputData->IsKeyDown(KGR::Key::D))
+					dir.x = 1;
+				if (inputData->IsKeyDown(KGR::SpecialKey::Space))
+					dir.y = 1;
+				if (inputData->IsKeyDown(KGR::SpecialKey::Shift))
+					dir.y = -1;
+
+
+
+				transform.Translate(dir * deltaTime);
+			}
+		}
+
+
+
 	{	
 		auto es = registry.GetAllComponentsView<CameraComponent, TransformComponent>();
 		if (es.Size() != 1)
 			throw std::runtime_error("need one and one cam");
 		for (auto& e : es)
 		{
-			registry.GetComponent<TransformComponent>(e).SetPosition({ camX, camY, camZ });
-			registry.GetComponent<TransformComponent>(e).LookAt({ 0.0f, 0.0f, 0.0f });
+			//registry.GetComponent<TransformComponent>(e).SetPosition({ camX, camY, camZ });
+			//registry.GetComponent<TransformComponent>(e).LookAt({ 0.0f, 0.0f, 0.0f });
 			registry.GetComponent<CameraComponent>(e).UpdateCamera(registry.GetComponent<TransformComponent>(e).GetFullTransform());
 			window.RegisterCam(registry.GetComponent<CameraComponent>(e), registry.GetComponent<TransformComponent>(e));
 		}

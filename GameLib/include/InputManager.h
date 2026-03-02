@@ -1,5 +1,6 @@
 #pragma once
 #include <GLFW/glfw3.h>
+#include <glm/vec2.hpp>
 #include <type_traits>
 
 namespace KGR
@@ -108,7 +109,7 @@ namespace KGR
          *
          * @param window Pointer to the GLFW window to poll input from.
          */
-        void Initialize(GLFWwindow* window);
+    	void Initialize(GLFWwindow* window);
 
         /**
          * @brief Updates input states.
@@ -124,14 +125,17 @@ namespace KGR
         bool IsMDown(int button);
         bool IsMPressed(int button);
         bool IsMReleased(int button);
-
+        void SetMode(int mode)
+        {
+            glfwSetInputMode(m_window, GLFW_CURSOR, mode);
+        }
         /**
          * @brief Retrieves the current mouse cursor position.
          *
          * @param x Output X coordinate.
          * @param y Output Y coordinate.
          */
-        void GetMousePosition(double& x, double& y);
+        glm::vec2 GetMousePosition(double x, double y) const;
 
 
         template<InputEnum T>

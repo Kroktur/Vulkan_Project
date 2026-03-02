@@ -1,4 +1,5 @@
 #pragma once
+#include "InputManager.h"
 #include "ManagerImple.h"
 #include "Mesh.h"
 #include "Texture.h"
@@ -17,7 +18,8 @@ namespace KGR
 		bool ShouldClose() const;
 		static void PollEvent();
 		static void End();
-		_Vulkan::VulkanCore* App();;
+		void Update();
+		_Vulkan::VulkanCore* App();
 		glm::ivec2 GetSize() const;
 		template<LightData::Type Type>
 		void RegisterLight(LightComponent<Type>& light, TransformComponent& transform);
@@ -28,10 +30,11 @@ namespace KGR
 
 		template<_GLFW::WinState state>
 		bool IsState() const;
-
+		InputManager* GetInputManager();
 	private:
 		_Vulkan::VulkanCore m_core;
 		KGR::_GLFW::Window m_window;
+		KGR::InputManager m_manager;
 	};
 
 	template <LightData::Type Type>

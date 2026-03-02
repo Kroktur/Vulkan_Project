@@ -1,5 +1,7 @@
 #include "Core/Window.h"
 
+#include "InputManager.h"
+
 KGR::RenderWindow::RenderWindow(glm::ivec2 size, const char* name, const std::filesystem::path& GlobResourcesPath)
 {
 	STBManager::SetGlobalFIlePath(GlobResourcesPath);
@@ -10,6 +12,8 @@ KGR::RenderWindow::RenderWindow(glm::ivec2 size, const char* name, const std::fi
 
 	m_window.CreateMyWindow({ 1280, 720 }, "GC goes Vulkan", nullptr, nullptr);
 	m_core.initVulkan(&m_window.GetWindow());
+	m_manager.Initialize(&m_window.GetWindow());
+
 }
 
 void KGR::RenderWindow::Init()
@@ -43,6 +47,11 @@ void KGR::RenderWindow::End()
 	KGR::_GLFW::Window::Destroy();
 }
 
+void KGR::RenderWindow::Update()
+{
+	m_manager.Update();
+}
+
 KGR::_Vulkan::VulkanCore* KGR::RenderWindow::App()
 {
 	return &m_core;
@@ -71,6 +80,11 @@ void KGR::RenderWindow::Render(const glm::vec4& clearColor, ImDrawData* imguiDra
 void KGR::RenderWindow::SetWindowState(_GLFW::WinState state, _GLFW::Monitor* monitor)
 {
 	m_window.SetWindowState(state, monitor);
+}
+
+KGR::InputManager* KGR::RenderWindow::GetInputManager()
+{
+	return &m_manager;
 }
 
 template <KGR::_GLFW::WinState state>

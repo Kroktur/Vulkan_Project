@@ -95,6 +95,7 @@ namespace KGR
 			void generateMipmaps(vk::raii::Image& image, vk::Format imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
 			Instance               instance;
 			Surface                surface;
+			Device device;
 			PhysicalDevice         physicalDevice ;
 			Queue				   queue ;
 			SwapChain              swapChain;

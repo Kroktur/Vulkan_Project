@@ -1,5 +1,9 @@
 #include "InputManager.h"
 
+#include <iostream>
+#include <glm/vec2.hpp>
+#include <glm/detail/type_vec2.hpp>
+
 namespace KGR
 {
     /**
@@ -26,21 +30,19 @@ namespace KGR
      */
     void InputManager::Update()
     {
-        // Copy previous state
+        // Copy previous state and Poll current state
         for (int i = 0; i < 1024; i++)
-            m_previousKeys[i] = m_currentKeys[i];
+        {
+	        m_previousKeys[i] = m_currentKeys[i];
+            m_currentKeys[i] = glfwGetKey(m_window, i) == GLFW_PRESS;
+        }
 
         for (int i = 0; i < 8; i++)
-            m_previousMouse[i] = m_currentMouse[i];
+        {
+	        m_previousMouse[i] = m_currentMouse[i];
+            m_currentMouse[i] = glfwGetMouseButton(m_window, i) == GLFW_PRESS;
 
-        // Poll current keyboard state
-        for (int key = 0; key < 1024; key++)
-            m_currentKeys[key] = glfwGetKey(m_window, key) == GLFW_PRESS;
-
-        // Poll current mouse button state
-        for (int mb = 0; mb < 8; mb++)
-            m_currentMouse[mb] = glfwGetMouseButton(m_window, mb) == GLFW_PRESS;
-
+        }
         // Update cursor position
         glfwGetCursorPos(m_window, &m_mouseX, &m_mouseY);
     }
@@ -107,9 +109,8 @@ namespace KGR
      * @param x Output X coordinate.
      * @param y Output Y coordinate.
      */
-    void InputManager::GetMousePosition(double& x, double& y)
+    glm::vec2 InputManager::GetMousePosition(double x, double y) const 
     {
-        x = m_mouseX;
-        y = m_mouseY;
+        return { x,y };
     }
 }
