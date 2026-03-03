@@ -39,7 +39,7 @@ int main(int argc, char** argv)
 	TransformComponent transform;
 	transform.SetPosition(glm::vec3(0, 0, 0));
 	transform.SetScale({2, 2, 2});
-	transform.RotateQuat<RotData::Orientation::Pitch>(glm::radians(-90.0f));
+	/*transform.RotateQuat<RotData::Orientation::Pitch>(glm::radians(-90.0f));*/
 	TransformComponent transform2;
 	transform2.RotateQuat<RotData::Orientation::Pitch>(glm::radians(-90.0f));
 
@@ -81,7 +81,14 @@ int main(int argc, char** argv)
 		{
 			app.showDebug = true;
 			glm::mat4 model = transform.GetFullTransform();
-			app.Get<KGR::_Vulkan::DebugRenderer>().DrawMeshWireframe(meshComp, model, { 1,0,0 });
+
+			/*KGR::AABB3D box = meshComp.mesh->GetAABB();
+			app.Get<KGR::_Vulkan::DebugRenderer>().DrawAABB(box, { 0,1,0 });*/
+
+			KGR::OBB3D obb = meshComp.mesh->GetOBB();
+			app.Get<KGR::_Vulkan::DebugRenderer>().DrawOBB(obb, { 0,0,1 });
+
+			/*app.Get<KGR::_Vulkan::DebugRenderer>().DrawMeshWireframe(meshComp, model, { 1,0,0 });*/
 		}
 
 		app.SetCamera(cam, camTransform);

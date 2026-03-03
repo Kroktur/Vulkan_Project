@@ -37,9 +37,24 @@ void KGR::_Vulkan::DebugRenderer::DrawAABB(const KGR::AABB3D& box, const glm::ve
 
     auto add = [&](int a, int b) { DrawLine(p[a], p[b], color); };
 
-    add(0, 1); add(1, 2); add(2, 3); add(3, 0);
-    add(4, 5); add(5, 6); add(6, 7); add(7, 4);
-    add(0, 4); add(1, 5); add(2, 6); add(3, 7);
+    //Front
+    add(0, 1);
+    add(1, 2);
+    add(2, 3);
+    add(3, 0);
+
+    //Back
+    add(4, 5);
+    add(5, 6);
+    add(6, 7);
+    add(7, 4);
+
+	//Vertical
+    add(0, 4);
+    add(1, 5);
+    add(2, 6);
+    add(3, 7);
+
 }
 
 void KGR::_Vulkan::DebugRenderer::DrawOBB(const KGR::OBB3D& box, const glm::vec3& color)

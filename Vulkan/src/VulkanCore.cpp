@@ -39,7 +39,7 @@ void KGR::_Vulkan::VulkanCore::initVulkan()
 	// Queue
 	queue = _Vulkan::Queue(&device);
 	// swapChain
-	swapChain = _Vulkan::SwapChain(&physicalDevice, &device, &surface, window, SwapChain::PresMode::Mailbox, 3,nullptr);
+	swapChain = _Vulkan::SwapChain(&physicalDevice, &device, &surface, window, SwapChain::PresMode::Fifo, 3,nullptr);
 	// images view
 	swapChainImageViews = _Vulkan::ImagesViews(&swapChain, &device, ImagesViews::ViewType::vt2D);
 	// Pipeline
@@ -188,7 +188,7 @@ void KGR::_Vulkan::VulkanCore::recreateSwapChain()
 	}
 	
 	device.Get().waitIdle();
-	swapChain = _Vulkan::SwapChain(&physicalDevice, &device, &surface, window,SwapChain::PresMode::Mailbox ,3, &swapChain);
+	swapChain = _Vulkan::SwapChain(&physicalDevice, &device, &surface, window,SwapChain::PresMode::FifoRelaxed ,3, &swapChain);
 	swapChainImageViews = _Vulkan::ImagesViews(&swapChain, &device, ImagesViews::ViewType::vt2D);
 	_Vulkan::ShaderInfo info{
 		.ShaderPath = "Shaders/slang.spv",
@@ -624,7 +624,7 @@ void KGR::_Vulkan::VulkanCore::BeginRendering()
 		vk::PipelineStageFlagBits2::eEarlyFragmentTests | vk::PipelineStageFlagBits2::eLateFragmentTests,
 		vk::ImageAspectFlagBits::eDepth, *m_currentBuffer);
 
-	vk::ClearValue clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
+	vk::ClearValue clearColor = vk::ClearColorValue(0.53f, 0.81f, 0.92f, 1.0f);
 	vk::ClearValue clearDepth = vk::ClearDepthStencilValue(1.0f, 0);
 
 	vk::RenderingAttachmentInfo colorAttachmentInfo = {

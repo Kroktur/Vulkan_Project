@@ -106,6 +106,34 @@ void Mesh::AddSubMesh(std::unique_ptr<SubMeshes> mesh)
 	m_subMeshes.push_back(std::move(mesh));
 }
 
+KGR::AABB3D Mesh::GetAABB() const
+{
+	if (m_subMeshes.empty())
+		return KGR::AABB3D({ 0,0,0 }, { 0,0,0 });
+
+	glm::vec3 min(FLT_MAX);
+	glm::vec3 max(-FLT_MAX);
+
+	for (const auto& sm : m_subMeshes)
+	{
+		const auto& verts = sm->GetVertices();
+		for (const auto& v : verts)
+		{
+			min = glm::min(min, v.pos);
+			max = glm::max(max, v.pos);
+		}
+	}
+
+	return KGR::AABB3D(min, max);
+}
+
+KGR::OBB3D Mesh::GetOBB() const
+{
+	KGR::AABB3D aabb = GetAABB();
+	glm::vec3 center = aabb.GetCenter();
+	glm::vec3 halfSize = aabb.GetHalfSize();
+	return KGR::OBB3D(center, halfSize, { 1,0,0 }, { 0,1,0 }, { 0,0,1 });
+}
 std::unique_ptr<Mesh> LoadMesh(const std::string& filePath, KGR::_Vulkan::VulkanCore* core)
 {
 	std::unique_ptr<Mesh> result = std::make_unique<Mesh>();

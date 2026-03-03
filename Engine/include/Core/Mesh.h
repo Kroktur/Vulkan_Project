@@ -6,6 +6,8 @@
 #include "Buffer.h"
 #include "RessourcesManager.h"
 #include "Vertex.h"
+#include "AABB.h"
+#include "OBB.h"
 
 
 namespace KGR::_Vulkan
@@ -43,6 +45,8 @@ public:
 	const SubMeshes& GetSubMesh(uint32_t id) const;
 	void Bind(const vk::raii::CommandBuffer* buffer, uint32_t index);
 	void AddSubMesh(std::unique_ptr<SubMeshes> mesh);
+	KGR::AABB3D GetAABB() const;
+	KGR::OBB3D GetOBB() const;
 private:
 	std::vector <std::unique_ptr<SubMeshes>> m_subMeshes;
 };
