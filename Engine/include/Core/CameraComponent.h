@@ -13,7 +13,7 @@ struct CameraComponent
 		Perspective
 	};
 	static CameraComponent Create(float fovY, float width, float height, float nearRender, float farRender, CameraComponent::Type type);
-
+	CameraComponent(){}
 	void UpdateCamera(const glm::mat4& matrix);
 	glm::mat4 GetView();
 	glm::mat4 GetProj();

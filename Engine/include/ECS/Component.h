@@ -8,7 +8,11 @@
  *  do not have custom constructor 
  */
 template<typename Type>
-concept CompType = std::is_trivial_v<Type>;
+concept CompType = requires
+{
+	//TODO temporar
+	std::is_base_of_v<Type, Type>;
+};
 
 namespace KGR
 {

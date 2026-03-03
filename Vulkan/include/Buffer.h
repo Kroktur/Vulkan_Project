@@ -29,10 +29,12 @@ namespace KGR
 
 
 			void Copy(Buffer* other, Device* device, Queue* queue, CommandBuffers* buffers);
+			vk::raii::Semaphore CopyAssync(Buffer* other, Device* device, Queue* queue, CommandBuffers* buffers);
 			void CopyImage(Image* image, Device* device, Queue* queue, CommandBuffers* buffers);
 			static void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage,
 				vk::MemoryPropertyFlags properties, vk::raii::Buffer& buffer, vk::raii::DeviceMemory& bufferMemory, Device* device, PhysicalDevice* phDevice);
 			static void copyBuffer(vk::raii::Buffer& srcBuffer, vk::raii::Buffer& dstBuffer, vk::DeviceSize size, Device* device, Queue* queue, CommandBuffers* commandBuffer);
+			static vk::raii::Semaphore copyBufferAssync(vk::raii::Buffer& srcBuffer, vk::raii::Buffer& dstBuffer, vk::DeviceSize size, Device* device, Queue* queue, CommandBuffers* commandBuffer);
 			static uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties, PhysicalDevice* phDevice);
 			void MapMemory(size_t size);
 			void UnMapMemory();

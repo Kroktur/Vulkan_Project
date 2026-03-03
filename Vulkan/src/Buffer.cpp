@@ -39,6 +39,14 @@ void KGR::_Vulkan::Buffer::Copy(Buffer* other, Device* device, Queue* queue, Com
 	copyBuffer(other->m_buffer, m_buffer, other->m_size , device, queue, buffers);
 }
 
+vk::raii::Semaphore KGR::_Vulkan::Buffer::CopyAssync(Buffer* other, Device* device, Queue* queue,
+	CommandBuffers* buffers)
+{
+	if (other->m_size > m_size)
+		throw std::out_of_range("impossible to copy");
+	return copyBufferAssync(other->m_buffer, m_buffer, other->m_size, device, queue, buffers);
+}
+
 void KGR::_Vulkan::Buffer::CopyImage( Image* image, Device* device, Queue* queue, CommandBuffers* buffers)
 {
 	vk::raii::CommandBuffer& commandBuffer = buffers->Acquire(device);
@@ -76,7 +84,20 @@ void KGR::_Vulkan::Buffer::createBuffer(vk::DeviceSize size, vk::BufferUsageFlag
 	buffers->ReleaseCommandBuffer(commandBuffer);
 }
 
- uint32_t KGR::_Vulkan::Buffer::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties, PhysicalDevice* phDevice)
+vk::raii::Semaphore KGR::_Vulkan::Buffer::copyBufferAssync(vk::raii::Buffer& srcBuffer, vk::raii::Buffer& dstBuffer,
+	vk::DeviceSize size, Device* device, Queue* queue, CommandBuffers* buffers)
+{
+	vk::raii::Semaphore semaphore{ device->Get(), vk::SemaphoreCreateInfo{} };
+	vk::raii::CommandBuffer& commandBuffer = buffers->Acquire(device);
+	commandBuffer.begin(vk::CommandBufferBeginInfo{ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+	commandBuffer.copyBuffer(*srcBuffer, *dstBuffer, vk::BufferCopy(0, 0, size));
+	commandBuffer.end();
+	queue->Get().submit(vk::SubmitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandBuffer,.pSignalSemaphores = &*semaphore }, nullptr);
+	buffers->ReleaseCommandBuffer(commandBuffer);
+	return semaphore;
+}
+
+uint32_t KGR::_Vulkan::Buffer::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties, PhysicalDevice* phDevice)
 {
 	vk::PhysicalDeviceMemoryProperties memProperties = phDevice->Get().getMemoryProperties();
 

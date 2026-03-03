@@ -17,6 +17,7 @@
 #include "Image.h"
 #include "_GLFW.h"
 #include "../../ImGui/include/imgui.h"
+#include "../../ImGui/include/Backends/imgui_impl_vulkan.h"
 #include "Core/TrasformComponent.h"
 #include "Core/CameraComponent.h"
 #include "Core/Texture.h"
@@ -26,8 +27,7 @@
 void KGR::_Vulkan::VulkanCore::initVulkan(GLFWwindow* window)
 {
 	// good Api
-
-
+	
 	// instance creation
 	instance = _Vulkan::Instance(AppInfo{}, validationLayers);
 	instance.setupDebugMessenger<&debugCallback>();
@@ -46,6 +46,11 @@ void KGR::_Vulkan::VulkanCore::initVulkan(GLFWwindow* window)
 	// Pipeline
 	_Vulkan::ShaderInfo info{
 		.ShaderPath = "Shaders/slang.spv",
+		.vertexMain = "vertMain",
+		.fragmentMain = "fragMain"
+	};
+	_Vulkan::ShaderInfo info2{
+		.ShaderPath = "Shaders/slang_line.spv",
 		.vertexMain = "vertMain",
 		.fragmentMain = "fragMain"
 	};
@@ -74,12 +79,14 @@ void KGR::_Vulkan::VulkanCore::initVulkan(GLFWwindow* window)
 	descriptorSetLayout.Add(std::move(layout3));
 
 
-	graphicsPipeline = _Vulkan::Pipeline(info, &device, &swapChain, &descriptorSetLayout, &physicalDevice, vk::PolygonMode::eFill);
+	graphicsPipeline = _Vulkan::Pipeline(info, &device, &swapChain,&descriptorSetLayout,&physicalDevice,vk::PolygonMode::eFill,Vertex::getBindingDescription(), Vertex::getAttributeDescriptions());
+	linePipeLine = _Vulkan::Pipeline(info2, &device, &swapChain, &descriptorSetLayout, &physicalDevice, vk::PolygonMode::eFill, SegmentVertex::getBindingDescription(), SegmentVertex::getAttributeDescriptions());
+
 	// Command Buffer
 	commandBuffers = _Vulkan::CommandBuffers(&device);
 
-
-
+	
+	 
 	// SyncObject
 	syncObject = SyncObject(&device, swapChain.GetImagesCount());
 	// depth Resources
@@ -158,10 +165,36 @@ void KGR::_Vulkan::VulkanCore::initVulkan(GLFWwindow* window)
 				.dstArrayElement = 0,
 				.descriptorCount = 1,
 				.descriptorType = vk::DescriptorType::eUniformBuffer,
-				.pBufferInfo = &bufferInfo3}
-	};
+				.pBufferInfo = &bufferInfo},
+			vk::WriteDescriptorSet{
+					.dstSet = m_LightSet.Get(),
+					.dstBinding = 0,
+					.dstArrayElement = 0,
+					.descriptorCount = 1,
+					.descriptorType = vk::DescriptorType::eStorageBuffer,
+					.pBufferInfo = &bufferInfo2},
+			vk::WriteDescriptorSet{
+					.dstSet = m_LightSet.Get(),
+					.dstBinding = 1,
+					.dstArrayElement = 0,
+					.descriptorCount = 1,
+					.descriptorType = vk::DescriptorType::eUniformBuffer,
+					.pBufferInfo = &bufferInfo3}
+		};
+		device.Get().updateDescriptorSets(descriptorWrites, {});
 
-	device.Get().updateDescriptorSets(descriptorWrites, {});
+
+
+		size_t vertSize =4096 * sizeof(SegmentVertex) * 4;
+		stagingVertexBuffer = KGR::_Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, vertSize);
+		vertexBuffer = KGR::_Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, vertSize);
+		vertexBuffer.Copy(&stagingVertexBuffer, &device, &queue, &commandBuffers);
+
+		//tmp
+		size_t indexSize = 4096 * sizeof(std::uint32_t) * 6;
+		stagingIndexBuffer= KGR::_Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, indexSize);
+		indexBuffer = KGR::_Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, indexSize);
+		indexBuffer.Copy(&stagingIndexBuffer, &device, &queue, &commandBuffers);
 }
 
 // FOR IMGUI
@@ -183,7 +216,13 @@ void KGR::_Vulkan::VulkanCore::recreateSwapChain(GLFWwindow* window)
 		.vertexMain = "vertMain",
 		.fragmentMain = "fragMain"
 	};
-	graphicsPipeline = _Vulkan::Pipeline(info, &device, &swapChain, &descriptorSetLayout, &physicalDevice, vk::PolygonMode::eFill);
+	_Vulkan::ShaderInfo info2{
+		.ShaderPath = "Shaders/slang_line.spv",
+		.vertexMain = "vertMain",
+		.fragmentMain = "fragMain"
+	};
+	graphicsPipeline = _Vulkan::Pipeline(info, &device, &swapChain,&descriptorSetLayout,&physicalDevice, vk::PolygonMode::eFill,Vertex::getBindingDescription(),Vertex::getAttributeDescriptions());
+	linePipeLine = _Vulkan::Pipeline(info2, &device, &swapChain, &descriptorSetLayout, &physicalDevice, vk::PolygonMode::eFill, SegmentVertex::getBindingDescription(), SegmentVertex::getAttributeDescriptions());
 
 	vk::Format depthFormat = physicalDevice.findSupportedFormat(
 		{ vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint },
@@ -222,10 +261,6 @@ void KGR::_Vulkan::VulkanCore::transition_image_layout(vk::Image image, vk::Imag
 
 	buffer.pipelineBarrier2(dependency_info);
 }
-
-
-
-
 
 std::uint32_t KGR::_Vulkan::VulkanCore::PresentImage()
 {
@@ -379,7 +414,7 @@ void KGR::_Vulkan::VulkanCore::createTextureSampler()
 	textureSampler = vk::raii::Sampler(device.Get(), samplerInfo);
 }
 
-int KGR::_Vulkan::VulkanCore::BeginRendering(GLFWwindow* window, vk::raii::CommandBuffer* currentBuffer, const glm::vec4& color)
+int KGR::_Vulkan::VulkanCore::BeginRendering(GLFWwindow* window, vk::raii::CommandBuffer* currentBuffer, Pipeline* pipeline,const glm::vec4& color)
 {
 	// Note: inFlightFences, presentCompleteSemaphores, and commandBuffers are indexed by frameIndex,
 	//       while renderFinishedSemaphores is indexed by imageIndex
@@ -387,9 +422,7 @@ int KGR::_Vulkan::VulkanCore::BeginRendering(GLFWwindow* window, vk::raii::Comma
 	device.Get().resetFences(*syncObject.GetCurrentFence());
 
 	if (fenceResult != vk::Result::eSuccess)
-	{
 		throw std::runtime_error("failed to wait for fence!");
-	}
 
 	std::uint32_t result = syncObject.AcquireNextImage(&swapChain, &device);
 
@@ -401,8 +434,7 @@ int KGR::_Vulkan::VulkanCore::BeginRendering(GLFWwindow* window, vk::raii::Comma
 		return -1;
 	}
 	// On other success codes than eSuccess and eSuboptimalKHR we just throw an exception.
-
-
+	// 
 	// Only reset the fence if we are submitting work
 
 
@@ -454,19 +486,16 @@ int KGR::_Vulkan::VulkanCore::BeginRendering(GLFWwindow* window, vk::raii::Comma
 		.pColorAttachments = &colorAttachmentInfo,
 		.pDepthAttachment = &depthAttachmentInfo };
 	currentBuffer->beginRendering(renderingInfo);
-	currentBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline.Get());
 	currentBuffer->setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(swapChain.GetExtend().width), static_cast<float>(swapChain.GetExtend().height), 0.0f, 1.0f));
 	currentBuffer->setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapChain.GetExtend()));
 
 	return 0;
 }
 
-// FOR IMGUI
-int KGR::_Vulkan::VulkanCore::EndRendering(GLFWwindow* window, vk::raii::CommandBuffer* currentBuffer, ImDrawData* imguiDrawData)
+int KGR::_Vulkan::VulkanCore::EndRendering(GLFWwindow* window, vk::raii::CommandBuffer* currentBuffer, const std::vector<vk::Semaphore>& waitS, ImDrawData* imguiDraw)
 {
-	// FOR IMGUI
-	if (imguiDrawData)
-		ImGui_ImplVulkan_RenderDrawData(imguiDrawData, **currentBuffer);
+	if (imguiDraw)
+		ImGui_ImplVulkan_RenderDrawData(imguiDraw, **currentBuffer);
 
 	currentBuffer->endRendering();
 
@@ -483,10 +512,11 @@ int KGR::_Vulkan::VulkanCore::EndRendering(GLFWwindow* window, vk::raii::Command
 	currentBuffer->end();
 
 
+
 	vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
 	const auto submitInfo = vk::SubmitInfo{
-			   .waitSemaphoreCount = 1,
-			   .pWaitSemaphores = &*syncObject.GetCurrentPresentSemaphore(),
+			   .waitSemaphoreCount = static_cast<std::uint32_t>(waitS.size()),
+			   .pWaitSemaphores = waitS.data(),
 			   .pWaitDstStageMask = &waitDestinationStageMask,
 			   .commandBufferCount = 1,
 			   .pCommandBuffers = &*(*currentBuffer),
@@ -564,27 +594,29 @@ KGR::_Vulkan::DescriptorSet KGR::_Vulkan::VulkanCore::CreateSetForImage(Image* i
 	return set;
 }
 
-void KGR::_Vulkan::VulkanCore::RegisterCam(CameraComponent& cam, TransformComponent& transform)
+
+void KGR::_Vulkan::VulkanCore::RegisterLight(const LightData& light)
+{
+	m_lights.push_back(light);
+}
+
+void KGR::_Vulkan::VulkanCore::RegisterCam(const glm::mat4& model, const glm::mat4& view, const glm::mat4& proj)
 {
 	m_ubo = UniformBufferObject{};
-	m_ubo->transform = transform.GetFullTransform();
-	m_ubo->view = cam.GetView();
-	if (cam.GetWidth() != static_cast<float>(swapChain.GetExtend().width) || cam.GetHeight() != static_cast<float>(swapChain.GetExtend().height))
-		cam.SetAspect(static_cast<float>(swapChain.GetExtend().width), static_cast<float>(swapChain.GetExtend().height));
-	m_ubo->proj = cam.GetProj();
+	m_ubo->transform = model;
+	m_ubo->view = view;
+	m_ubo->proj = proj;
 	m_ubo->proj[1][1] *= -1;
 }
 
-void KGR::_Vulkan::VulkanCore::RegisterRender(MeshComponent& mesh, TransformComponent& transform, TextureComponent& texture)
+void KGR::_Vulkan::VulkanCore::RegisterRender(Mesh& mesh, const  glm::mat4& model,std::vector<Texture*>& texture)
 {
-	if (!mesh.mesh)
-		return;
-
-	m_toRenderObject.push_back(MeshData{ transform.GetFullTransform() ,&mesh,&texture });
+	if (texture.size() != mesh.GetSubMeshesCount())
+		throw std::out_of_range("need same amount of subMeshes and texture");
+	m_toRenderObject.push_back(MeshData{ model ,&mesh,&texture });
 }
 
-// FOR IMGUI
-void KGR::_Vulkan::VulkanCore::Render(GLFWwindow* window, const glm::vec4& color, ImDrawData* imguiDrawData)
+void KGR::_Vulkan::VulkanCore::Render(GLFWwindow* window,const glm::vec4& color, ImDrawData* imguiDraw)
 {
 	if (!m_ubo.has_value())
 		throw std::runtime_error("need to register Camera");
@@ -600,35 +632,44 @@ void KGR::_Vulkan::VulkanCore::Render(GLFWwindow* window, const glm::vec4& color
 	currentBuffer->begin({});
 
 	int result = 0;
-	result = BeginRendering(window, currentBuffer, color);
+	result = BeginRendering( window, currentBuffer,&graphicsPipeline,color);
 	if (result == -1)
 	{
 		m_ubo.reset();
 		m_toRenderObject.clear();
+		m_lights.clear();
 		return;
 	}
+	currentBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline.Get());
 
-	for (auto& it : m_toRenderObject)
+	for (auto& it: m_toRenderObject)
 	{
-		for (int i = 0; i < it.mesh->mesh->GetSubMeshesCount(); ++i)
+		for (int i = 0; i < it.mesh->GetSubMeshesCount(); ++i)
 		{
-			it.mesh->mesh->Bind(currentBuffer, i);
+			it.mesh->Bind(currentBuffer, i);
 			currentBuffer->pushConstants<glm::mat4>(graphicsPipeline.GetLayout(), vk::ShaderStageFlagBits::eVertex, 0, it.matrixModel);
 			currentBuffer->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, graphicsPipeline.GetLayout(), 0, *descriptorSets.Get(), nullptr);
 			currentBuffer->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, graphicsPipeline.GetLayout(), 1, *m_LightSet.Get(), nullptr);
-			it.texture->texture->Bind(currentBuffer, &graphicsPipeline.GetLayout(), 2);
-			currentBuffer->drawIndexed(it.mesh->mesh->GetSubMesh(i).IndexCount(), 1, 0, 0, 0);
+			it.texture->at(i)->Bind(currentBuffer, &graphicsPipeline.GetLayout(), 2);
+			currentBuffer->drawIndexed(it.mesh->GetSubMesh(i).IndexCount(), 1, 0, 0, 0);
 		}
 	}
+	currentBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics, *linePipeLine.Get());
+	currentBuffer->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, graphicsPipeline.GetLayout(), 0, *descriptorSets.Get(), nullptr);
+	currentBuffer->bindVertexBuffers(0, *vertexBuffer.Get(), { 0 });
+	currentBuffer->bindIndexBuffer(*indexBuffer.Get(), 0, vk::IndexType::eUint32);
 
-	result = EndRendering(window, currentBuffer, imguiDrawData);
+	currentBuffer->drawIndexed(36, 1, 0, 0, 0);
+
+
+	result = EndRendering(window, currentBuffer,{syncObject.GetCurrentPresentSemaphore()}, imguiDraw);
 	commandBuffers.ReleaseCommandBuffer(*currentBuffer);
 	syncObject.IncrementFrame();
 	device.Get().waitIdle();
 
 	m_ubo.reset();
 	m_toRenderObject.clear();
-	m_lights.clear();
+	m_lights.clear(); 
 }
 
 KGR::_Vulkan::Instance& KGR::_Vulkan::VulkanCore::GetInstance()

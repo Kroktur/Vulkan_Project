@@ -26,7 +26,34 @@ private:
 
 struct TextureComponent
 {
-	Texture* texture = nullptr;
+
+	TextureComponent() = default;
+	void SetSize(uint32_t size)
+	{
+		m_textures.resize(size);
+	}
+	size_t Size() const
+	{
+		return m_textures.size();
+	}
+	void AddTexture(uint32_t index, Texture* texture)
+	{
+		m_textures[index] = texture;
+	}
+	const Texture* GetTexture(uint32_t index) const 
+	{
+		return m_textures[index];
+	}
+	Texture* GetTexture(uint32_t index)
+	{
+		return m_textures[index];
+	}
+	std::vector<Texture*>& GetAllTextures()
+	{
+		return m_textures;
+	};
+private:
+	std::vector<Texture*> m_textures;
 };
 
 

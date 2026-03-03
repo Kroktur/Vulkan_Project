@@ -55,8 +55,18 @@ int main(int argc, char** argv)
 
 	auto lComp2 = LightComponent<LightData::Type::Point>::Create({ 0,0,1 }, { 1,1,1 }, 10.0f, 10.0f);
 
-	TransformComponent lTransform2;
-	lTransform2.SetPosition({ 5,1,0 });
+	// entity
+	{
+		auto mesh = registry.CreateEntity();
+		MeshComponent meshComp;
+		meshComp.mesh = &MeshLoader::Load("Models\\briet_claire_decorsfantasy_grpB.obj", window.App());
+		TransformComponent transform;
+		TextureComponent texture;
+		texture.SetSize(meshComp.mesh->GetSubMeshesCount());
+		for (int i = 0; i < meshComp.mesh->GetSubMeshesCount(); ++i)
+			texture.AddTexture(i, &TextureLoader::Load("Textures\\BaseTexture.png", window.App()));
+		registry.AddComponents<MeshComponent, TransformComponent, TextureComponent,ControllerComponent>(mesh, std::move(meshComp), std::move(transform), std::move(texture),std::move(ControllerComponent{}));
+	}
 
 	auto lComp3 = LightComponent<LightData::Type::Spot>::Create({ 0,1,0 }, { 1,1,1 }, 100.0f, 10.0f, glm::radians(45.0f), 10.0f);
 
@@ -75,6 +85,8 @@ int main(int argc, char** argv)
 
 	ObjectEditor objEditor(imguiCore, app);
 
+	HermitCurve curve = HermitCurve::FromPoints(points, 0);
+	static float curvesTest = 0.0f;
 	do
 	{
 		KGR::_GLFW::Window::PollEvent();

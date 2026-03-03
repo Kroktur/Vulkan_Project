@@ -12,7 +12,7 @@ inline std::unique_ptr<std::ifstream> LoadFile(const std::string& filePath)
 	}
 	return std::move(file);
 }
-using fileManager = KGR::ResourceManager<std::ifstream, KGR::TypeWrapper<>, LoadFile>;
+using FileManager = KGR::ResourceManager<std::ifstream, KGR::TypeWrapper<>, LoadFile>;
 
 #include "stb_image.h"
 
