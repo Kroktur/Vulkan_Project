@@ -15,7 +15,7 @@
 #include "CommandBuffers.h"
 #include "DebugRenderer.h"
 #include "VertexDebug.h"
-
+#include "Core/Texture.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -30,10 +30,11 @@
 #include "SyncObject.h"
 #include "../../ImGui/include/imgui.h"
 #include "Core/LightComponent.h"
+
 #include "Core/TrasformComponent.h"
 #include "Core/Vertex.h"
 
-struct TextureComponent;
+struct Texture;
 struct CameraComponent;
 class TransformComponent;
 struct MeshComponent;
@@ -41,8 +42,8 @@ struct MeshComponent;
 struct MeshData
 {
 	glm::mat4 matrixModel; 
-	MeshComponent* mesh = nullptr;
-	TextureComponent* texture = nullptr;
+	Mesh* mesh = nullptr;
+	std::vector<Texture*>* texture;
 };
 
 
@@ -72,11 +73,10 @@ namespace KGR
 			Buffer CreateVertexBuffer(const std::vector<VertexT>& vertices);
 			template<typename IndexT>
 			Buffer CreateIndexBuffer(const std::vector<IndexT>& indices);
-			
-			template<LightData::Type Type>
-			void RegisterLight(LightComponent<Type>& light, TransformComponent& transform);
-			void RegisterCam(CameraComponent& cam, TransformComponent& transform);
-			void RegisterRender(MeshComponent& mesh, TransformComponent& transform,TextureComponent& texture);
+
+			void RegisterLight(const LightData& light);
+			void RegisterCam(const glm::mat4& model,const glm::mat4& view , const glm::mat4& proj);
+			void RegisterRender(Mesh& mesh,const  glm::mat4& model,std::vector<Texture*>& texture);
 			void Render(GLFWwindow* window,const glm::vec4& clearColor = { 0,0,0,1 }, ImDrawData* imguiDraw = nullptr);
 		private:
 			int BeginRendering(GLFWwindow* window, vk::raii::CommandBuffer* currentBuffer, Pipeline* pipeline, const glm::vec4& color = {0,0,0,1});
@@ -159,22 +159,5 @@ namespace KGR
 			return indexBuffer;
 		}
 
-		template <LightData::Type Type>
-		void VulkanCore::RegisterLight(LightComponent<Type>& light, TransformComponent& transform)
-		{
-			LightData lightData = light.ToData();
-			if constexpr (Type == LightData::Type::Point)
-				lightData.pos = transform.GetPosition();
-			else if constexpr (Type == LightData::Type::Directional)
-			{
-				lightData.dir = transform.GetLocalAxe<RotData::Dir::Forward>();
-			}
-			else
-			{
-				lightData.pos = transform.GetPosition();
-				lightData.dir = transform.GetLocalAxe<RotData::Dir::Forward>();
-			}
-			m_lights.push_back(lightData);
-		}
 	}
 }

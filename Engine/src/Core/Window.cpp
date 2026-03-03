@@ -1,6 +1,7 @@
 #include "Core/Window.h"
 
 #include "InputManager.h"
+#include "Core/CameraComponent.h"
 
 KGR::RenderWindow::RenderWindow(glm::ivec2 size, const char* name, const std::filesystem::path& GlobResourcesPath)
 {
@@ -64,12 +65,12 @@ glm::ivec2 KGR::RenderWindow::GetSize() const
 
 void KGR::RenderWindow::RegisterCam(CameraComponent& cam, TransformComponent& transform)
 {
-	m_core.RegisterCam(cam, transform);
+	m_core.RegisterCam(transform.GetFullTransform(),cam.GetView(),cam.GetProj());
 }
 
 void KGR::RenderWindow::RegisterRender(MeshComponent& mesh, TransformComponent& transform, TextureComponent& texture)
 {
-	m_core.RegisterRender(mesh, transform, texture);
+	m_core.RegisterRender(*mesh.mesh, transform.GetFullTransform(), texture.GetAllTextures());
 }
 
 void KGR::RenderWindow::Render(const glm::vec4& clearColor, ImDrawData* imguiDraw)

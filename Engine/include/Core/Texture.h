@@ -48,6 +48,10 @@ struct TextureComponent
 	{
 		return m_textures[index];
 	}
+	std::vector<Texture*>& GetAllTextures()
+	{
+		return m_textures;
+	};
 private:
 	std::vector<Texture*> m_textures;
 };

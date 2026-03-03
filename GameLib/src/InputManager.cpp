@@ -44,6 +44,7 @@ namespace KGR
 
         }
         // Update cursor position
+        oldPos = { m_mouseX,m_mouseY};
         glfwGetCursorPos(m_window, &m_mouseX, &m_mouseY);
     }
 
@@ -109,8 +110,16 @@ namespace KGR
      * @param x Output X coordinate.
      * @param y Output Y coordinate.
      */
-    glm::vec2 InputManager::GetMousePosition(double x, double y) const 
+    glm::vec2 InputManager::GetMousePosition() const 
     {
-        return { x,y };
+        return {m_mouseX,m_mouseY};
+    }
+
+    glm::vec2 InputManager::GetMouseDelta() const
+    {
+        glm::vec2 result;
+        result.x = std::abs(m_mouseX - oldPos.x) < 0.000001f ? 0 : (m_mouseX - oldPos.x) < 0 ? -1 : 1;
+        result.y = std::abs(m_mouseY - oldPos.y) < 0.000001f ? 0 : (m_mouseY - oldPos.y) < 0 ? -1 : 1;
+        return result;
     }
 }

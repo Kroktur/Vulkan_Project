@@ -135,8 +135,8 @@ namespace KGR
          * @param x Output X coordinate.
          * @param y Output Y coordinate.
          */
-        glm::vec2 GetMousePosition(double x, double y) const;
-
+        glm::vec2 GetMousePosition() const;
+        glm::vec2 GetMouseDelta() const ;
 
         template<InputEnum T>
         bool IsKeyDown(T key)
@@ -185,5 +185,7 @@ namespace KGR
 
         double m_mouseX = 0.0;                  ///< Current mouse X position.
         double m_mouseY = 0.0;                  ///< Current mouse Y position.
+
+        glm::vec2 oldPos = {};
     };
 }

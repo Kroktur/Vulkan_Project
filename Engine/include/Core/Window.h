@@ -40,6 +40,9 @@ namespace KGR
 	template <LightData::Type Type>
 	void RenderWindow::RegisterLight(LightComponent<Type>& light, TransformComponent& transform)
 	{
-		m_core.RegisterLight(light, transform);
+		LightData lightData = light.ToData();
+		lightData.pos = transform.GetPosition();
+		lightData.dir = transform.GetLocalAxe<RotData::Dir::Forward>();
+		m_core.RegisterLight(lightData);
 	}
 }

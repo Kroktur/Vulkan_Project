@@ -592,24 +592,25 @@ KGR::_Vulkan::DescriptorSet KGR::_Vulkan::VulkanCore::CreateSetForImage(Image* i
 }
 
 
-
-void KGR::_Vulkan::VulkanCore::RegisterCam(CameraComponent& cam, TransformComponent& transform)
+void KGR::_Vulkan::VulkanCore::RegisterLight(const LightData& light)
 {
+	m_lights.push_back(light);
+}
 
+void KGR::_Vulkan::VulkanCore::RegisterCam(const glm::mat4& model, const glm::mat4& view, const glm::mat4& proj)
+{
 	m_ubo = UniformBufferObject{};
-	m_ubo->transform = transform.GetFullTransform();
-	m_ubo->view = cam.GetView();
-	if (cam.GetWidth() != static_cast<float>(swapChain.GetExtend().width) || cam.GetHeight() != static_cast<float>(swapChain.GetExtend().height))
-		cam.SetAspect(static_cast<float>(swapChain.GetExtend().width), static_cast<float>(swapChain.GetExtend().height));
-	m_ubo->proj = cam.GetProj();
+	m_ubo->transform = model;
+	m_ubo->view = view;
+	m_ubo->proj = proj;
 	m_ubo->proj[1][1] *= -1;
 }
 
-void KGR::_Vulkan::VulkanCore::RegisterRender(MeshComponent& mesh, TransformComponent& transform,TextureComponent& texture)
+void KGR::_Vulkan::VulkanCore::RegisterRender(Mesh& mesh, const  glm::mat4& model,std::vector<Texture*>& texture)
 {
-	if (texture.Size() != mesh.mesh->GetSubMeshesCount())
+	if (texture.size() != mesh.GetSubMeshesCount())
 		throw std::out_of_range("need same amount of subMeshes and texture");
-	m_toRenderObject.push_back(MeshData{transform.GetFullTransform() ,&mesh,&texture });
+	m_toRenderObject.push_back(MeshData{ model ,&mesh,&texture });
 }
 
 void KGR::_Vulkan::VulkanCore::Render(GLFWwindow* window,const glm::vec4& color, ImDrawData* imguiDraw)
@@ -642,14 +643,14 @@ void KGR::_Vulkan::VulkanCore::Render(GLFWwindow* window,const glm::vec4& color,
 
 	for (auto& it: m_toRenderObject)
 	{
-		for (int i = 0; i < it.mesh->mesh->GetSubMeshesCount(); ++i)
+		for (int i = 0; i < it.mesh->GetSubMeshesCount(); ++i)
 		{
-			it.mesh->mesh->Bind(currentBuffer, i);
+			it.mesh->Bind(currentBuffer, i);
 			currentBuffer->pushConstants<glm::mat4>(graphicsPipeline.GetLayout(), vk::ShaderStageFlagBits::eVertex, 0, it.matrixModel);
 			currentBuffer->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, graphicsPipeline.GetLayout(), 0, *descriptorSets.Get(), nullptr);
 			currentBuffer->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, graphicsPipeline.GetLayout(), 1, *m_LightSet.Get(), nullptr);
-			it.texture->GetTexture(i)->Bind(currentBuffer, &graphicsPipeline.GetLayout(), 2);
-			currentBuffer->drawIndexed(it.mesh->mesh->GetSubMesh(i).IndexCount(), 1, 0, 0, 0);
+			it.texture->at(i)->Bind(currentBuffer, &graphicsPipeline.GetLayout(), 2);
+			currentBuffer->drawIndexed(it.mesh->GetSubMesh(i).IndexCount(), 1, 0, 0, 0);
 		}
 	}
 	currentBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics, *linePipeLine.Get());
