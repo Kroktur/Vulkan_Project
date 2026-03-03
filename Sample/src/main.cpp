@@ -7,6 +7,7 @@
 #include "Core/Mesh.h"
 #include "Core/TrasformComponent.h"
 #include "Core/LightComponent.h"
+#include "Core/Spline.h"
 #include "Core/Texture.h"
 #include "Core/Window.h"
 #include "ECS/Registry.h"
@@ -67,10 +68,22 @@ int main(int argc, char** argv)
 		registry.AddComponents<LightComponent<LightData::Type::Directional>, TransformComponent>(light, std::move(lComp), std::move(lTransform));
 	}
 	
-	
+	std::vector<glm::vec3> points{
 
 
+		// --- boucle principale ---
+		{  0.0f,  6.0f,  0.0f },   // P1
+		{ -5.5f,  4.0f, -2.0f },   // P2
+		{ -6.0f, -1.0f, -3.0f },   // P3
+		{ -2.0f, -5.5f, -1.0f },   // P4
+		{  3.5f, -4.5f,  2.5f },   // P5
+		{  6.5f, -1.0f,  3.0f },   // P6
+		{  6.0f,  2.5f,  2.0f },   // P7
 
+	};
+
+	HermitCurve curve = HermitCurve::FromPoints(points, 0);
+	static float curvesTest = 0.0f;
 	do
 	{
 		// event
@@ -117,7 +130,14 @@ int main(int argc, char** argv)
 			}
 		}
 
-
+		{
+			auto es = registry.GetAllComponentsView<ControllerComponent, TransformComponent, MeshComponent,TransformComponent>();
+			for (auto& e : es)
+				registry.GetComponent<TransformComponent>(e).SetPosition(curve.Compute(curvesTest));
+		}
+		curvesTest += 0.001f;
+		if (curvesTest > curve.MaxT())
+			curvesTest = 0.0f;
 
 	{	
 		auto es = registry.GetAllComponentsView<CameraComponent, TransformComponent>();
