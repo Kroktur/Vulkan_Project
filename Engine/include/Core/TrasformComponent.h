@@ -124,7 +124,7 @@ private:
 	 glm::mat4 m_fullTransform = glm::mat4{ 1.0f };
 };
 
-template <RotData::Orientation orientation, IsValidRep rep = Rep>
+template <RotData::Orientation orientation, IsValidRep rep>
 void TransformComponent::RotateQuat(float angleRad)
 {
 	m_rotation.data = glm::normalize(glm::rotate(m_rotation.data, angleRad, RotData::ToAxes<orientation, rep>()));
@@ -151,7 +151,7 @@ void TransformComponent::LookAtDir(const glm::vec3& target)
 	m_rotation.isDirty = true;
 }
 
-template <RotData::Orientation orientation, IsValidRep rep = Rep>
+template <RotData::Orientation orientation, IsValidRep rep>
 void TransformComponent::RotateEuler(float angleRad)
 {
 
@@ -161,7 +161,7 @@ void TransformComponent::RotateEuler(float angleRad)
 
 }
 
-template <RotData::Dir dir, IsValidRep rep = Rep>
+template <RotData::Dir dir, IsValidRep rep>
 glm::vec3 TransformComponent::GetLocalAxe() const
 {
 	glm::vec3 result = m_rotation.data * RotData::ToVector<dir, rep>();

@@ -82,8 +82,9 @@ std::vector<KGR::CurveFrame> KGR::RMF::BuildFrames(const std::vector<glm::vec3>&
             const glm::vec3& firstForward = forwardDirs[0];
 
 			// We need to choose an arbitrary world axis that is not too close to the first forward direction to avoid numerical instability when computing the up vector
-			// We check the x component of the first forward direction, and if it is close to 1 or -1, we choose the y axis as the world axis, otherwise we choose the x axis
-            glm::vec3 worldAxis = (std::abs(firstForward.x) <= 0.9f) ? glm::vec3(1, 0, 0) : glm::vec3(0, 1, 0);
+			// We prefer world Y (0,1,0) as the reference to keep the initial up as close to world-up as possible,
+			// and fall back to world X (1,0,0) only when forward is nearly vertical (parallel to Y)
+				glm::vec3 worldAxis = (std::abs(firstForward.y) < 0.9f) ? glm::vec3(0, 1, 0) : glm::vec3(1, 0, 0);
 
 			// We compute the first up vector by projecting the world axis onto the plane defined by the first forward direction, and then normalizing it to ensure it is perpendicular to the forward direction
 			// Gram-Schmidt process: u' = u - proj_v(u) where proj_v(u) = (dot(u, v) / dot(v, v)) * v

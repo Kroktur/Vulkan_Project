@@ -42,7 +42,7 @@ struct MeshComponent;
 struct MeshData
 {
 	glm::mat4 matrixModel;
-	MeshComponent* mesh = nullptr;
+	Mesh* mesh = nullptr;
 	std::vector<Texture*>* texture;
 };
 
@@ -100,7 +100,7 @@ namespace KGR
 
 			DescriptorPool& GetDescriptorPool();
 			const DescriptorPool& GetDescriptorPool() const;
-      
+
 			void RegisterLight(const LightData& light);
 			void RegisterCam(const glm::mat4& model,const glm::mat4& view , const glm::mat4& proj);
 			void RegisterRender(Mesh& mesh,const  glm::mat4& model,std::vector<Texture*>& texture);

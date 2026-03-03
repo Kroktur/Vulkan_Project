@@ -86,6 +86,7 @@ HermitCurve::vec HermitCurve::Compute(float t) const
 
 
 	int floor = static_cast<int>(std::floor(t));
+	floor = std::min(floor, static_cast<int>(m_steps.size()) - 1);
 	float fract = t - static_cast<float>(floor);
 	return m_steps[floor].Compute(fract);
 }
@@ -98,7 +99,7 @@ float HermitCurve::MaxT() const
 bool HermitCurve::IsTimeValid(float t, size_t vecSize)
 {
 
-	return vecSize > 0 && t >= 0 && t < static_cast<float>(vecSize);
+	return vecSize > 0 && t >= 0 && t <= static_cast<float>(vecSize);
 }
 
 
