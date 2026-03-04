@@ -56,8 +56,6 @@ int main(int argc, char** argv)
 			glm::vec3 result;
 			result.x = color.x * 1 / 255;
 			result.y = color.y * 1 / 255;
-			result.y = color.y * 1 / 255;
-			result.y = color.y * 1 / 255;
 			result.z = color.z * 1 / 255;
 			return result;
 		};
