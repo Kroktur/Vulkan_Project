@@ -57,11 +57,15 @@ namespace KGR
 
 			float cooldown = 0.0f;
 			int currentAmmo = 30;
+			bool isReloading = false;
+			float reloadTimer = 0.0f;
 
 			const WeaponData& GetCurrentWeaponData() const;
 			void SwitchWeapon(WeaponType newType);
 			template<typename Registry>
 			void CreateBullet(Registry& registry, KGR::RenderWindow& window, const glm::vec3& position, const glm::vec3& direction);
+			void StartReload();
+			void UpdateReload(float dt);
 
 			/*void Shoot();
 			void Reload();*/

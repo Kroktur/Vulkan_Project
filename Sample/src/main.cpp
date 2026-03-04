@@ -42,7 +42,7 @@ int main(int argc, char** argv)
 	window.GetInputManager()->SetMode(GLFW_CURSOR_DISABLED);
 	using ecsType = KGR::ECS::Registry<KGR::ECS::Entity::_64, 100>;
 	auto registry = ecsType{};
-	// Cam
+	//Cam
 	/*{
 	auto cam = registry.CreateEntity();
 	CameraComponent camComp = CameraComponent::Create(45.0f, static_cast<float>(window.GetSize().x), static_cast<float>(window.GetSize().y), 0.01f, 1000.0f, CameraComponent::Type::Perspective);
@@ -89,7 +89,7 @@ int main(int argc, char** argv)
 			(player, std::move(meshComp), std::move(camComp), std::move(camTransform), std::move(texture), ControllerComponent{}, PlayerComponent{}, KGR::GameLib::WeaponComponent{});
 	}
 
-	//// IA
+	////IA
 	//{
 
 	//	auto ia = registry.CreateEntity();
@@ -125,35 +125,35 @@ int main(int argc, char** argv)
 		registry.AddComponents<LightComponent<LightData::Type::Directional>, TransformComponent>(light, std::move(lComp), std::move(lTransform));
 	}
 
-	std::vector<glm::vec3> points{
+	//std::vector<glm::vec3> points{
 
 
-		// --- boucle principale ---
-		{  0.0f,  6.0f,  0.0f },   // P1
-		{ -5.5f,  4.0f, -2.0f },   // P2
-		{ -6.0f, -1.0f, -3.0f },   // P3
-		{ -2.0f, -5.5f, -1.0f },   // P4
-		{  3.5f, -4.5f,  2.5f },   // P5
-		{  6.5f, -1.0f,  3.0f },   // P6
-		{  6.0f,  2.5f,  2.0f },   // P7
+	//	// --- boucle principale ---
+	//	{  0.0f,  6.0f,  0.0f },   // P1
+	//	{ -5.5f,  4.0f, -2.0f },   // P2
+	//	{ -6.0f, -1.0f, -3.0f },   // P3
+	//	{ -2.0f, -5.5f, -1.0f },   // P4
+	//	{  3.5f, -4.5f,  2.5f },   // P5
+	//	{  6.5f, -1.0f,  3.0f },   // P6
+	//	{  6.0f,  2.5f,  2.0f },   // P7
 
-	};
+	//};
 
-	HermitCurve curve = HermitCurve::FromPoints(points, 0);
+	//HermitCurve curve = HermitCurve::FromPoints(points, 0);
 
-	const float rmfStep = 0.001f;
-	const int rmfSampleCount = static_cast<int>(curve.MaxT() / rmfStep) + 1;
+	//const float rmfStep = 0.001f;
+	//const int rmfSampleCount = static_cast<int>(curve.MaxT() / rmfStep) + 1;
 
-	std::vector<glm::vec3> rmfPoints;
-	rmfPoints.reserve(rmfSampleCount);
+	//std::vector<glm::vec3> rmfPoints;
+	//rmfPoints.reserve(rmfSampleCount);
 
-	for (int i = 0; i < rmfSampleCount; ++i)
-		rmfPoints.push_back(curve.Compute(i * rmfStep));
+	//for (int i = 0; i < rmfSampleCount; ++i)
+	//	rmfPoints.push_back(curve.Compute(i * rmfStep));
 
-	auto rmfForwardDirs = KGR::RMF::EstimateForwardDirs(rmfPoints);
-	auto rmfFrames = KGR::RMF::BuildFrames(rmfPoints, rmfForwardDirs);
+	//auto rmfForwardDirs = KGR::RMF::EstimateForwardDirs(rmfPoints);
+	//auto rmfFrames = KGR::RMF::BuildFrames(rmfPoints, rmfForwardDirs);
 
-	static float curvesTest = 0.0f;
+	//static float curvesTest = 0.0f;
 	do
 	{
 		/// EVENT PAS TOUCHE
@@ -191,8 +191,8 @@ int main(int argc, char** argv)
 				if (inputData->IsKeyDown(KGR::SpecialKey::Shift))
 					dir.y = -1;
 				auto delta = inputData->GetMouseDelta();
-				transform.RotateEuler<RotData::Orientation::Pitch>(-glm::radians(delta.y * deltaTime * 100));
-				transform.RotateEuler<RotData::Orientation::Yaw>(-glm::radians(delta.x * deltaTime * 100));
+				transform.RotateEuler<RotData::Orientation::Pitch>(-glm::radians(delta.y * deltaTime * 200));
+				transform.RotateEuler<RotData::Orientation::Yaw>(-glm::radians(delta.x * deltaTime * 200));
 				transform.Translate(dir * deltaTime);
 			}
 		}
@@ -206,9 +206,26 @@ int main(int argc, char** argv)
 				auto& weapon = registry.GetComponent<KGR::GameLib::WeaponComponent>(e);
 				auto& transform = registry.GetComponent<TransformComponent>(e);
 				weapon.cooldown -= deltaTime;
+				weapon.UpdateReload(deltaTime);
+				const auto& weaponData = weapon.GetCurrentWeaponData();
+				if (inputData->IsKeyDown(KGR::Key::Num1))
+					weapon.SwitchWeapon(KGR::GameLib::WeaponType::Shotgun);
+
+				if (inputData->IsKeyDown(KGR::Key::Num2))
+					weapon.SwitchWeapon(KGR::GameLib::WeaponType::Auto);
+
+				if (inputData->IsKeyDown(KGR::Key::Num3))
+					weapon.SwitchWeapon(KGR::GameLib::WeaponType::Sniper);
+
+				if (inputData->IsKeyDown(KGR::Key::R))
+					if (!weapon.isReloading && weapon.currentAmmo < weaponData.maxAmmo)
+						weapon.StartReload();
+
+				if (weapon.isReloading)
+					continue;
+				
 				if (inputData->IsMouseDown(KGR::Mouse::Left))
 				{
-					const auto& weaponData = weapon.GetCurrentWeaponData();
 					if (weapon.cooldown <= 0.0f && weapon.currentAmmo > 0)
 					{
 						weapon.cooldown = weaponData.fireRate;
@@ -326,20 +343,20 @@ int main(int argc, char** argv)
 
 		}
 
-		{
-			auto es = registry.GetAllComponentsView<ControllerComponent, TransformComponent, MeshComponent, TransformComponent>();
-			for (auto& e : es)
-			{
-				auto& transform = registry.GetComponent<TransformComponent>(e);
-				transform.SetPosition(curve.Compute(curvesTest));
-				int frameIndex = glm::clamp(static_cast<int>(curvesTest / rmfStep), 0, static_cast<int>(rmfFrames.size() - 1));
-				transform.SetOrientation(glm::quatLookAt(rmfFrames[frameIndex].forward, rmfFrames[frameIndex].up));
-			}
-		}
+		//{
+		//	auto es = registry.GetAllComponentsView<ControllerComponent, TransformComponent, MeshComponent, TransformComponent>();
+		//	for (auto& e : es)
+		//	{
+		//		auto& transform = registry.GetComponent<TransformComponent>(e);
+		//		transform.SetPosition(curve.Compute(curvesTest));
+		//		int frameIndex = glm::clamp(static_cast<int>(curvesTest / rmfStep), 0, static_cast<int>(rmfFrames.size() - 1));
+		//		/*transform.SetOrientation(glm::quatLookAt(rmfFrames[frameIndex].forward, rmfFrames[frameIndex].up));*/
+		//	}
+		//}
 
-		curvesTest += 0.001f;
-		if (curvesTest > curve.MaxT())
-			curvesTest = 0.0f;
+		//curvesTest += 0.001f;
+		//if (curvesTest > curve.MaxT())
+		//	curvesTest = 0.0f;
 
 		{
 			auto es = registry.GetAllComponentsView<CameraComponent, TransformComponent>();

@@ -21,3 +21,25 @@ void KGR::GameLib::WeaponComponent::SwitchWeapon(WeaponType newType)
 	currentAmmo = GetCurrentWeaponData().maxAmmo;
 	cooldown = 0.0f;
 }
+
+void KGR::GameLib::WeaponComponent::StartReload()
+{
+	if (isReloading)
+		return;
+
+	isReloading = true;
+	reloadTimer = GetCurrentWeaponData().reloadTime;
+}
+
+void KGR::GameLib::WeaponComponent::UpdateReload(float dt)
+{
+	if (!isReloading)
+		return;
+
+	reloadTimer -= dt;
+	if (reloadTimer <= 0.0f)
+	{
+		isReloading = false;
+		currentAmmo = GetCurrentWeaponData().maxAmmo;
+	}
+}
