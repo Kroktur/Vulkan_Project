@@ -24,10 +24,10 @@ namespace KGR
 		static void SetGlobalFIlePath(const std::filesystem::path& racinePath);
 		~ResourceManager();
 
-		static TextureType& Load(const std::string& relativePath, ConstructArgs&& ... args);
+		static TextureType& Load(const std::string& relativePath, ConstructArgs ... args);
 		static void Unload(const std::string& relativePath);
-		static void Reload(const std::string& relativePath, ConstructArgs&& ... args);
-		static void ReloadAll(ConstructArgs&& ... args);
+		static void Reload(const std::string& relativePath, ConstructArgs ... args);
+		static void ReloadAll(ConstructArgs ... args);
 		static void UnloadAll();
 		static bool Exists(const std::string& relativePath);
 		static bool Exists(TextureType* texture);
@@ -47,7 +47,7 @@ namespace KGR
 
 	template<typename TextureType, typename... ConstructArgs, std::unique_ptr<TextureType>(*FN)(const std::string&, ConstructArgs...)>
 	TextureType& ResourceManager<TextureType, TypeWrapper<ConstructArgs...>, FN>::Load(const std::string& relativePath,
-		ConstructArgs&&... args)
+		ConstructArgs... args)
 	{
 		// save in the map and return if already store
 		auto fullPath = GetAbsoluteFilePath(relativePath);
@@ -84,14 +84,14 @@ namespace KGR
 
 	template<typename TextureType, typename... ConstructArgs, std::unique_ptr<TextureType>(*FN)(const std::string&, ConstructArgs...)>
 	void ResourceManager<TextureType, TypeWrapper<ConstructArgs...>, FN>::Reload(const std::string& relativePath,
-		ConstructArgs&&... args)
+		ConstructArgs... args)
 	{
 		Unload(relativePath);
 		Load(relativePath, std::forward<ConstructArgs>(args)...);
 	}
 
 	template<typename TextureType, typename... ConstructArgs, std::unique_ptr<TextureType>(*FN)(const std::string&, ConstructArgs...)>
-	void ResourceManager<TextureType, TypeWrapper<ConstructArgs...>, FN>::ReloadAll(ConstructArgs&&... args)
+	void ResourceManager<TextureType, TypeWrapper<ConstructArgs...>, FN>::ReloadAll(ConstructArgs... args)
 	{
 		for (auto it = m_textureMap.begin(); it != m_textureMap.end(); )
 		{

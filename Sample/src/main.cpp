@@ -1,5 +1,7 @@
 #include <filesystem>
 #include <iostream>
+
+#include "CollisionComponent.h"
 #include "Core/CameraComponent.h"
 #include "VulkanCore.h"
 #include "_GLFW.h"
@@ -79,6 +81,10 @@ int main(int argc, char** argv)
 		texture.SetSize(meshComp.mesh->GetSubMeshesCount());
 		for (int i = 0; i < meshComp.mesh->GetSubMeshesCount(); ++i)
 			texture.AddTexture(i, &TextureLoader::Load("Textures\\BaseTexture.png", window.App()));
+		CollisionComp collider;
+		collider.collider = &ColliderManager::Load("test",meshComp.mesh);
+
+		/*registry.AddComponents<MeshComponent, TransformComponent, TextureComponent, ControllerComponent>(mesh, std::move(meshComp), std::move(transform), std::move(texture), std::move(ControllerComponent{}));*/
 
 		registry.AddComponents<MeshComponent, CameraComponent, TransformComponent, TextureComponent, ControllerComponent,
 			PlayerComponent, KGR::GameLib::WeaponComponent, LivingComponent>
@@ -101,30 +107,45 @@ int main(int argc, char** argv)
 		lTransform.LookAt({ 0,-1,0 });
 		registry.AddComponents<LightComponent<LightData::Type::Directional>, TransformComponent>(light, std::move(lComp), std::move(lTransform));
 	}
-
-	std::vector<glm::vec3> points
-	{
-		//Loop
-		{ -3.0f, 0.0f,  4.0f},
-		{  0.0f, 0.0f,  0.0f},
-		{  3.0f, 0.0f,  4.0f},
-		{  6.0f, 0.0f,  0.0f},
-		{  3.0f, 0.0f, -4.0f},
-		{  0.0f, 0.0f,  0.0f},
-		{ -3.0f, 0.0f,  4.0f},
-		{ -6.0f, 0.0f,  0.0f},
-		{ -3.0f, 0.0f, -4.0f},
-		{  0.0f, 0.0f,  0.0f},
-		{  3.0f, 0.0f,  4.0f},
-		{  6.0f, 0.0f,  0.0f},
-		{  3.0f, 0.0f, -4.0f},
-		{  0.0f, 0.0f,  0.0f},
-		{ -3.0f, 0.0f, -4.0f},
-		{ -6.0f, 0.0f,  0.0f},
-		{ -3.0f, 0.0f,  4.0f},
-		{  0.0f, 0.0f,  0.0f},
-		{  3.0f, 0.0f,  4.0f},
+	std::vector<glm::vec3> points{
+	{  0.0f, 0.0f,  6.0f },   // départ
+	{  3.5f, 0.0f,  5.0f },
+	{  6.0f, 0.0f,  2.5f },
+	{  6.5f, 0.0f,  0.0f },
+	{  6.0f, 0.0f, -2.5f },
+	{  3.5f, 0.0f, -5.0f },
+	{  0.0f, 0.0f, -6.0f },
+	{ -3.5f, 0.0f, -5.0f },
+	{ -6.0f, 0.0f, -2.5f },
+	{ -6.5f, 0.0f,  0.0f },
+	{ -6.0f, 0.0f,  2.5f },
+	{ -3.5f, 0.0f,  5.0f },
+	{  0.0f, 0.0f,  6.0f }    // retour au départ pour boucler
 	};
+
+	//std::vector<glm::vec3> points
+	//{
+	//	//Loop
+	//	{ -3.0f, 0.0f,  4.0f},
+	//	{  0.0f, 0.0f,  0.0f},
+	//	{  3.0f, 0.0f,  4.0f},
+	//	{  6.0f, 0.0f,  0.0f},
+	//	{  3.0f, 0.0f, -4.0f},
+	//	{  0.0f, 0.0f,  0.0f},
+	//	{ -3.0f, 0.0f,  4.0f},
+	//	{ -6.0f, 0.0f,  0.0f},
+	//	{ -3.0f, 0.0f, -4.0f},
+	//	{  0.0f, 0.0f,  0.0f},
+	//	{  3.0f, 0.0f,  4.0f},
+	//	{  6.0f, 0.0f,  0.0f},
+	//	{  3.0f, 0.0f, -4.0f},
+	//	{  0.0f, 0.0f,  0.0f},
+	//	{ -3.0f, 0.0f, -4.0f},
+	//	{ -6.0f, 0.0f,  0.0f},
+	//	{ -3.0f, 0.0f,  4.0f},
+	//	{  0.0f, 0.0f,  0.0f},
+	//	{  3.0f, 0.0f,  4.0f},
+	//};
 
 	HermitCurve curve = HermitCurve::FromPoints(points, 0);
 
@@ -152,10 +173,10 @@ int main(int argc, char** argv)
 		curvesTest += 0.01f;
 		if (curvesTest >= 1.0f)
 			curvesTest = 0.0f;
-		window.App()->GetDebugRenderer().DrawLine(p0, p1, { 1,0,0 });
+		/*window.App()->GetDebugRenderer().DrawLine(p0, p1, { 1,0,0 });
 		window.App()->GetDebugRenderer().DrawLine(p0, p0 + forward, { 0,1,0 });
 		window.App()->GetDebugRenderer().DrawLine(p0, p0 + up, { 0,0,1 });
-		window.App()->GetDebugRenderer().DrawLine(p0, p0 + right, { 1,1,0 });
+		window.App()->GetDebugRenderer().DrawLine(p0, p0 + right, { 1,1,0 });*/
 	}
 
 	do

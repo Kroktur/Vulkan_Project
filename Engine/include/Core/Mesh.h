@@ -39,12 +39,14 @@ private:
 class Mesh
 {
 public:
+	using iterator = std::vector <std::unique_ptr<SubMeshes>>;
 	friend KGR::_Vulkan::VulkanCore;
 	Mesh() = default;
 	uint32_t GetSubMeshesCount() const;
 	const SubMeshes& GetSubMesh(const std::string& name) const;
 	const SubMeshes& GetSubMesh(uint32_t id) const;
 	void AddSubMesh(std::unique_ptr<SubMeshes> mesh);
+
 private:
 	std::vector <std::unique_ptr<SubMeshes>> m_subMeshes;
 	void Bind(const vk::raii::CommandBuffer* buffer, uint32_t index);
