@@ -128,7 +128,7 @@ int main(int argc, char** argv)
 	}
 
 	KGR::Tools::Random rd;
-	auto yScale = rd.getRandomNumberRange(30.0f, 150.0f, 8);
+	auto yScale = rd.getRandomNumberRange(5.0f, 100.0f, 8);
 
 	//building
 	{
