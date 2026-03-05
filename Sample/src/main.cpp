@@ -183,7 +183,7 @@ int main(int argc, char** argv)
 		registry.AddComponents<LightComponent<LightData::Type::Directional>, TransformComponent>(light, std::move(lComp), std::move(lTransform));
 	}
 	std::vector<glm::vec3> points{
-	{  -5.0f, 0.0f,  5.0f },   // départ
+	{  -5.0f, 0.0f,  5.0f },   // dï¿½part
 	{  10.0f, 0.0f,  -20.0f },
 	{  20.0f, 0.0f,  -10.0f },
 	{  35.0f, 0.0f,  -15.0f },
@@ -209,17 +209,20 @@ int main(int argc, char** argv)
 
 	HermitCurve curve = HermitCurve::FromPoints(points, 0);
 
-	const float rmfStep = 0.001f;
-	const int rmfSampleCount = static_cast<int>(curve.MaxT() / rmfStep) + 1;
+	const int sampleCount = 500;
+	const float maxT = curve.MaxT();
 
-	std::vector<glm::vec3> rmfPoints;
-	rmfPoints.reserve(rmfSampleCount);
+	std::vector<glm::vec3> sampledPositions;
+	sampledPositions.reserve(sampleCount);
 
-	for (int i = 0; i < rmfSampleCount; ++i)
-		rmfPoints.push_back(curve.Compute(i * rmfStep));
+	for (int i = 0; i < sampleCount; ++i)
+	{
+		float t = static_cast<float>(i) / static_cast<float>(sampleCount - 1) * maxT;
+		sampledPositions.push_back(curve.Compute(t));
+	}
 
-	auto rmfForwardDirs = KGR::RMF::EstimateForwardDirs(rmfPoints);
-	auto rmfFrames = KGR::RMF::BuildFrames(rmfPoints, rmfForwardDirs);
+	auto tangents = KGR::RMF::EstimateForwardDirs(sampledPositions);
+	auto curveFrames = KGR::RMF::BuildFrames(sampledPositions, tangents);
 
 	static float curvesTest = 0.0f;
 	uint32_t count = points.size();
