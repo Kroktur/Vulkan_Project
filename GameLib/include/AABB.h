@@ -52,7 +52,7 @@ namespace KGR
          */
         glm::vec3 GetHalfSize() const;
 
-    private:
+    
         glm::vec3 m_min; ///< Minimum corner of the AABB.
         glm::vec3 m_max; ///< Maximum corner of the AABB.
     };

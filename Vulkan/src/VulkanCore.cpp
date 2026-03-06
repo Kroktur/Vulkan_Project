@@ -762,4 +762,16 @@ const KGR::_Vulkan::DescriptorPool& KGR::_Vulkan::VulkanCore::GetDescriptorPool(
 	return descriptorPool;
 }
 
+KGR::_Vulkan::DebugRenderer& KGR::_Vulkan::VulkanCore::GetDebugRenderer()
+{
+	return debugRenderer;
+}
+
+const KGR::_Vulkan::DebugRenderer& KGR::_Vulkan::VulkanCore::GetDebugRenderer() const
+{
+	return debugRenderer;
+}
+
+
+
 //IMPL
