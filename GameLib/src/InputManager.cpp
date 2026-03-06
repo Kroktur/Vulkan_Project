@@ -118,8 +118,8 @@ namespace KGR
     glm::vec2 InputManager::GetMouseDelta() const
     {
         glm::vec2 result;
-        result.x = std::abs(m_mouseX - oldPos.x) < 0.000001f ? 0 : (m_mouseX - oldPos.x) < 0 ? -1 : 1;
-        result.y = std::abs(m_mouseY - oldPos.y) < 0.000001f ? 0 : (m_mouseY - oldPos.y) < 0 ? -1 : 1;
+        result.x = (m_mouseX - oldPos.x);
+        result.y = (m_mouseY - oldPos.y);
         return result;
     }
 }
