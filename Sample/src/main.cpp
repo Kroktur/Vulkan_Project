@@ -499,10 +499,7 @@ int main(int argc, char** argv)
 
 		//crash
 		if (gameOver)
-		{
-			window.Render({ 0.0f,0.0f,0.0f,1.0f });
-			continue;
-		}
+			throw std::runtime_error("You bad noob, don't try again.");
 		
 		//Update curve follower
 		{
