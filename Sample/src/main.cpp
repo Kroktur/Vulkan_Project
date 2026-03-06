@@ -54,7 +54,7 @@ int main(int argc, char** argv)
 	std::filesystem::path exePath = argv[0];
 	std::filesystem::path projectRoot = exePath.parent_path().parent_path().parent_path().parent_path().parent_path();
 	KGR::RenderWindow::Init();
-	KGR::RenderWindow window{ {1000,1000},"test",projectRoot / "Ressources" };
+	KGR::RenderWindow window{ {1920,1080},"test",projectRoot / "Ressources" };
 	window.GetInputManager()->SetMode(GLFW_CURSOR_DISABLED);
 	using ecsType = KGR::ECS::Registry<KGR::ECS::Entity::_64, 100>;
 	auto registry = ecsType{};
@@ -164,11 +164,7 @@ int main(int argc, char** argv)
 
 	auto colorTransform = [](const glm::vec3& color)
 		{
-			glm::vec3 result;
-			result.x = color.x * 1 / 255;
-			result.y = color.y * 1 / 255;
-			result.z = color.z * 1 / 255;
-			return result;
+			return glm::vec3{ color.x / 255.0f, color.y / 255.0f, color.z / 255.0f };
 		};
 
 
@@ -222,7 +218,7 @@ int main(int argc, char** argv)
 	auto rmfFrames = KGR::RMF::BuildFrames(rmfPoints, rmfForwardDirs);
 
 	static float curvesTest = 0.0f;
-	uint32_t count = points.size();
+	uint32_t count = points.size() /2.0f;
 	float maxT = curve.MaxT() - 0.001f;
 
 	std::vector<float> result;
@@ -238,7 +234,7 @@ int main(int argc, char** argv)
 
 		{
 			auto light = registry.CreateEntity();
-			auto lComp = LightComponent<LightData::Type::Spot>::Create({ 0.4, 0.9, 0.6 }, { 1,1,1 }, 50.0f, 1.0f, glm::radians(5.0f), 1);
+			auto lComp = LightComponent<LightData::Type::Spot>::Create({ 0.4, 0.9, 0.6 }, { 1,1,1 }, 100.0f, 1.0f, glm::radians(5.0f), 1);
 			TransformComponent lTransform;
 			lTransform.LookAt({ 0,-1,0 });
 			static glm::vec3 upCoord = { 0,2,0 };
@@ -276,8 +272,8 @@ int main(int argc, char** argv)
 			{
 				auto& transform = registry.GetComponent<TransformComponent>(e);
 				auto delta = inputData->GetMouseDelta();
-				transform.RotateEuler<RotData::Orientation::Pitch>(-glm::radians(delta.y * deltaTime * 200));
-				transform.RotateEuler<RotData::Orientation::Yaw>(-glm::radians(delta.x * deltaTime * 200));
+				transform.RotateEuler<RotData::Orientation::Pitch>(-glm::radians(delta.y * deltaTime * 5.0f));
+				transform.RotateEuler<RotData::Orientation::Yaw>(-glm::radians(delta.x * deltaTime * 5.0f));
 			}
 		}
 		
@@ -530,14 +526,13 @@ int main(int argc, char** argv)
 				curvesTest = 0.0f;
 		}
 
+		// Update caméra
 		{
 			auto es = registry.GetAllComponentsView<CameraComponent, TransformComponent>();
 			if (es.Size() != 1)
 				throw std::runtime_error("need one and one cam");
 			for (auto& e : es)
 			{
-				//registry.GetComponent<TransformComponent>(e).SetPosition({ camX, camY, camZ });
-				//registry.GetComponent<TransformComponent>(e).LookAt({ 0.0f, 0.0f, 0.0f });
 				registry.GetComponent<CameraComponent>(e).UpdateCamera(registry.GetComponent<TransformComponent>(e).GetFullTransform());
 				window.RegisterCam(registry.GetComponent<CameraComponent>(e), registry.GetComponent<TransformComponent>(e));
 			}
@@ -558,9 +553,11 @@ int main(int argc, char** argv)
 		// Render Mesh
 		{
 			auto es = registry.GetAllComponentsView<MeshComponent, TransformComponent, TextureComponent>();
-
 			for (auto& e : es)
-				window.RegisterRender(registry.GetComponent<MeshComponent>(e), registry.GetComponent<TransformComponent>(e), registry.GetComponent<TextureComponent>(e));
+				window.RegisterRender(
+					registry.GetComponent<MeshComponent>(e),
+					registry.GetComponent<TransformComponent>(e),
+					registry.GetComponent<TextureComponent>(e));
 		}
 
 		{
@@ -573,15 +570,15 @@ int main(int argc, char** argv)
 			for (auto& e : es)
 				window.RegisterLight(registry.GetComponent<LightComponent<LightData::Type::Spot>>(e), registry.GetComponent<TransformComponent>(e));
 		}
-
 		{
 			auto es = registry.GetAllComponentsView<LightComponent<LightData::Type::Directional>, TransformComponent>();
 			for (auto& e : es)
 				window.RegisterLight(registry.GetComponent<LightComponent<LightData::Type::Directional>>(e), registry.GetComponent<TransformComponent>(e));
 		}
-		window.Render({ 0.53f,0.81f,0.92f ,1.0f });
-	} while (!window.ShouldClose());
 
+		window.Render({ 0.53f, 0.81f, 0.92f, 1.0f });
+
+	} while (!window.ShouldClose());
 
 	window.Destroy();
 	KGR::RenderWindow::End();

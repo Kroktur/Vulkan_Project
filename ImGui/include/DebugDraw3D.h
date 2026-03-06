@@ -15,10 +15,10 @@ public:
 		float thickness = 2.5f, uint8_t alpha = 255);
 
 private:
-	ImVec2 WorldToScreen(const glm::vec3& pos) const;
+	std::optional<ImVec2> WorldToScreen(const glm::vec3& worldPos) const;
 
-	glm::mat4  m_vp       = glm::mat4(1.0f);
-	float      m_screenW  = 0.0f;
-	float      m_screenH  = 0.0f;
-	ImDrawList* m_drawList = nullptr;
+	glm::mat4  m_viewProjMatrix = glm::mat4(1.0f);
+	float      m_screenWidth	= 0.0f;
+	float      m_screenHeight	= 0.0f;
+	ImDrawList* m_drawList		= nullptr;
 };

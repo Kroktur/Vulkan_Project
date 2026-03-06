@@ -52,7 +52,7 @@ namespace KGR
 			TextureComponent texture;
 			texture.SetSize(meshComp.mesh->GetSubMeshesCount());
 			for (int i = 0; i < meshComp.mesh->GetSubMeshesCount(); ++i)
-				texture.AddTexture(i, &TextureLoader::Load("Textures\\BaseTexture.png", window.App()));
+				texture.AddTexture(i, &TextureLoader::Load("Textures\\rouge.jpg", window.App()));
 
 			CollisionComp collider;
 			collider.collider = &ColliderManager::Load("enemyCollider", meshComp.mesh);

@@ -18,6 +18,7 @@ void KGR::_ImGui::ImGuiCore::InitImGui(KGR::_Vulkan::VulkanCore* vulkanCore, KGR
 bool KGR::_ImGui::ImGuiCore::LoadMesh(MeshComponent& meshComponent, std::string& path, _Vulkan::VulkanCore& vkCore)
 {
 	std::string newPath = OpenFile();
+
 	if (newPath.empty())
 		return false;
 

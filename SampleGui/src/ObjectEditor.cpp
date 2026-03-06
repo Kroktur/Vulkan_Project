@@ -30,16 +30,10 @@ bool ObjectEditor::Render()
 		}
 	}
 
-	if (!m_Obj->isAnimating)
-	{
-		if (m_ImGui.IsButton(KGR::_ImGui::ButtonType::PlayAnimation))
-			m_Obj->isAnimating = true;
-	}
-	else
-	{
-		if (m_ImGui.IsButton(KGR::_ImGui::ButtonType::StopAnimation))
-			m_Obj->isAnimating = false;
-	}
+	KGR::_ImGui::ButtonType buttonType = m_Obj->isAnimating ? KGR::_ImGui::ButtonType::StopAnimation : KGR::_ImGui::ButtonType::PlayAnimation;
+
+	if (m_ImGui.IsButton(buttonType))
+		m_Obj->isAnimating = !m_Obj->isAnimating;
 
 	if (m_ImGui.IsButton(KGR::_ImGui::ButtonType::ResetObject))
 		m_Obj->ResetTransform();
@@ -75,14 +69,15 @@ void ObjectEditor::DeleteSelected(std::vector<ObjectState>& objects, int& select
 	if (!objects[selectedObj].modelPath.empty())
 	{
 		bool sharedMesh = false;
-		for (int j = 0; j < static_cast<int>(objects.size()); j++)
+		for (int i = 0; i < static_cast<int>(objects.size()); i++)
 		{
-			if (j != selectedObj && objects[j].modelPath == objects[selectedObj].modelPath)
+			if (i != selectedObj && objects[i].modelPath == objects[selectedObj].modelPath)
 			{
 				sharedMesh = true;
 				break;
 			}
 		}
+
 		if (!sharedMesh)
 			MeshLoader::Unload(objects[selectedObj].modelPath);
 	}
