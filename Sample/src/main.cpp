@@ -164,11 +164,7 @@ int main(int argc, char** argv)
 
 	auto colorTransform = [](const glm::vec3& color)
 		{
-			glm::vec3 result;
-			result.x = color.x * 1 / 255;
-			result.y = color.y * 1 / 255;
-			result.z = color.z * 1 / 255;
-			return result;
+			return glm::vec3{ color.x / 255.0f, color.y / 255.0f, color.z / 255.0f };
 		};
 
 
@@ -530,14 +526,13 @@ int main(int argc, char** argv)
 				curvesTest = 0.0f;
 		}
 
+		// Update caméra
 		{
 			auto es = registry.GetAllComponentsView<CameraComponent, TransformComponent>();
 			if (es.Size() != 1)
 				throw std::runtime_error("need one and one cam");
 			for (auto& e : es)
 			{
-				//registry.GetComponent<TransformComponent>(e).SetPosition({ camX, camY, camZ });
-				//registry.GetComponent<TransformComponent>(e).LookAt({ 0.0f, 0.0f, 0.0f });
 				registry.GetComponent<CameraComponent>(e).UpdateCamera(registry.GetComponent<TransformComponent>(e).GetFullTransform());
 				window.RegisterCam(registry.GetComponent<CameraComponent>(e), registry.GetComponent<TransformComponent>(e));
 			}
@@ -558,9 +553,11 @@ int main(int argc, char** argv)
 		// Render Mesh
 		{
 			auto es = registry.GetAllComponentsView<MeshComponent, TransformComponent, TextureComponent>();
-
 			for (auto& e : es)
-				window.RegisterRender(registry.GetComponent<MeshComponent>(e), registry.GetComponent<TransformComponent>(e), registry.GetComponent<TextureComponent>(e));
+				window.RegisterRender(
+					registry.GetComponent<MeshComponent>(e),
+					registry.GetComponent<TransformComponent>(e),
+					registry.GetComponent<TextureComponent>(e));
 		}
 
 		{
@@ -573,15 +570,15 @@ int main(int argc, char** argv)
 			for (auto& e : es)
 				window.RegisterLight(registry.GetComponent<LightComponent<LightData::Type::Spot>>(e), registry.GetComponent<TransformComponent>(e));
 		}
-
 		{
 			auto es = registry.GetAllComponentsView<LightComponent<LightData::Type::Directional>, TransformComponent>();
 			for (auto& e : es)
 				window.RegisterLight(registry.GetComponent<LightComponent<LightData::Type::Directional>>(e), registry.GetComponent<TransformComponent>(e));
 		}
-		window.Render({ 0.53f,0.81f,0.92f ,1.0f });
-	} while (!window.ShouldClose());
 
+		window.Render({ 0.53f, 0.81f, 0.92f, 1.0f });
+
+	} while (!window.ShouldClose());
 
 	window.Destroy();
 	KGR::RenderWindow::End();
