@@ -22,6 +22,10 @@
 
 #include "GameFiles.h"
 
+//GAMEPLAY KNOWN BUGS :
+// - when you shoot while changing weapon, it's a full unlimited ammo shot like a minigun
+// - if you clear the last wave, you'll be stuck in a loop into the raii without enemies and no way to start a new wave
+
 // to move 
 struct ControllerComponent {};
 
@@ -59,19 +63,6 @@ int main(int argc, char** argv)
 	using ecsType = KGR::ECS::Registry<KGR::ECS::Entity::_64, 100>;
 	auto registry = ecsType{};
 
-	//// entity
-	//{
-	//	auto mesh = registry.CreateEntity();
-	//	MeshComponent meshComp;
-	//	meshComp.mesh = &MeshLoader::Load("Models\\briet_claire_decorsfantasy_grpB.obj", window.App());
-	//	TransformComponent transform;
-	//	TextureComponent texture;
-	//	texture.SetSize(meshComp.mesh->GetSubMeshesCount());
-	//	for (int i = 0; i < meshComp.mesh->GetSubMeshesCount(); ++i)
-	//		texture.AddTexture(i, &TextureLoader::Load("Textures\\BaseTexture.png", window.App()));
-	//	registry.AddComponents<MeshComponent, TransformComponent, TextureComponent, ControllerComponent>(mesh, std::move(meshComp), std::move(transform), std::move(texture), std::move(ControllerComponent{}));
-	//}
-
 	//Player
 	{
 		auto player = registry.CreateEntity();
@@ -99,8 +90,6 @@ int main(int argc, char** argv)
 
 		CollisionComp collider;
 		collider.collider = &ColliderManager::Load("playerCollider",meshComp.mesh);
-
-		/*registry.AddComponents<MeshComponent, TransformComponent, TextureComponent, ControllerComponent>(mesh, std::move(meshComp), std::move(transform), std::move(texture), std::move(ControllerComponent{}));*/
 
 		registry.AddComponents<MeshComponent, CameraComponent, TransformComponent, TextureComponent, ControllerComponent,
 			PlayerComponent, KGR::GameLib::WeaponComponent, LivingComponent, CollisionComp>
@@ -167,10 +156,6 @@ int main(int argc, char** argv)
 			return glm::vec3{ color.x / 255.0f, color.y / 255.0f, color.z / 255.0f };
 		};
 
-
-
-
-
 	{
 		auto light = registry.CreateEntity();
 		auto lComp = LightComponent<LightData::Type::Directional>::Create(colorTransform({ 255, 240, 200 }), { 1,1,1 }, 1.0f);
@@ -197,10 +182,6 @@ int main(int argc, char** argv)
 	{  0.0f, 0.0f,  -100.0f },
 	{  -5.0f, 0.0f,  -105.0f }
 	};
-
-
-
-	
 
 	HermitCurve curve = HermitCurve::FromPoints(points, 0);
 
@@ -229,8 +210,6 @@ int main(int argc, char** argv)
 	{
 		result.push_back(i * step);
 		//lights
-		
-
 		{
 			auto light = registry.CreateEntity();
 			auto lComp = LightComponent<LightData::Type::Spot>::Create({ 0.4, 0.9, 0.6 }, { 1,1,1 }, 100.0f, 1.0f, glm::radians(5.0f), 1);
@@ -239,29 +218,22 @@ int main(int argc, char** argv)
 			static glm::vec3 upCoord = { 0,2,0 };
 			lTransform.SetPosition(curve.Compute(i* step) + upCoord);
 			registry.AddComponents<LightComponent<LightData::Type::Spot>, TransformComponent>(light, std::move(lComp), std::move(lTransform));
-
 		}
-
 	}
 	
-
 	WaveManager waveManager(result);
 
 	do
 	{
-		/// EVENT PAS TOUCHE
+		//Event
 		KGR::RenderWindow::PollEvent();
 		window.Update();
-		
-		//Update Events
 
-
-		//Update PAS TOUCHE
+		//Update
 		static auto lastTime = std::chrono::high_resolution_clock::now();
 		auto currentTime = std::chrono::high_resolution_clock::now();
 		float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
 		lastTime = currentTime;
-		// Update
 		
 		//Camera control
 		{
@@ -286,16 +258,16 @@ int main(int argc, char** argv)
 				weapon.cooldown -= deltaTime;
 				weapon.UpdateReload(deltaTime);
 				const auto& weaponData = weapon.GetCurrentWeaponData();
-				if (inputData->IsKeyDown(KGR::Key::Num1))
+				if (inputData->IsKeyPressed(KGR::Key::Num1))
 					weapon.SwitchWeapon(KGR::GameLib::WeaponType::Shotgun);
 
-				if (inputData->IsKeyDown(KGR::Key::Num2))
+				if (inputData->IsKeyPressed(KGR::Key::Num2))
 					weapon.SwitchWeapon(KGR::GameLib::WeaponType::Auto);
 
-				if (inputData->IsKeyDown(KGR::Key::Num3))
+				if (inputData->IsKeyPressed(KGR::Key::Num3))
 					weapon.SwitchWeapon(KGR::GameLib::WeaponType::Sniper);
 
-				if (inputData->IsKeyDown(KGR::Key::R))
+				if (inputData->IsKeyPressed(KGR::Key::R))
 					if (!weapon.isReloading && weapon.currentAmmo < weaponData.maxAmmo)
 						weapon.StartReload();
 
@@ -314,9 +286,9 @@ int main(int argc, char** argv)
 							for (int i = 0; i < weaponData.maxAmmo; ++i)
 							{
 								glm::vec3 spreadDir = forward;
-
-								float sx = KGR::Tools::Random().getRandomNumber(-weaponData.spread, weaponData.spread);
-								float sy = KGR::Tools::Random().getRandomNumber(-weaponData.spread, weaponData.spread);
+								static KGR::Tools::Random rng;
+								float sx = rng.getRandomNumber(-weaponData.spread, weaponData.spread);
+								float sy = rng.getRandomNumber(-weaponData.spread, weaponData.spread);
 								spreadDir = glm::normalize(spreadDir + transform.GetLocalAxe<RotData::Dir::Right>() * sx + transform.GetLocalAxe<RotData::Dir::Up>() * sy);
 
 								weapon.CreateBullet(registry, window, transform.GetPosition(), spreadDir);
@@ -411,7 +383,6 @@ int main(int argc, char** argv)
 		
 		//Update enemy
 		{
-
 			auto enemies = registry.GetAllComponentsView<KGR::GameLib::AIComponent, TransformComponent, KGR::GameLib::EnemyComponent, CollisionComp>();
 			auto player = registry.GetAllComponentsView<PlayerComponent, TransformComponent, CollisionComp>();
 			for (auto& enemyEntity : enemies)
@@ -497,7 +468,10 @@ int main(int argc, char** argv)
 
 		//crash
 		if (gameOver)
-			throw std::runtime_error("You bad noob, don't try again.");
+		{
+			window.Render({ 0.2f,0.0f,0.0f,1.0f });
+			continue;
+		}
 		
 		//Update curve follower
 		{
@@ -509,19 +483,25 @@ int main(int argc, char** argv)
 
 				int frameIndex = glm::clamp(static_cast<int>(curvesTest / rmfStep), 0, static_cast<int>(rmfFrames.size() - 1));
 				if (!waveManager.isWaveActive)
-				transform.SetOrientation(glm::quatLookAt(rmfFrames[frameIndex].forward, rmfFrames[frameIndex].up));
+					transform.SetOrientation(glm::quatLookAt(rmfFrames[frameIndex].forward, rmfFrames[frameIndex].up));
 
 			}
 		}
 
+		bool gameFinished;
 		if (!waveManager.platformPaused)
 		{
 			curvesTest += 0.001f;
 			if (curvesTest > curve.MaxT())
 				curvesTest = 0.0f;
+			if (waveManager.currentWave >= waveManager.wavePositions.size())
+			{
+				gameFinished = true;
+				waveManager.platformPaused = true;
+			}
 		}
 
-		// Update caméra
+		// Update camera
 		{
 			auto es = registry.GetAllComponentsView<CameraComponent, TransformComponent>();
 			if (es.Size() != 1)
@@ -532,18 +512,6 @@ int main(int argc, char** argv)
 				window.RegisterCam(registry.GetComponent<CameraComponent>(e), registry.GetComponent<TransformComponent>(e));
 			}
 		}
-
-		//TODO:
-		// - following the player with the camera
-		// - doing events where enemies spawn at specific times or when the player enters specific areas
-		// - seing the curve path with debug draw
-		// - doing the speadshot of the shotgun with multiple bullets with a random spread
-		// - Collision detection between bullets and enemies and ennemies and player
-		// - doing a health system for the player and the enemies and player can die and freeze the game when he dies
-		// - doing a UI for ammos and health with ImGui or with a custom UI system
-		// - doing a main menu and a game over screen
-		// - add a new enemy mesh 
-		// - finih 
 
 		// Render Mesh
 		{
