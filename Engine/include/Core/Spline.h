@@ -155,7 +155,7 @@ struct HermitCurve
      * @brief Constructs a Hermite curve from precomputed steps.
      */
     HermitCurve(const std::vector<HermitCurveStep>& step);
-
+    HermitCurve() = default;
     /// @brief Returns the number of segments.
     size_t GetStepCount() const;
 

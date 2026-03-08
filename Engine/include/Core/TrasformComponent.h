@@ -207,14 +207,7 @@ public:
     template<RotData::Orientation orientation, IsValidRep rep = Rep>
     void RotateEuler(float angleRad);
 
-    /**
-     * @brief Camera‑style rotation using mouse delta.
-     *
-     * @param mouseDelta Mouse movement.
-     * @param deltaTime Frame delta time.
-     * @param speed Rotation speed.
-     */
-    void RotateCameraView(glm::vec2 mouseDelta, float deltaTime, float speed = 200.0f);
+
 
     /// @brief Returns the rotation matrix.
     glm::mat4 GetRotationMatrix();
