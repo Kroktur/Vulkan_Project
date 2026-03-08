@@ -22,10 +22,6 @@
 
 #include "GameFiles.h"
 
-//GAMEPLAY KNOWN BUGS :
-// - when you shoot while changing weapon, it's a full unlimited ammo shot like a minigun
-// - if you clear the last wave, you'll be stuck in a loop into the raii without enemies and no way to start a new wave
-
 // to move 
 struct ControllerComponent {};
 
@@ -546,3 +542,11 @@ int main(int argc, char** argv)
 	window.Destroy();
 	KGR::RenderWindow::End();
 }
+
+//#include "Game.h"
+//
+//int main(int argc, char** argv)
+//{
+//    Game game(argc, argv);
+//    game.Run();
+//}
