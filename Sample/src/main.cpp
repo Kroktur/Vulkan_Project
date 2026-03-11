@@ -18,7 +18,7 @@ int main(int argc, char** argv)
 	{
 		CameraComponent cam = CameraComponent::Create(glm::radians(45.0f),window->GetSize().x,window->GetSize().y,0.01f,100.0f,CameraComponent::Type::Perspective);
 		TransformComponent transform;
-		transform.SetPosition({ 0,0,5 });
+		transform.SetPosition({ 0,3,5 });
 		transform.LookAt({ 0,0,0 });
 		auto e = registry.CreateEntity();
 		registry.AddComponents(e, std::move(cam), std::move(transform));
@@ -27,12 +27,12 @@ int main(int argc, char** argv)
 
 	{
 		MeshComponent mesh;
-		mesh.mesh = &MeshLoader::Load("Models/viking_room.obj",window->App());
+		mesh.mesh = &MeshLoader::Load("Models/cube.obj",window->App());
 
 		TextureComponent text;
 		text.SetSize(mesh.mesh->GetSubMeshesCount());
 		for (int i = 0; i < mesh.mesh->GetSubMeshesCount(); ++i)
-			text.AddTexture(i, &TextureLoader::Load("Textures/viking_room.png", window->App()));
+			text.AddTexture(i, &TextureLoader::Load("Textures/BaseTexture.png", window->App()));
 
 		TransformComponent transform;
 		transform.SetPosition({ 0,0,0 });
@@ -40,13 +40,14 @@ int main(int argc, char** argv)
 		transform.RotateQuat<RotData::Orientation::Pitch>(glm::radians(-90.0f));
 		auto e = registry.CreateEntity();
 		registry.AddComponents(e, std::move(mesh), std::move(text), std::move(transform));
-	};
+	}
 
 	{
-		LightComponent<LightData::Type::Directional> lc = LightComponent<LightData::Type::Directional>::Create({ 1,1,1 }, { 1,1,1 }, 100.0f);
+		
+		LightComponent<LightData::Type::Spot> lc = LightComponent<LightData::Type::Spot>::Create({ 1,1,1 }, { 1,1,1 }, 10.0f,100.0f,glm::radians(5.0f),0.1f);
 		TransformComponent transform;
+		transform.SetPosition({ 0,3,0 });
 		transform.LookAtDir({ 0,-1,0 });
-
 		auto e = registry.CreateEntity();
 		registry.AddComponents(e, std::move(lc), std::move(transform));
 	}
@@ -55,7 +56,7 @@ int main(int argc, char** argv)
 	KGR::Tools::Chrono<float> chrono;
 	while (!window->ShouldClose())
 	{
-		float actual = chrono.GetElapsedTime().AsMilliSeconds();
+		float actual = chrono.GetElapsedTime().AsSeconds();
 		float dt = actual - current;
 		current = actual;
 		
@@ -64,7 +65,7 @@ int main(int argc, char** argv)
 			auto es = registry.GetAllComponentsView<MeshComponent,TransformComponent>();
 			for (auto& e : es)
 			{
-				registry.GetComponent<TransformComponent>(e).RotateQuat<RotData::Orientation::Yaw>(glm::radians(1.0f * dt));
+				registry.GetComponent<TransformComponent>(e).RotateQuat<RotData::Orientation::Yaw>(glm::radians(10.0f * dt));
 			}
 
 		}
@@ -84,7 +85,7 @@ int main(int argc, char** argv)
 			}
 		}
 
-		// Render Mesh
+
 		{
 			auto es = registry.GetAllComponentsView<MeshComponent, TransformComponent, TextureComponent>();
 			for (auto& e : es)

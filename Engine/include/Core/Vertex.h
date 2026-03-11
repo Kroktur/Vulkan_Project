@@ -57,7 +57,7 @@ struct Vertex
     {
         return pos == other.pos &&
             color == other.color &&
-            uv == other.uv;
+            uv == other.uv && normal == other.normal;
     }
 };
 

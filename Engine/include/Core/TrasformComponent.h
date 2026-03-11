@@ -277,7 +277,10 @@ template <IsValidRep rep>
 void TransformComponent::LookAt(const glm::vec3& target)
 {
     glm::vec3 forward = glm::normalize(target - m_position.data);
-    m_rotation.data = glm::quatLookAt(forward, RotData::ToVector<RotData::Dir::Up, rep>());
+    auto up = RotData::ToVector<RotData::Dir::Up, rep>();
+    if (abs(glm::dot(forward, up)) > 0.999f)
+        up = RotData::ToVector<RotData::Dir::Forward, rep>();
+    m_rotation.data = glm::quatLookAt(forward, up);
     UpdateEulerAngle();
     m_rotation.isDirty = true;
 }
@@ -286,7 +289,10 @@ template <IsValidRep rep>
 void TransformComponent::LookAtDir(const glm::vec3& target)
 {
     glm::vec3 forward = glm::normalize(target - glm::vec3{ 0,0,0 });
-    m_rotation.data = glm::quatLookAt(forward, RotData::ToVector<RotData::Dir::Up, rep>());
+    auto up = RotData::ToVector<RotData::Dir::Up, rep>();
+    if (abs(glm::dot(forward, up)) > 0.999f)
+        up = RotData::ToVector<RotData::Dir::Forward, rep>();
+    m_rotation.data = glm::quatLookAt(forward, up);
     UpdateEulerAngle();
     m_rotation.isDirty = true;
 }
