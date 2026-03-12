@@ -35,7 +35,6 @@ int main(int argc, char** argv)
 
 		TransformComponent transform;
 		transform.SetPosition({ 0,0,0 });
-		transform.RotateQuat<RotData::Orientation::Pitch>(glm::radians(-45.0f));
 		auto e = registry.CreateEntity();
 		registry.AddComponents(e, std::move(mesh), std::move(text), std::move(transform));
 	}
@@ -62,7 +61,25 @@ int main(int argc, char** argv)
 			auto es = registry.GetAllComponentsView<MeshComponent,TransformComponent>();
 			for (auto& e : es)
 			{
-				registry.GetComponent<TransformComponent>(e).RotateQuat<RotData::Orientation::Yaw>(glm::radians(10.0f * dt));
+				auto input = window->GetInputManager();
+
+				static float speed = 25.0f;
+				if (input->IsKeyDown(KGR::Key::Q))
+					registry.GetComponent<TransformComponent>(e).RotateQuat<RotData::Orientation::Yaw>(glm::radians(speed * dt));
+				if (input->IsKeyDown(KGR::Key::D))
+					registry.GetComponent<TransformComponent>(e).RotateQuat<RotData::Orientation::Yaw>(glm::radians(-speed * dt));
+
+				if (input->IsKeyDown(KGR::Key::Z))
+					registry.GetComponent<TransformComponent>(e).RotateQuat<RotData::Orientation::Pitch>(glm::radians(-speed * dt));
+				if (input->IsKeyDown(KGR::Key::S))
+					registry.GetComponent<TransformComponent>(e).RotateQuat<RotData::Orientation::Pitch>(glm::radians(speed * dt));
+
+
+
+				if (input->IsKeyDown(KGR::Key::A))
+					registry.GetComponent<TransformComponent>(e).RotateQuat<RotData::Orientation::Roll>(glm::radians(-speed * dt));
+				if (input->IsKeyDown(KGR::Key::E))
+					registry.GetComponent<TransformComponent>(e).RotateQuat<RotData::Orientation::Roll>(glm::radians(speed * dt));
 			}
 
 		}
