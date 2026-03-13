@@ -1,0 +1,38 @@
+project(SoLoud)
+
+# File include
+set(HEADER_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+# File lib
+set(SOLOUD_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib)
+
+# Get the headers
+file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS
+    "${HEADER_DIR}/*.h"
+    "${HEADER_DIR}/*.hpp"
+)
+
+# Create empty project for IDE
+add_library(${PROJECT_NAME} STATIC ${HEADERS})
+
+# Imported library
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    IMPORTED_LOCATION "${SOLOUD_LIB_DIR}/soloud_static_x64.lib"
+    LINKER_LANGUAGE CXX
+)
+
+# Expose the includes
+target_include_directories(${PROJECT_NAME}
+    INTERFACE
+        ${HEADER_DIR}
+)
+
+# Organisation into the IDE
+source_group(
+    TREE ${HEADER_DIR}
+    PREFIX "Header Files"
+    FILES ${HEADERS}
+)
+
+# Solution File
+set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "SoLoud")
