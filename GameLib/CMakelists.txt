@@ -83,6 +83,7 @@ target_link_libraries(${PROJECT_NAME}
     PUBLIC
     Vulkan
     GLFW_
+    SoLoud
   # YourLib
   # ${MYLIB_LIB}/YourLib.lib
     PRIVATE

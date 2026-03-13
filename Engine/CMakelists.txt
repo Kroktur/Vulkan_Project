@@ -92,6 +92,7 @@ target_link_libraries(${PROJECT_NAME}
     PUBLIC
     glfw
     Vulkan
+    SoLoud
     ${VulkanLib}/vulkan-1.lib
   # YourLib
   # ${MYLIB_LIB}/YourLib.lib
