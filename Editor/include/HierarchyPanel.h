@@ -34,9 +34,9 @@ namespace KGR
 			/// @brief Recursively draws a tree node for the given entity and its children.
 			void DrawEntityNode(SceneEntity e);
 
-			Scene*      m_scene          = nullptr;
+			Scene* m_scene = nullptr;
 			SceneEntity m_selectedEntity = NullEntity;
-			int         m_entityCounter  = 0;
+			int m_entityCounter = 0;
 		};
 	}
 }

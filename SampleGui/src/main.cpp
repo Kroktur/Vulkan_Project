@@ -99,14 +99,6 @@ static std::vector<uint32_t> BuildTubeIndices(int curveN, int tubeSegments)
     return indices;
 }
 
-// ---------------------------------------------------------------------------
-// main
-// Responsibilities kept here:
-//   - OS-level init (paths, window, Vulkan, ImGui)
-//   - Scene-independent geometry (spline tube, lights)
-//   - Legacy ObjectEditor objects (to be migrated to ECS later)
-//   - Frame loop orchestration
-// ---------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
     std::filesystem::path exePath = argv[0];
@@ -152,12 +144,10 @@ int main(int argc, char** argv)
     lTransform3.SetPosition({ -5,1,0 });
     lTransform3.LookAtDir({ 1,-1,0 });
 
-    // --- Base texture (shared by legacy objects and the tube mesh) ---
     TextureComponent baseTexture;
     baseTexture.SetSize(1);
     baseTexture.AddTexture(0, &TextureLoader::Load("Textures\\BaseTexture.png", &app));
 
-    // --- Legacy ObjectEditor (to be replaced by ECS entities) ---
     std::vector<ObjectState> objects;
     int selectedObj = -1;
     ObjectEditor objEditor(imguiCore, app);
@@ -228,7 +218,6 @@ int main(int argc, char** argv)
         imguiCore.BeginFrame(KGR::_ImGui::ContextTarget::Engine);
         ImGuizmo::BeginFrame();
         {
-            // All editor panels are rendered inside EditorContext.
             editor.Render();
 
             // --- Debug draw clipped to the viewport rect ---

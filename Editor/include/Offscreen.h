@@ -11,7 +11,10 @@ namespace KGR
 		{
 		public:
 			
-			void Create(VkDevice device, VkPhysicalDevice physDevice, VkDescriptorPool pool, uint32_t width, uint32_t height, VkFormat colorFormat = VK_FORMAT_B8G8R8A8_UNORM, VkFormat depthFormat = VK_FORMAT_D32_SFLOAT);
+			void Create(VkDevice device, VkPhysicalDevice physDevice, 
+					    VkDescriptorPool pool, uint32_t width, uint32_t height, 
+						VkFormat colorFormat = VK_FORMAT_B8G8R8A8_UNORM, VkFormat depthFormat = VK_FORMAT_D32_SFLOAT);
+
 			void Resize(VkDevice device, VkPhysicalDevice physDevice, VkDescriptorPool pool, uint32_t width, uint32_t height);
 			void Destroy(VkDevice device);
 

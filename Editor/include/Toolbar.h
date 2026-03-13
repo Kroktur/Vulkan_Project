@@ -32,9 +32,9 @@ namespace KGR
 			void SetScene(Scene* scene) { m_editorScene = scene; }
 
 		private:
-			Scene*                  m_editorScene  = nullptr;
-			std::unique_ptr<Scene>  m_runtimeScene = nullptr;
-			bool                    m_isPlaying    = false;
+			Scene* m_editorScene = nullptr;
+			std::unique_ptr<Scene> m_runtimeScene = nullptr;
+			bool m_isPlaying = false;
 		};
 	}
 }

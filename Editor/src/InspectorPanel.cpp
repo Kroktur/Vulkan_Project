@@ -67,7 +67,7 @@ namespace KGR
 
 				glm::vec3 scale = transform.GetScale();
 				if (ImGui::DragFloat3("Scale", glm::value_ptr(scale), 0.05f, 0.01f, 100.0f))
-					transform.SetScale(scale);
+					transform.SetScale(scale * 2.0f);
 			}
 		}
 

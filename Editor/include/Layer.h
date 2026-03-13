@@ -23,7 +23,7 @@ namespace KGR
         private:
             static void BuildDefaultLayout(ImGuiID dockspaceId);
 
-            static bool s_layoutBuilt;
+            static bool m_layoutBuilt;
         };
     }
 }
