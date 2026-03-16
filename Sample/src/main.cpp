@@ -26,7 +26,8 @@ int main(int argc, char** argv)
 	// this part is due to the archi of the code to retrieve the folder resources
 	std::filesystem::path exePath = argv[0];
 	std::filesystem::path projectRoot = exePath.parent_path().parent_path().parent_path().parent_path().parent_path();
-	WavComponent::Init(projectRoot / "Ressources");
+
+
 	// init the rendering system ( init glfw )
 	KGR::RenderWindow::Init();
 	// create your window with the size the name and the resources path
@@ -38,11 +39,23 @@ int main(int argc, char** argv)
 	// create your ecs 
 	ecsType registry = ecsType{};
 
-	// test music 
+
+	// TODO REVA test this please
+	// music test do not mind
+
+	// TODO when all test ok move this into a proper place 
+	WavComponent::Init(projectRoot / "Ressources");
+
 	WavComponent c;
 	c.SetWav(WavManager::Load("Sounds/test.mp3"));
 	c.SetVolume(10.0f);
-	c.Play();
+
+	// TODO play the music for test 
+	//c.Play();
+
+	// music test do not mind
+		
+
 	// camera 
 	{
 		// a calera need a cameraComponent that can be orthographic or perspective and a transform
