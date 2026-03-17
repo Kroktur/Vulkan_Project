@@ -4,7 +4,7 @@
 #include "Core/UiComponent.h"
 
 
-#include "InputManager.h"
+#include "Core/InputManager.h"
 #include "Core/CameraComponent.h"
 #include "Core/Mesh.h"
 #include "Core/Texture.h"
@@ -212,6 +212,9 @@ int main(int argc, char** argv)
 			}
 
 		}
+
+		//just a test to see the mouse pos
+		std::cout << window.get()->GetInputManager()->GetMousePosition().x << " " << window->GetInputManager()->GetMousePosition().y << std::endl;
 
 		//Test Sound
 		if(window->GetInputManager()->IsKeyPressed(KGR::Key::P))
