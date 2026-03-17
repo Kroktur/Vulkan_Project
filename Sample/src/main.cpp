@@ -14,15 +14,18 @@
 #include "ECS/Entities.h"
 #include "ECS/Registry.h"
 #include "Tools/Chrono.h"
+#include "Audio/SoundComponent.h"
 
 // make you ecs type with entity 8 / 16 / 32 / 64 and the size of allocation between 1 and infinity
 using ecsType = KGR::ECS::Registry<KGR::ECS::Entity::_64, 100>;
 
 int main(int argc, char** argv)
 {
+	
 	// this part is due to the archi of the code to retrieve the folder resources
 	std::filesystem::path exePath = argv[0];
 	std::filesystem::path projectRoot = exePath.parent_path().parent_path().parent_path().parent_path().parent_path();
+
 
 	// init the rendering system ( init glfw )
 	KGR::RenderWindow::Init();
@@ -35,6 +38,31 @@ int main(int argc, char** argv)
 	// create your ecs 
 	ecsType registry = ecsType{};
 
+
+	// This is how to use the sounds and music system
+	// and place it somewhere in the code where you want to use it
+
+	// TODO when all test ok move this into a proper place 
+
+	//MUSICS
+	KGR::Audio::WavStreamComponent::Init(projectRoot / "Ressources");
+
+	KGR::Audio::WavStreamComponent music;
+	music.SetWav(KGR::Audio::WavStreamManager::Load("Musics/test.mp3"));
+	music.SetVolume(10.0f);
+
+	//SOUNDS
+	KGR::Audio::WavComponent::Init(projectRoot / "Ressources");
+
+	KGR::Audio::WavComponent sound;
+	sound.SetWav(KGR::Audio::WavManager::Load("Sounds/sound.mp3"));
+	sound.SetVolume(10.0f);
+
+	// TODO play the music for test 
+	music.Play();
+
+	// music test do not mind
+		
 
 	// camera 
 	{
@@ -185,6 +213,9 @@ int main(int argc, char** argv)
 
 		}
 
+		//Test Sound
+		if(window->GetInputManager()->IsKeyPressed(KGR::Key::P))
+			sound.Play();
 
 		
 
@@ -215,7 +246,6 @@ int main(int argc, char** argv)
 		}
 		window->Render({ 0.53f, 0.81f, 0.92f, 1.0f });
 	}
-
 
 	window->Destroy();
 	KGR::RenderWindow::End();
