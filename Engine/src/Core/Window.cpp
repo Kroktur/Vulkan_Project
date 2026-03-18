@@ -1,6 +1,6 @@
 #include "Core/Window.h"
 
-#include "InputManager.h"
+#include "Core/InputManager.h"
 #include "Core/CameraComponent.h"
 
 KGR::RenderWindow::RenderWindow(glm::ivec2 size, const char* name, const std::filesystem::path& GlobResourcesPath)
