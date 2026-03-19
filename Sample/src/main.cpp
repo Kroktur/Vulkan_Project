@@ -15,6 +15,7 @@
 #include "ECS/Registry.h"
 #include "Tools/Chrono.h"
 #include "Audio/SoundComponent.h"
+#include "Math/Collision2d.h"
 
 // make you ecs type with entity 8 / 16 / 32 / 64 and the size of allocation between 1 and infinity
 using ecsType = KGR::ECS::Registry<KGR::ECS::Entity::_64, 100>;
@@ -58,8 +59,6 @@ int main(int argc, char** argv)
 	sound.SetWav(KGR::Audio::WavManager::Load("Sounds/sound.mp3"));
 	sound.SetVolume(10.0f);
 
-	// TODO play the music for test 
-	music.Play();
 
 	// music test do not mind
 		
@@ -129,7 +128,7 @@ int main(int argc, char** argv)
 		// for the transform it only use for the rotation 
 		TransformComponent2d transform;
 		// here you can set a rotation ( ROTATION FROM THE CENTER OF THE MESH )
-		transform.SetRotation(glm::radians(-45.0f));
+		//transform.SetRotation(glm::radians(-45.0f));
 		// create your ui with a virtual resolution and an anchor default center
 		UiComponent ui({1920,1080},UiComponent::Anchor::LeftTop);
 		// here set the position in the virtual resolution
@@ -143,7 +142,7 @@ int main(int argc, char** argv)
 		
 		// same as always 
 		auto e = registry.CreateEntity();
-		registry.AddComponents(e, std::move(transform), std::move(ui),std::move(texture));
+		registry.AddComponents(e, std::move(transform), std::move(ui),std::move(texture), std::move(CollisionComp2d{}));
 
 	}
 
@@ -154,8 +153,8 @@ int main(int argc, char** argv)
 		float actual = chrono.GetElapsedTime().AsSeconds();
 		float dt = actual - current;
 		current = actual;
-		
-
+		KGR::RenderWindow::PollEvent();
+		window->Update();
 		{
 			auto es = registry.GetAllComponentsView<MeshComponent,TransformComponent>();
 			for (auto& e : es)
@@ -183,9 +182,29 @@ int main(int argc, char** argv)
 
 		}
 
-		KGR::RenderWindow::PollEvent();
-		window->Update();
+		{
 
+			auto mousePos = window.get()->GetInputManager()->GetMousePosition();
+			float aspectRatio = static_cast<float>(window->GetSize().x) / static_cast<float>(window->GetSize().y);
+			auto mouseinAR = UiComponent::VrToNdc(mousePos, window->GetSize(), aspectRatio, false);
+
+			auto es = registry.GetAllComponentsView<CollisionComp2d,UiComponent>();
+			for (auto e : es)
+			{
+				auto& t = registry.GetComponent<CollisionComp2d>(e);
+				auto& u = registry.GetComponent<UiComponent>(e);
+				t.Update(u.GetPosNdc(aspectRatio), u.GetScaleNdc(aspectRatio));
+				
+				if (t.aabb.IsColliding(mouseinAR))
+					u.SetColor({ 1,0,0,1 });
+				else
+					u.SetColor({ 0,1,0,1 });
+			}
+		}
+
+		
+
+	
 		{
 			auto es = registry.GetAllComponentsView<CameraComponent, TransformComponent>();
 			if (es.Size() != 1)
@@ -213,8 +232,6 @@ int main(int argc, char** argv)
 
 		}
 
-		//just a test to see the mouse pos
-		std::cout << window.get()->GetInputManager()->GetMousePosition().x << " " << window->GetInputManager()->GetMousePosition().y << std::endl;
 
 		//Test Sound
 		if(window->GetInputManager()->IsKeyPressed(KGR::Key::P))
