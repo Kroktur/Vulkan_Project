@@ -110,6 +110,15 @@ namespace KGR
 			Image CreateImage(const std::string& filePath);
 
 			/**
+			 * @brief Creates a Vulkan image from raw RGBA pixel data.
+			 * @param pixels Pointer to RGBA pixel data.
+			 * @param width Image width in pixels.
+			 * @param height Image height in pixels.
+			 * @return Vulkan Image object.
+			 */
+			Image CreateImageFromData(const unsigned char* pixels, int width, int height);
+
+			/**
 			 * @brief Creates a descriptor set for a given image.
 			 * @param image Pointer to Vulkan Image.
 			 * @return Descriptor set associated with the image.

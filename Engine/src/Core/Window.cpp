@@ -2,6 +2,7 @@
 
 #include "InputManager.h"
 #include "Core/CameraComponent.h"
+#include "Core/Font.h"
 
 KGR::RenderWindow::RenderWindow(glm::ivec2 size, const char* name, const std::filesystem::path& GlobResourcesPath)
 {
@@ -9,6 +10,7 @@ KGR::RenderWindow::RenderWindow(glm::ivec2 size, const char* name, const std::fi
 	MeshLoader::SetGlobalFIlePath(GlobResourcesPath);
 	TextureLoader::SetGlobalFIlePath(GlobResourcesPath);
 	FileManager::SetGlobalFIlePath(GlobResourcesPath);
+	FontLoader::SetGlobalFIlePath(GlobResourcesPath);
 
 
 	m_window.CreateMyWindow(size, name, nullptr, nullptr);
@@ -31,6 +33,7 @@ void KGR::RenderWindow::Destroy()
 	MeshLoader::UnloadAll();
 	TextureLoader::UnloadAll();
 	FileManager::UnloadAll();
+	FontLoader::UnloadAll();
 }
 
 bool KGR::RenderWindow::ShouldClose() const
@@ -79,6 +82,21 @@ void KGR::RenderWindow::RegisterUi(UiComponent& component, TransformComponent2d&
 	transform.SetPosition(component.GetPosNdc(aspectRatio));
 	transform.SetScale(component.GetScaleNdc(aspectRatio));
 	m_core.RegisterUi(UiData{ component.GetColor(),transform.GetFullTransform() }, texture.GetTexture(0), GetSize());
+}
+
+void KGR::RenderWindow::RegisterText(TextComponent& text, UiComponent& ui, TransformComponent2d& transform)
+{
+	if (text.IsDirty())
+		text.UpdateTexture(&m_core);
+
+	Texture* tex = text.GetTexture();
+	if (!tex)
+		return;
+
+	float aspectRatio = static_cast<float>(GetSize().x) / static_cast<float>(GetSize().y);
+	transform.SetPosition(ui.GetPosNdc(aspectRatio));
+	transform.SetScale(ui.GetScaleNdc(aspectRatio));
+	m_core.RegisterUi(UiData{ ui.GetColor(), transform.GetFullTransform() }, tex, GetSize());
 }
 
 void KGR::RenderWindow::Render(const glm::vec4& clearColor, ImDrawData* imguiDraw)

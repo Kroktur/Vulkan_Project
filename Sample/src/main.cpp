@@ -8,6 +8,8 @@
 #include "Core/CameraComponent.h"
 #include "Core/Mesh.h"
 #include "Core/Texture.h"
+#include "Core/Font.h"
+#include "Core/TextComponent.h"
 #include "Core/TrasformComponent.h"
 #include "Core/Window.h"
 #include "ECS/Component.h"
@@ -38,7 +40,7 @@ int main(int argc, char** argv)
 
 	// camera 
 	{
-		// a calera need a cameraComponent that can be orthographic or perspective and a transform
+		// a camera need a cameraComponent that can be orthographic or perspective and a transform
 
 		// create the camera with the fov , the size of the window (must be updated ) and the far and near rendering and the mode 
 		CameraComponent cam = CameraComponent::Create(glm::radians(45.0f),window->GetSize().x,window->GetSize().y,0.01f,100.0f,CameraComponent::Type::Perspective);
@@ -117,6 +119,30 @@ int main(int argc, char** argv)
 		auto e = registry.CreateEntity();
 		registry.AddComponents(e, std::move(transform), std::move(ui),std::move(texture));
 
+	}
+
+	// text
+	{
+		// load a font from the Ressources folder (cached by FontLoader)
+		Font& font = FontLoader::Load("Fonts/arial.ttf", 48.0f);
+
+		// create a text component
+		TextComponent textComp;
+		textComp.SetFont(&font);
+		textComp.SetText("Hello World!");
+		textComp.SetTextTexture("Textures/degrade.jpg");
+		//textComp.SetTextTexture(""); Without texture
+
+		// position / scale via UiComponent (virtual resolution)
+		UiComponent ui({1920, 1080}, UiComponent::Anchor::LeftTop);
+		ui.SetPos({50, 50});
+		ui.SetScale({400, 60});
+		ui.SetColor({1.0f, 1.0f, 0.0f, 1.0f});
+
+		TransformComponent2d transform;
+
+		auto e = registry.CreateEntity();
+		registry.AddComponents(e, std::move(textComp), std::move(ui), std::move(transform));
 	}
 
 	float current = 0.0f;
@@ -212,6 +238,16 @@ int main(int argc, char** argv)
 					auto texture = registry.GetComponent<TextureComponent>(e);
 					window->RegisterUi(ui,transform,texture);
 				}
+		}
+		{
+			auto es = registry.GetAllComponentsView<TextComponent, UiComponent, TransformComponent2d>();
+			for (auto& e : es)
+			{
+				window->RegisterText(
+					registry.GetComponent<TextComponent>(e),
+					registry.GetComponent<UiComponent>(e),
+					registry.GetComponent<TransformComponent2d>(e));
+			}
 		}
 		window->Render({ 0.53f, 0.81f, 0.92f, 1.0f });
 	}

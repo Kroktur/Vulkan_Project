@@ -686,6 +686,26 @@ KGR::_Vulkan::Image KGR::_Vulkan::VulkanCore::CreateImage(const std::string& fil
 	return textureImage;
 }
 
+KGR::_Vulkan::Image KGR::_Vulkan::VulkanCore::CreateImageFromData(const unsigned char* pixels, int width, int height)
+{
+	vk::DeviceSize imageSize = static_cast<vk::DeviceSize>(width) * height * 4;
+	KGR::_Vulkan::Buffer buffer = KGR::_Vulkan::Buffer(&device, &physicalDevice, vk::BufferUsageFlagBits::eTransferSrc,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, imageSize);
+	buffer.MapMemory(imageSize);
+	buffer.Upload(pixels, imageSize);
+	buffer.UnMapMemory();
+	uint32_t mipLevel = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
+	KGR::_Vulkan::Image textureImage = KGR::_Vulkan::Image(width, height, mipLevel, vk::Format::eR8G8B8A8Srgb,
+		vk::ImageTiling::eOptimal,
+		vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+		vk::MemoryPropertyFlagBits::eDeviceLocal, &device, &physicalDevice);
+	transitionImageLayout(textureImage.Get(), vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, textureImage.GetMimMap());
+	buffer.CopyImage(&textureImage, &device, &queue, &commandBuffers);
+	textureImage.CreateView(vk::Format::eR8G8B8A8Srgb, vk::ImageAspectFlagBits::eColor, &device);
+	generateMipmaps(textureImage.Get(), vk::Format::eR8G8B8A8Srgb, textureImage.GetWidth(), textureImage.GetHeight(), textureImage.GetMimMap());
+	return textureImage;
+}
+
 KGR::_Vulkan::DescriptorSet KGR::_Vulkan::VulkanCore::CreateSetForImage(Image* image)
 {
 	DescriptorSet set = DescriptorSet(&device, &descriptorPool, &descriptorSetLayout.Get(2));
@@ -805,11 +825,9 @@ void KGR::_Vulkan::VulkanCore::Render(GLFWwindow* window, const glm::vec4& color
 
 	//currentBuffer->drawIndexed(36, 1, 0, 0, 0);
 
-	currentBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics, *uiPipeline.Get());
-
 	for (auto& ui : uIRender)
 	{
-		// bind the vertex and indexBuffer
+		currentBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics, *uiPipeline.Get());
 		currentBuffer->bindVertexBuffers(0, *uiVertexBuffer.Get(), {0});
 		currentBuffer->bindIndexBuffer(*uiIndexBuffer.Get(), 0, vk::IndexType::eUint32);
 		currentBuffer->pushConstants<UiData::UiValidData>(uiPipeline.GetLayout(), vk::ShaderStageFlagBits::eVertex, 0,ui.second);

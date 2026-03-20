@@ -3,6 +3,7 @@
 #include "ManagerImple.h"
 #include "Mesh.h"
 #include "Texture.h"
+#include "TextComponent.h"
 #include "Transform2dComponent.h"
 #include "UiComponent.h"
 #include "VulkanCore.h"
@@ -111,7 +112,19 @@ namespace KGR
         
     	
         void RegisterUi(UiComponent& component, TransformComponent2d& transform, TextureComponent& texture);
-    	/**
+
+        /**
+         * @brief Registers a text component for rendering as a UI element.
+         *
+         * If the text has changed, the internal texture is regenerated.
+         *
+         * @param text Text component containing the string and font.
+         * @param ui UI component for position, scale, anchor.
+         * @param transform 2D transform for the text element.
+         */
+        void RegisterText(TextComponent& text, UiComponent& ui, TransformComponent2d& transform);
+
+        /**
          * @brief Renders the current frame.
          *
          * @param clearColor Background color.
