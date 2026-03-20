@@ -1,3 +1,0 @@
-C:/Users/mocho/source/repos/Vulkan_Project/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-5lfc9x/CMakeFiles/cmTC_ab487.dir
-C:/Users/mocho/source/repos/Vulkan_Project/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-5lfc9x/CMakeFiles/edit_cache.dir
-C:/Users/mocho/source/repos/Vulkan_Project/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-5lfc9x/CMakeFiles/rebuild_cache.dir

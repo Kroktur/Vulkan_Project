@@ -1,5 +1,3 @@
 build/*
 Doxygen/Output/*
 vcpkg/*
-out/*
-.vs/*
