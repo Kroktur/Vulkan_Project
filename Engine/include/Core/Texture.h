@@ -53,7 +53,7 @@ private:
 struct TextureComponent
 {
    
-   Texture* texture; 
+   Texture* texture = nullptr; 
 };
 
 

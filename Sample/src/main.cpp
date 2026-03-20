@@ -92,17 +92,14 @@ int main(int argc, char** argv)
 		// create a texture 
 		MaterialComponent text;
 		// allocate the size of the texture must be the same as the number of submeshes 
-		text.SetSize(mesh.mesh->GetSubMeshesCount());
+		text.materials.resize(mesh.mesh->GetSubMeshesCount());
 		// then fill the texture ( this system need to be refact but for now you need to do it like that
 		for (int i = 0; i < mesh.mesh->GetSubMeshesCount(); ++i)
 		{
 			Material mat;
 			mat.baseColor = &TextureLoader::Load("Textures/test_mat_bc.png", window->App());
-			mat.pbrMap = &TextureLoader::Load("Textures/test_mat_OMR.png", window->App());
-			mat.normalMap = &TextureLoader::Load("Textures/test_mat_nm.png", window->App());
-			mat.emissive = &TextureLoader::Load("Textures/test_mat_e.png", window->App());
 
-			text.AddMaterial(i,mat);
+			text.materials[i] = mat;
 		}
 
 		// create the transform and set all the data
@@ -233,8 +230,6 @@ int main(int argc, char** argv)
 					registry.GetComponent<MeshComponent>(e),
 					registry.GetComponent<TransformComponent>(e),
 					registry.GetComponent<MaterialComponent>(e));
-
-				auto& t = registry.GetComponent<TransformComponent>(e);
 			}
 
 		}
