@@ -70,8 +70,21 @@ void KGR::RenderWindow::RegisterCam(CameraComponent& cam, TransformComponent& tr
 
 void KGR::RenderWindow::RegisterRender(MeshComponent& mesh, TransformComponent& transform, MaterialComponent& material)
 {
-	// TODO default value here
-	m_core.RegisterRender(*mesh.mesh, transform.GetFullTransform(), material.GetAllMaterials());
+	
+
+	for (auto& mat : material.materials)
+	{
+		if (!mat.baseColor)
+		mat.baseColor = &TextureLoader::Load("Textures/Base/base_color.png", App());
+		if (!mat.pbrMap)
+		mat.pbrMap = &TextureLoader::Load("Textures/Base/base_OMR_map.png", App());
+		if (!mat.normalMap)
+		mat.normalMap = &TextureLoader::Load("Textures/Base/base_normal_map.png", App());
+		if (!mat.emissive)
+		mat.emissive = &TextureLoader::Load("Textures/Base/base_emissive_map.png", App());
+	}
+	
+	m_core.RegisterRender(*mesh.mesh, transform.GetFullTransform(), material.materials);
 }
 
 void KGR::RenderWindow::RegisterUi(UiComponent& component, TransformComponent2d& transform, TextureComponent& texture)
@@ -79,6 +92,10 @@ void KGR::RenderWindow::RegisterUi(UiComponent& component, TransformComponent2d&
 	float aspectRatio = static_cast<float>(GetSize().x) / static_cast<float>(GetSize().y);
 	transform.SetPosition(component.GetPosNdc(aspectRatio));
 	transform.SetScale(component.GetScaleNdc(aspectRatio));
+
+	if (!texture.texture)
+		texture.texture = &TextureLoader::Load("Textures/Base/base_color.png", App());
+
 	m_core.RegisterUi(UiData{ component.GetColor(),transform.GetFullTransform() }, texture.texture, GetSize());
 }
 
