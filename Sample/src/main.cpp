@@ -26,12 +26,11 @@ using ecsType = KGR::ECS::Registry<KGR::ECS::Entity::_64, 100>;
 
 int main(int argc, char** argv)
 {
-	
 	// this part is due to the archi of the code to retrieve the folder resources
 	std::filesystem::path exePath = argv[0];
 	std::filesystem::path projectRoot = exePath.parent_path().parent_path().parent_path().parent_path().parent_path();
 	GameSceneManager manager(projectRoot / "Ressources");
 	manager.AddScene(std::make_unique<MenuScene>(KGR::Tools::Chrono<float>::Time::CreateFromValue(1.0f / 60.0f)), "Menu", true);
-	manager.AddScene(std::make_unique<GameScene>(KGR::Tools::Chrono<float>::Time::CreateFromValue(1.0f/60.0f)),"Game",false);
+	manager.AddScene(std::make_unique<GameScene>(KGR::Tools::Chrono<float>::Time::CreateFromValue(1.0f/144.0f)),"Game",false);
 	manager.Run(KGR::Tools::Chrono<float>::Time::CreateFromValue(1.0f / 60.0f));
 }

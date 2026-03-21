@@ -452,7 +452,8 @@ void KGR::_Vulkan::VulkanCore::transitionImageLayout(const vk::raii::Image& imag
 	commandBuffer.end();
 	vk::SubmitInfo submitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandBuffer };
 	queue.Get().submit(submitInfo, nullptr);
-	queue.Get().waitIdle();
+	auto fenceResult = device.Get().waitForFences({ commandBuffers.GetFence(commandBuffer) }, vk::True, UINT64_MAX);
+	device.Get().resetFences(*commandBuffers.GetFence(commandBuffer));
 	commandBuffers.ReleaseCommandBuffer(commandBuffer);
 }
 
@@ -525,7 +526,8 @@ void KGR::_Vulkan::VulkanCore::generateMipmaps(vk::raii::Image& image, vk::Forma
 	commandBuffer.end();
 	vk::SubmitInfo submitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandBuffer };
 	queue.Get().submit(submitInfo, nullptr);
-	queue.Get().waitIdle();
+	auto fenceResult = device.Get().waitForFences({ commandBuffers.GetFence(commandBuffer) }, vk::True, UINT64_MAX);
+	device.Get().resetFences(*commandBuffers.GetFence(commandBuffer));
 	commandBuffers.ReleaseCommandBuffer(commandBuffer);
 }
 
@@ -846,9 +848,11 @@ void KGR::_Vulkan::VulkanCore::Render(GLFWwindow* window, const glm::vec4& color
 	}
 
 	EndRendering(window, currentBuffer, { syncObject.GetCurrentPresentSemaphore() }, imguiDraw);
+	auto fenceResult = device.Get().waitForFences({ commandBuffers.GetFence(*currentBuffer) }, vk::True, UINT64_MAX);
+	device.Get().resetFences(*commandBuffers.GetFence(*currentBuffer));
+
 	commandBuffers.ReleaseCommandBuffer(*currentBuffer);
 	syncObject.IncrementFrame();
-	device.Get().waitIdle();
 
 	m_ubo.reset();
 	m_toRenderObject.clear();

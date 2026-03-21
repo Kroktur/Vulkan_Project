@@ -89,7 +89,10 @@ namespace KGR
 			 * @param window Pointer to GLFW window.
 			 */
 			void initVulkan(GLFWwindow* window);
-
+			~VulkanCore()
+			{
+				device.Get().waitIdle();
+			}
 			/**
 			 * @brief Debug callback function for Vulkan validation layers.
 			 */
