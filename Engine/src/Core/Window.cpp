@@ -1,5 +1,6 @@
 #include "Core/Window.h"
 
+#include "Audio/SoundComponent.h"
 #include "Core/InputManager.h"
 #include "Core/CameraComponent.h"
 
@@ -9,6 +10,8 @@ KGR::RenderWindow::RenderWindow(glm::ivec2 size, const char* name, const std::fi
 	MeshLoader::SetGlobalFIlePath(GlobResourcesPath);
 	TextureLoader::SetGlobalFIlePath(GlobResourcesPath);
 	FileManager::SetGlobalFIlePath(GlobResourcesPath);
+	Audio::WavManager::SetGlobalFIlePath(GlobResourcesPath);
+	Audio::WavStreamManager::SetGlobalFIlePath(GlobResourcesPath);
 
 
 	m_window.CreateMyWindow(size, name, nullptr, nullptr);
@@ -31,6 +34,8 @@ void KGR::RenderWindow::Destroy()
 	MeshLoader::UnloadAll();
 	TextureLoader::UnloadAll();
 	FileManager::UnloadAll();
+	Audio::WavManager::UnloadAll();
+	Audio::WavStreamManager::UnloadAll();
 }
 
 bool KGR::RenderWindow::ShouldClose() const

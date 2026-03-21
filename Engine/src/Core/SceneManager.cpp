@@ -1,8 +1,6 @@
 #include "Core/SceneManager.h"
-
 #include "Hasher.h"
 #include "Core/Scene.h"
-
 
 
 void SceneManager::AddScene(std::unique_ptr<Scene> scene, const std::string& name, bool isActive)
@@ -28,6 +26,7 @@ void SceneManager::Run(const KGR::Tools::Chrono<float>::Time& fixedTime)
 	const float fixTick = fixedTime.AsMilliSeconds();
 
 	auto lag = 0.0f;
+	Init();
 	while (LoopCondition())
 	{
 		const float startFrameTime = clock.GetElapsedTime().AsMilliSeconds();
@@ -46,6 +45,7 @@ void SceneManager::Run(const KGR::Tools::Chrono<float>::Time& fixedTime)
 			Scene->Render();
 		}
 	}
+	Destroy();
 }
 
 void SceneManager::SetCurrentScene(const std::string& name)
@@ -55,7 +55,7 @@ void SceneManager::SetCurrentScene(const std::string& name)
 		throw std::out_of_range("invalid scene name not register");
 }
 
-Scene* SceneManager::GetCurrentScene() 
+Scene* SceneManager::GetCurrentScene()
 {
 	if (!m_currentIndex.has_value())
 		throw std::out_of_range("index not valid");
