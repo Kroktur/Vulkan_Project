@@ -188,6 +188,14 @@ namespace KGR
 			 */
 			void RegisterRender(Mesh& mesh, const glm::mat4& model,const  std::vector<Material>& texture);
 			void RegisterUi(const UiData& data, Texture* texture,const glm::vec2& screenSize);
+
+			/**
+			 * @brief Registers a text element for rendering.
+			 * @param data UI data (color + transform).
+			 * @param texture Texture to render.
+			 * @param screenSize Current screen size.
+			 */
+			void RegisterText(const UiData& data, Texture* texture, const glm::vec2& screenSize);
 			/**
 			 * @brief Performs rendering of registered meshes, lights, and optionally ImGui data.
 			 * @param window GLFW window pointer
@@ -262,6 +270,7 @@ namespace KGR
 			std::optional<UniformBufferObject> m_ubo;
 			std::vector<MeshData> m_toRenderObject;
 			std::vector<std::pair<Texture*, UiData::UiValidData>> uIRender;
+			std::vector<std::pair<Texture*, UiData::UiValidData>> textRender;
 
 
 

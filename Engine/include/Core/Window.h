@@ -1,7 +1,8 @@
-﻿#pragma once
+#pragma once
 #include "InputManager.h"
 #include "ManagerImple.h"
 #include "Mesh.h"
+#include "TextComponent.h"
 #include "Texture.h"
 #include "Transform2dComponent.h"
 #include "UiComponent.h"
@@ -111,6 +112,16 @@ namespace KGR
         
     	
         void RegisterUi(UiComponent& component, TransformComponent2d& transform, TextureComponent& texture);
+
+        /**
+         * @brief Registers a text element for rendering.
+         *
+         * @param component Text component (color / tint).
+         * @param transform 2D transform providing position, scale and rotation.
+         * @param texture Texture component.
+         */
+        void RegisterText(TextComponent& component, TransformComponent2d& transform, TextureComponent& texture);
+
     	/**
          * @brief Renders the current frame.
          *

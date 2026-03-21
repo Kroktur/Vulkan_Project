@@ -99,6 +99,15 @@ void KGR::RenderWindow::RegisterUi(UiComponent& component, TransformComponent2d&
 	m_core.RegisterUi(UiData{ component.GetColor(),transform.GetFullTransform() }, texture.texture, GetSize());
 }
 
+
+void KGR::RenderWindow::RegisterText(TextComponent& component, TransformComponent2d& transform, TextureComponent& texture)
+{
+	if (!texture.texture)
+		texture.texture = &TextureLoader::Load("Textures/Base/base_color.png", App());
+
+	m_core.RegisterText(UiData{ component.GetColor(), transform.GetFullTransform() }, texture.texture, GetSize());
+}
+
 void KGR::RenderWindow::Render(const glm::vec4& clearColor, ImDrawData* imguiDraw)
 {
 	m_core.Render(&m_window.GetWindow(), clearColor, imguiDraw);

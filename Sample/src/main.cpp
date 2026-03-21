@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "Core/Transform2dComponent.h"
+#include "Core/TextComponent.h"
 #include "Core/UiComponent.h"
 
 
@@ -150,6 +151,21 @@ int main(int argc, char** argv)
 
 	}
 
+	// text (independent of UI, uses TransformComponent2d directly)
+	{
+		TransformComponent2d transform;
+		transform.SetPosition({ 0.0f, -0.5f });
+		transform.SetScale({ 0.4f, 0.15f });
+
+		TextComponent text({ 1.0f, 1.0f, 0.0f, 1.0f });
+
+		TextureComponent texture;
+		texture.texture = &TextureLoader::Load("Textures/texture.jpg", window->App());
+
+		auto e = registry.CreateEntity();
+		registry.AddComponents(e, std::move(transform), std::move(text), std::move(texture));
+	}
+
 	float current = 0.0f;
 	KGR::Tools::Chrono<float> chrono;
 	while (!window->ShouldClose())
@@ -265,6 +281,16 @@ int main(int argc, char** argv)
 					auto texture = registry.GetComponent<TextureComponent>(e);
 					window->RegisterUi(ui,transform,texture);
 				}
+		}
+		{
+			auto es = registry.GetAllComponentsView<TextComponent, TransformComponent2d, TextureComponent>();
+			for (auto& e : es)
+			{
+				auto& textComp = registry.GetComponent<TextComponent>(e);
+				auto& transform = registry.GetComponent<TransformComponent2d>(e);
+				auto& texture = registry.GetComponent<TextureComponent>(e);
+				window->RegisterText(textComp, transform, texture);
+			}
 		}
 		window->Render({ 0.53f, 0.81f, 0.92f, 1.0f });
 	}
