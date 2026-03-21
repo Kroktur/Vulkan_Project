@@ -38,8 +38,8 @@ struct GameSceneManager : public SceneManager
 		m_window = std::make_unique<KGR::RenderWindow>(glm::vec2{ 1920,800 }, "My_Super_Mega_Duper_Projet_De_La_Mort_Qui_Tue_!!", path);
 		KGR::Audio::WavComponent::Init();
 		KGR::Audio::WavStreamComponent::Init();
-		/*KGR::EventBus<ChangeSceneEvent>::AddListener(this);
-		KGR::EventBus<ChangeSceneEvent>::AddCallBack<GameSceneManager>(&GameSceneManager::ChangeScene);*/
+		KGR::EventBus<ChangeSceneEvent>::AddListener(this);
+		KGR::EventBus<ChangeSceneEvent>::AddCallBack<GameSceneManager>(&GameSceneManager::ChangeScene);
 	}
 	~GameSceneManager() override
 	{
