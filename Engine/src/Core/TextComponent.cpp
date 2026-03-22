@@ -1,25 +1,31 @@
 #include "Core/TextComponent.h"
 #include "VulkanCore.h"
 #include "Core/Vertex.h"
-void Text::CreateVertexBuffer()
+
+void Text::SetText( char c)
 {
-	std::vector<Vertex2D> vertices;
-	for (auto& letter : message)
-	{
-		// 4 vertices et 2 triangles 
-	}
-	char c = '\n';
+	message.data = c;
+	message.isDirty = true;
+}
+
+void Text::Bind(const vk::raii::CommandBuffer* buffer)
+{
+	buffer->bindVertexBuffers(0, *m_vertexBuffer.Get(), { 0 });
+	buffer->bindIndexBuffer(*m_indexBuffer.Get(), 0, vk::IndexType::eUint32);
 
 }
 
-void Text::SetText(KGR::_Vulkan::VulkanCore* core, char c)
+void Text::Upload(KGR::_Vulkan::VulkanCore* core)
 {
-	if (m_vertexBuffer.GetSize() !=0)
+	if (!message.isDirty)
+		return;
+	message.isDirty = false;
+	if (m_vertexBuffer.GetSize() != 0)
 	{
 		m_vertexBuffer.Get().clear();
 		m_indexBuffer.Get().clear();
 	}
-	auto glyph = font->GetGlyph(c);
+	auto glyph = font->GetGlyph(message.data.front());
 	std::vector<Vertex2D> vertices =
 	{
 		{{-0.5f, -0.5f}, {	glyph.min.x, 	glyph.min.y}},
@@ -34,11 +40,5 @@ void Text::SetText(KGR::_Vulkan::VulkanCore* core, char c)
 	};
 	m_vertexBuffer = core->CreateVertexBuffer(vertices);
 	m_indexBuffer = core->CreateIndexBuffer(indices);
-}
-
-void Text::Bind(const vk::raii::CommandBuffer* buffer)
-{
-	buffer->bindVertexBuffers(0, *m_vertexBuffer.Get(), { 0 });
-	buffer->bindIndexBuffer(*m_indexBuffer.Get(), 0, vk::IndexType::eUint32);
 
 }

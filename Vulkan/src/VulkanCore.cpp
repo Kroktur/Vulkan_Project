@@ -790,6 +790,8 @@ void KGR::_Vulkan::VulkanCore::RegisterUi(const UiData& data, Texture* texture,c
 void KGR::_Vulkan::VulkanCore::RegisterText(Text* text, Texture* texture, const UiData& data,
 	const glm::vec2& screenSize)
 {
+
+	text->Upload(this);
 	auto valid = data.GetValid();
 	valid.raw1[3] = screenSize.x;
 	valid.raw2[3] = screenSize.y;

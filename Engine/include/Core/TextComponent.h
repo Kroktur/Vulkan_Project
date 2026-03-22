@@ -2,6 +2,7 @@
 #include "Core/Font.h"
 #include <vector>
 #include "Buffer.h"
+#include "Tools/Util.h"
 
 namespace KGR::_Vulkan
 {
@@ -11,18 +12,18 @@ namespace KGR::_Vulkan
 struct Text
 {
 	Text() = default;
-	AtlasFont* font;
+	AtlasFont* font = nullptr;
 
-	void CreateVertexBuffer();
 
-	void SetText( KGR::_Vulkan::VulkanCore* core, char c);
+	void SetText(  char c);
 
 	void Bind(const vk::raii::CommandBuffer* buffer);
 
+	void Upload(KGR::_Vulkan::VulkanCore* core);
 private:
 	KGR::_Vulkan::Buffer m_vertexBuffer;
 	KGR::_Vulkan::Buffer m_indexBuffer;   
-	std::string message = "";
+	DataDirty<std::string> message {true," "};
 };
 
 struct TextComp

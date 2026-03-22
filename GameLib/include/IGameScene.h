@@ -356,8 +356,8 @@ struct MenuScene : public IGameScene
 			// same as always 
 			auto e = m_ecs.CreateEntity();
 			TextComp text;
-			text.text.font = &FontLoader::Load("Fonts/arial.ttf", m_window->App());
-			text.text.SetText(m_window->App(), 'P');
+			//text.text.font = &FontLoader::Load("Fonts/arial.ttf", m_window->App());
+			text.text.SetText( 'P');
 
 
 
