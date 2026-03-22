@@ -107,6 +107,18 @@ void KGR::RenderWindow::RegisterUi(UiComponent& component, TransformComponent2d&
 	m_core.RegisterUi(UiData{ component.GetColor(),transform.GetFullTransform() }, texture.texture, GetSize());
 }
 
+void KGR::RenderWindow::RegisterText(UiComponent& component, TransformComponent2d& transform, TextComp& texture)
+{
+	float aspectRatio = static_cast<float>(GetSize().x) / static_cast<float>(GetSize().y);
+	transform.SetPosition(component.GetPosNdc(aspectRatio));
+	transform.SetScale(component.GetScaleNdc(aspectRatio));
+
+	if (!texture.text.font)
+		texture.text.font = &FontLoader::Load("Fonts/arial.ttf", App());
+
+	m_core.RegisterText(&texture.text,texture.text.font->GetTexture(),UiData{ component.GetColor(),transform.GetFullTransform() }, GetSize());
+}
+
 void KGR::RenderWindow::Render(const glm::vec4& clearColor, ImDrawData* imguiDraw)
 {
 	m_core.Render(&m_window.GetWindow(), clearColor, imguiDraw);

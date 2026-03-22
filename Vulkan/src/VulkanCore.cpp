@@ -787,6 +787,16 @@ void KGR::_Vulkan::VulkanCore::RegisterUi(const UiData& data, Texture* texture,c
 	uIRender.emplace_back( texture, valid);
 }
 
+void KGR::_Vulkan::VulkanCore::RegisterText(Text* text, Texture* texture, const UiData& data,
+	const glm::vec2& screenSize)
+{
+	auto valid = data.GetValid();
+	valid.raw1[3] = screenSize.x;
+	valid.raw2[3] = screenSize.y;
+	m_textData.emplace_back(text,texture,valid);
+}
+
+
 void KGR::_Vulkan::VulkanCore::Render(GLFWwindow* window, const glm::vec4& color, ImDrawData* imguiDraw, KGR::Editor::Offscreen* offscreen)
 {
 	if (!m_ubo.has_value())
@@ -822,6 +832,7 @@ void KGR::_Vulkan::VulkanCore::Render(GLFWwindow* window, const glm::vec4& color
 		m_toRenderObject.clear();
 		m_lights.clear();
 		uIRender.clear();
+		m_textData.clear();
 		return;
 	}
 
@@ -868,6 +879,15 @@ void KGR::_Vulkan::VulkanCore::Render(GLFWwindow* window, const glm::vec4& color
 		currentBuffer->drawIndexed(static_cast<std::uint32_t>(uiIndexBuffer.GetSize() / sizeof(std::uint32_t)), 1, 0, 0, 0);
 	}
 
+	for (auto& ui : m_textData)
+	{
+		// bind the vertex and indexBuffer
+		ui.text->Bind(currentBuffer);
+		currentBuffer->pushConstants<UiData::UiValidData>(uiPipeline.GetLayout(), vk::ShaderStageFlagBits::eVertex, 0,ui.data);
+		ui.texture->Bind(currentBuffer, &uiPipeline.GetLayout(), 0);
+		currentBuffer->drawIndexed(static_cast<std::uint32_t>(uiIndexBuffer.GetSize() / sizeof(std::uint32_t)), 1, 0, 0, 0);
+	}
+
 	EndRendering(window, currentBuffer, { syncObject.GetCurrentPresentSemaphore() }, imguiDraw);
 	auto fenceResult = device.Get().waitForFences({ commandBuffers.GetFence(*currentBuffer) }, vk::True, UINT64_MAX);
 	device.Get().resetFences(*commandBuffers.GetFence(*currentBuffer));
@@ -878,6 +898,7 @@ void KGR::_Vulkan::VulkanCore::Render(GLFWwindow* window, const glm::vec4& color
 	m_toRenderObject.clear();
 	m_lights.clear(); 
 	uIRender.clear();
+	m_textData.clear();
 }
 
 KGR::_Vulkan::Instance& KGR::_Vulkan::VulkanCore::GetInstance()

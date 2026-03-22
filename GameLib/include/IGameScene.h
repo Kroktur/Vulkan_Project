@@ -132,6 +132,16 @@ struct IGameScene : public Scene
 				m_window->RegisterUi(ui, transform, texture);
 			}
 		}
+		{
+			auto es = m_ecs.GetAllComponentsView < TextComp, TransformComponent2d, UiComponent >();
+			for (auto& e : es)
+			{
+				auto& transform = m_ecs.GetComponent<TransformComponent2d>(e);
+				auto& ui = m_ecs.GetComponent<UiComponent>(e);
+				auto& text = m_ecs.GetComponent<TextComp>(e);
+				m_window->RegisterText(ui, transform, text);
+			}
+		}
 		m_window->Render({ 0.53f, 0.81f, 0.92f, 1.0f });
 	}
 protected:
@@ -148,8 +158,6 @@ struct GameScene : public IGameScene
 		
 
 		IGameScene::Init(manager);
-		auto& font = FontLoader::Load("Fonts/arial.ttf", m_window->App());
-		font.GetGlyph('A');
 		// camera 
 		{
 			// a calera need a cameraComponent that can be orthographic or perspective and a transform
@@ -339,7 +347,7 @@ struct MenuScene : public IGameScene
 			// here set the position in the virtual resolution
 			ui.SetPos({ 1920.0f/2.0f, 1080.0f/2.0f });
 			// here the scale
-			ui.SetScale({ 500,500 });
+			ui.SetScale({ 1920.0f,500 });
 			// create a texture but be aware that only the first texture in the component will be use 
 			TextureComponent texture;
 			texture.texture = &TextureLoader::Load("Textures/texture.jpg", m_window->App());
@@ -347,7 +355,13 @@ struct MenuScene : public IGameScene
 			comp.targetScene = "Game";
 			// same as always 
 			auto e = m_ecs.CreateEntity();
-			m_ecs.AddComponents(e, std::move(transform), std::move(ui), std::move(texture), std::move(CollisionComp2d{}),std::move(comp));
+			TextComp text;
+			text.text.font = &FontLoader::Load("Fonts/arial.ttf", m_window->App());
+			text.text.SetText(m_window->App(), 'P');
+
+
+
+			m_ecs.AddComponents(e, std::move(transform), std::move(ui), std::move(texture), std::move(CollisionComp2d{}),std::move(comp),std::move(text));
 
 		}
 		// TODO create backGround

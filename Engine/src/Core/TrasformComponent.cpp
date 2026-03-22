@@ -30,7 +30,7 @@ glm::mat4 TransformComponent::GetTranslationMatrix()
 
 glm::vec3 TransformComponent::GetScale() const
 {
-	return m_scale.data;
+	return m_scale.data * 2.0f;
 }
 
 void TransformComponent::SetScale(const glm::vec3& other)

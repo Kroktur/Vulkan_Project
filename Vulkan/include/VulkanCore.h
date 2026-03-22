@@ -32,6 +32,7 @@
 #include "Core/Vertex.h"
 #include "../../Editor/include/Offscreen.h"
 #include "Core/Materials.h"
+#include "Core/TextComponent.h"
 
 struct Texture;
 struct CameraComponent;
@@ -69,6 +70,15 @@ struct Segment
 	float  thickness; ///< Line thickness
 	glm::vec4 color;  ///< Line color
 };
+
+
+struct TextData
+{
+	Text* text;
+	Texture* texture;
+	UiData::UiValidData data;
+};
+
 
 namespace KGR
 {
@@ -194,6 +204,7 @@ namespace KGR
 			 */
 			void RegisterRender(Mesh& mesh, const glm::mat4& model,const  std::vector<Material>& texture);
 			void RegisterUi(const UiData& data, Texture* texture,const glm::vec2& screenSize);
+			void RegisterText(Text* text,Texture* texture,const UiData& data, const glm::vec2& screenSize);
 			/**
 			 * @brief Performs rendering of registered meshes, lights, and optionally ImGui data.
 			 * @param window GLFW window pointer
@@ -268,7 +279,7 @@ namespace KGR
 			std::optional<UniformBufferObject> m_ubo;
 			std::vector<MeshData> m_toRenderObject;
 			std::vector<std::pair<Texture*, UiData::UiValidData>> uIRender;
-
+			std::vector<TextData> m_textData;
 
 
 			Buffer uiVertexBuffer;
