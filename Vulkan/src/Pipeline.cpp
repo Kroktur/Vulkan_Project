@@ -117,7 +117,7 @@ KGR::_Vulkan::Pipeline::Pipeline(const ShaderInfo& shaderInfo, Device* device, S
 
 KGR::_Vulkan::Pipeline KGR::_Vulkan::Pipeline::CreateUiPipeline(const ShaderInfo& shaderInfo, Device* device,
 	SwapChain* swapChain, DescriptorLayouts* layouts, PhysicalDevice* phDevice,
-	const vk::VertexInputBindingDescription& vInput, const std::vector<vk::VertexInputAttributeDescription>& attributes)
+	const vk::VertexInputBindingDescription& vInput, const std::vector<vk::VertexInputAttributeDescription>& attributes, size_t pushConstantSize)
 {
 	Pipeline p;
 	//
@@ -197,7 +197,7 @@ KGR::_Vulkan::Pipeline KGR::_Vulkan::Pipeline::CreateUiPipeline(const ShaderInfo
 	vk::PushConstantRange pushRange{
 	vk::ShaderStageFlagBits::eVertex,
 	0,
-	sizeof(UiData::UiValidData)
+	static_cast<unsigned int>(pushConstantSize)
 	};
 
 	vk::PipelineLayoutCreateInfo pipelineLayoutInfo{ .setLayoutCount = static_cast<uint32_t>(layouts->GetLayouts().size()),

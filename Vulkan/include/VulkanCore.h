@@ -113,6 +113,9 @@ namespace KGR
 			 */
 			Image CreateImage(const std::string& filePath);
 
+			Image CreateImageFromData(const unsigned char* pixels, int width, int height);
+
+
 			/**
 			 * @brief Creates a descriptor set for a given image.
 			 * @param image Pointer to Vulkan Image.
