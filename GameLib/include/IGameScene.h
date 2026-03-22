@@ -56,6 +56,7 @@ struct GameSceneManager : public SceneManager
 	}
 	void Destroy() override
 	{
+		SceneManager::Destroy();
 		m_window->Destroy();
 		KGR::RenderWindow::End();
 	}
