@@ -22,6 +22,7 @@
 #include "Math/Collision2d.h"
 
 #include "EventBus.h"
+#include "Core/Font.h"
 using ecsType = KGR::ECS::Registry<KGR::ECS::Entity::_64, 100>;
 
 
@@ -143,7 +144,11 @@ struct GameScene : public IGameScene
 	GameScene(const KGR::Tools::Chrono<float>::Time& time) :IGameScene(time){}
 	void Init(SceneManager* manager) override
 	{
+		
+
 		IGameScene::Init(manager);
+		auto& font = FontLoader::Load("Fonts/arial.ttf", m_window->App());
+		font.GetGlyph('A');
 		// camera 
 		{
 			// a calera need a cameraComponent that can be orthographic or perspective and a transform

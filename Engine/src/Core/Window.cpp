@@ -3,6 +3,7 @@
 #include "Audio/SoundComponent.h"
 #include "Core/InputManager.h"
 #include "Core/CameraComponent.h"
+#include "Core/Font.h"
 
 KGR::RenderWindow::RenderWindow(glm::ivec2 size, const char* name, const std::filesystem::path& GlobResourcesPath)
 {
@@ -10,6 +11,7 @@ KGR::RenderWindow::RenderWindow(glm::ivec2 size, const char* name, const std::fi
 	MeshLoader::SetGlobalFIlePath(GlobResourcesPath);
 	TextureLoader::SetGlobalFIlePath(GlobResourcesPath);
 	FileManager::SetGlobalFIlePath(GlobResourcesPath);
+	FontLoader::SetGlobalFIlePath(GlobResourcesPath);
 	Audio::WavManager::SetGlobalFIlePath(GlobResourcesPath);
 	Audio::WavStreamManager::SetGlobalFIlePath(GlobResourcesPath);
 
@@ -35,6 +37,7 @@ void KGR::RenderWindow::Destroy()
 	TextureLoader::UnloadAll();
 	FileManager::UnloadAll();
 	Audio::WavManager::UnloadAll();
+	FontLoader::UnloadAll();
 	Audio::WavStreamManager::UnloadAll();
 }
 
