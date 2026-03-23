@@ -2,9 +2,9 @@
 #include "VulkanCore.h"
 #include "Core/Vertex.h"
 
-void Text::SetText( char c)
+void Text::SetText(const std::string& text)
 {
-	message.data = c;
+	message.data = text;
 	message.isDirty = true;
 }
 
@@ -12,7 +12,6 @@ void Text::Bind(const vk::raii::CommandBuffer* buffer)
 {
 	buffer->bindVertexBuffers(0, *m_vertexBuffer.Get(), { 0 });
 	buffer->bindIndexBuffer(*m_indexBuffer.Get(), 0, vk::IndexType::eUint32);
-
 }
 
 void Text::Upload(KGR::_Vulkan::VulkanCore* core)
@@ -25,20 +24,54 @@ void Text::Upload(KGR::_Vulkan::VulkanCore* core)
 		m_vertexBuffer.Get().clear();
 		m_indexBuffer.Get().clear();
 	}
-	auto glyph = font->GetGlyph(message.data.front());
-	std::vector<Vertex2D> vertices =
+	
+	std::vector<Vertex2D> vertices;
+	std::vector<uint32_t> indices;
+	// scale 
+	float totalAdvance = 0.0f;
+	for (auto c :message.data)
 	{
-		{{-0.5f, -0.5f}, {	glyph.min.x, 	glyph.min.y}},
-		{{ 0.5f, -0.5f}, {glyph.max.x, 	glyph.min.y}},
-		{{ 0.5f,  0.5f}, {glyph.max.x, glyph.max.y}},
-		{{-0.5f,  0.5f}, {	glyph.min.x,glyph.max.y}},
-	};
-	std::vector<std::uint32_t> indices =
+		totalAdvance += font->GetGlyph(c).advance;
+	}
+	float scaleX = 1.0f / totalAdvance;
+
+	auto ascent = std::abs(font->GetAscent());
+
+	float scalePixel = 1.0f / static_cast<float>(ascent + font->GetDescent());
+	// scale 
+	uint32_t indexOffset = 0;
+	float xStart = -0.5f;
+	for (int i = 0 ; i < message.data.size() ; ++i)
 	{
-		0, 2, 1,
-		2, 0, 3
-	};
+		auto glyph = font->GetGlyph(message.data[i]);
+		float minX = xStart + glyph.offset.x * scaleX;
+		float minY = 0.5f + glyph.offset.y * scalePixel - font->GetDescent() * scalePixel;
+		float maxX = minX + glyph.size.x * scaleX;
+		float maxY = minY + glyph.size.y * scalePixel;
+		
+
+		vertices.push_back({ {minX, minY},     {glyph.min.x, glyph.min.y} });
+		vertices.push_back({ {maxX, minY},     {glyph.max.x, glyph.min.y} });
+		vertices.push_back({ {maxX, maxY}, {glyph.max.x, glyph.max.y} });
+		vertices.push_back({ {minX, maxY}, {glyph.min.x, glyph.max.y} });
+
+		indices.push_back(indexOffset + 0);
+		indices.push_back(indexOffset + 2);
+		indices.push_back(indexOffset + 1);
+
+		indices.push_back(indexOffset + 2);
+		indices.push_back(indexOffset + 0);
+		indices.push_back(indexOffset + 3);
+		indexOffset += 4;
+		xStart += glyph.advance * scaleX;
+	}
+	
 	m_vertexBuffer = core->CreateVertexBuffer(vertices);
 	m_indexBuffer = core->CreateIndexBuffer(indices);
+	m_size = indices.size();
+}
 
+size_t Text::GetIndexSize() const 
+{
+	return m_size;
 }

@@ -887,7 +887,7 @@ void KGR::_Vulkan::VulkanCore::Render(GLFWwindow* window, const glm::vec4& color
 		ui.text->Bind(currentBuffer);
 		currentBuffer->pushConstants<UiData::UiValidData>(uiPipeline.GetLayout(), vk::ShaderStageFlagBits::eVertex, 0,ui.data);
 		ui.texture->Bind(currentBuffer, &uiPipeline.GetLayout(), 0);
-		currentBuffer->drawIndexed(static_cast<std::uint32_t>(uiIndexBuffer.GetSize() / sizeof(std::uint32_t)), 1, 0, 0, 0);
+		currentBuffer->drawIndexed(static_cast<std::uint32_t>(ui.text->GetIndexSize()), 1, 0, 0, 0);
 	}
 
 	EndRendering(window, currentBuffer, { syncObject.GetCurrentPresentSemaphore() }, imguiDraw);

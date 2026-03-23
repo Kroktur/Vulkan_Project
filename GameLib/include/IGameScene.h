@@ -207,6 +207,39 @@ struct GameScene : public IGameScene
 			m_ecs.AddComponents(e, std::move(mesh), std::move(text), std::move(transform));
 		}
 
+
+		// mesh
+		{
+			// a mesh need a meshComponent a transform and a texture 
+
+			// create a mesh and load it with the cash loader
+			MeshComponent mesh;
+			mesh.mesh = &MeshLoader::Load("Models/cube.obj", m_window->App());
+
+			// create a texture 
+			MaterialComponent text;
+			// allocate the size of the texture must be the same as the number of submeshes 
+			text.materials.resize(mesh.mesh->GetSubMeshesCount());
+			// then fill the texture ( this system need to be refact but for now you need to do it like that
+			for (int i = 0; i < mesh.mesh->GetSubMeshesCount(); ++i)
+			{
+				Material mat;
+				mat.baseColor = &TextureLoader::Load("Textures/putain_de_feuilles_pr_patate.png", m_window->App());
+
+				text.materials[i] = mat;
+			}
+
+			// create the transform and set all the data
+			TransformComponent transform;
+			transform.SetPosition({ 0,0,2 });
+			transform.SetScale({ 2.0f, 1.0f,3.0f });
+			// same create an entity / id
+			auto e = m_ecs.CreateEntity();
+			// fill the component
+			m_ecs.AddComponents(e, std::move(mesh), std::move(text), std::move(transform));
+		}
+
+
 		// light
 		{
 			// the light need transform component and light component
@@ -347,7 +380,7 @@ struct MenuScene : public IGameScene
 			// here set the position in the virtual resolution
 			ui.SetPos({ 1920.0f/2.0f, 1080.0f/2.0f });
 			// here the scale
-			ui.SetScale({ 1920.0f,500 });
+			ui.SetScale({ 1000,500 });
 			// create a texture but be aware that only the first texture in the component will be use 
 			TextureComponent texture;
 			texture.texture = &TextureLoader::Load("Textures/texture.jpg", m_window->App());
@@ -357,7 +390,7 @@ struct MenuScene : public IGameScene
 			auto e = m_ecs.CreateEntity();
 			TextComp text;
 			//text.text.font = &FontLoader::Load("Fonts/arial.ttf", m_window->App());
-			text.text.SetText( 'P');
+			text.text.SetText( "je pense donc je suis !");
 
 
 

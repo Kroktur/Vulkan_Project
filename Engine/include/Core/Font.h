@@ -45,23 +45,27 @@ struct Glyph {
 
 struct AtlasFont
 {
-    AtlasFont(KGR::_Vulkan::Image&& image, KGR::_Vulkan::DescriptorSet&& set,const std::array<Glyph, 95>& glyphs,int pixelSize);
+    AtlasFont(KGR::_Vulkan::Image&& image, KGR::_Vulkan::DescriptorSet&& set,const std::array<Glyph, 95>& glyphs,int pixelSize,float ascent,float descent);
     Glyph GetGlyph(const Ascii& asci) const;
     glm::ivec2 Size() const;
     int pixSize() const;
+	float GetAscent() const;
+    float GetDescent() const;
     void Bind(const vk::raii::CommandBuffer* buffer,
-        const vk::raii::PipelineLayout* layout,
-        int set);
+              const vk::raii::PipelineLayout* layout,
+              int set);
     Texture* GetTexture();
 private:
     Texture m_texture;
     int m_pixelSize = 0;
+    float m_ascent;
+    float m_descent;
     std::array<Glyph, 95> m_glyphs = {};
 };
 
-std::unique_ptr<AtlasFont> loadFont(const std::string& filePath, KGR::_Vulkan::VulkanCore* core);
+std::unique_ptr<AtlasFont> loadFont(const std::string& filePath, KGR::_Vulkan::VulkanCore* core,float res);
 using FontLoader =
 KGR::ResourceManager<AtlasFont,
-    KGR::TypeWrapper<KGR::_Vulkan::VulkanCore*>,
+    KGR::TypeWrapper<KGR::_Vulkan::VulkanCore*,float>,
     loadFont>;
 

@@ -41,8 +41,8 @@ void SceneManager::Run(const KGR::Tools::Chrono<float>::Time& fixedTime)
 		}
 		if (clock.GetElapsedTime().AsMilliSeconds() - renderFrameDt >= Scene->GetTime().AsMilliSeconds())
 		{
-			renderFrameDt = clock.GetElapsedTime().AsMilliSeconds();
 			Scene->Render();
+			renderFrameDt = clock.GetElapsedTime().AsMilliSeconds();
 		}
 	}
 	Destroy();
