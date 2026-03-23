@@ -114,9 +114,8 @@ void KGR::RenderWindow::RegisterText(UiComponent& component, TransformComponent2
 	transform.SetScale(component.GetScaleNdc(aspectRatio));
 
 	if (!texture.text.font)
-	{
 		texture.text.font = &FontLoader::Load("Fonts/arial.ttf", App());
-	}
+	
 
 	m_core.RegisterText(&texture.text,texture.text.font->GetTexture(),UiData{ component.GetColor(),transform.GetFullTransform() }, GetSize());
 }

@@ -192,7 +192,7 @@ struct GameScene : public IGameScene
 			for (int i = 0; i < mesh.mesh->GetSubMeshesCount(); ++i)
 			{
 				Material mat;
-				mat.baseColor = &TextureLoader::Load("Textures/test_mat_bc.png", m_window->App());
+				mat.baseColor = &TextureLoader::Load("Textures/putain_de_feuilles_pr_patate.png", m_window->App());
 
 				text.materials[i] = mat;
 			}

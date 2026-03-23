@@ -120,6 +120,11 @@ float4 fragMain(VSOutput vertIn) : SV_TARGET {
    // float3 normal = vertIn.normal;
     float3 result = float(0.f).xxx;
     float3 baseColor = pow(sampler.Sample(vertIn.fragTexCoord).rgb, 2.2f.xxx);
+
+    if (sampler.Sample(vertIn.fragTexCoord).a < 0.5f)
+        discard;
+
+
     result += baseColor * (1 - metalness) * oclusion * 0.02f;
 
     for (int i = 0; i < lightCount; ++i)
