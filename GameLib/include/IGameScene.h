@@ -21,6 +21,7 @@
 #include "Core/Texture.h"
 #include "Math/Collision2d.h"
 
+#include "Core/Materials.h"
 #include "EventBus.h"
 #include "Core/Font.h"
 using ecsType = KGR::ECS::Registry<KGR::ECS::Entity::_64, 100>;
@@ -39,8 +40,8 @@ struct GameSceneManager : public SceneManager
 		m_window = std::make_unique<KGR::RenderWindow>(glm::vec2{ 1920,800 }, "My_Super_Mega_Duper_Projet_De_La_Mort_Qui_Tue_!!", path);
 		KGR::Audio::WavComponent::Init();
 		KGR::Audio::WavStreamComponent::Init();
-		KGR::EventBus<ChangeSceneEvent>::AddListener(this);
-		KGR::EventBus<ChangeSceneEvent>::AddCallBack<GameSceneManager>(&GameSceneManager::ChangeScene);
+	/*	KGR::EventBus<ChangeSceneEvent>::AddListener(this);
+		KGR::EventBus<ChangeSceneEvent>::AddCallBack<GameSceneManager>(&GameSceneManager::ChangeScene);*/
 	}
 	~GameSceneManager() override
 	{
@@ -163,7 +164,7 @@ struct GameScene : public IGameScene
 			// a calera need a cameraComponent that can be orthographic or perspective and a transform
 
 			// create the camera with the fov , the size of the window (must be updated ) and the far and near rendering and the mode 
-			CameraComponent cam = CameraComponent::Create(glm::radians(45.0f), m_window->GetSize().x, m_window->GetSize().y, 0.01f, 100.0f, CameraComponent::Type::Perspective);
+			CameraComponent cam = CameraComponent::Create(glm::radians(45.0f), m_window->GetSize().x, m_window->GetSize().y, 0.01f, 100000.0f, CameraComponent::Type::Perspective);
 			TransformComponent transform;
 			// create a transform and set pos and dir 
 			transform.SetPosition({ 0,3,5 });
@@ -182,7 +183,7 @@ struct GameScene : public IGameScene
 
 			// create a mesh and load it with the cash loader
 			MeshComponent mesh;
-			mesh.mesh = &MeshLoader::Load("Models/cube.obj", m_window->App());
+			mesh.mesh = &MeshLoader::Load("Models/Bloc_H1.obj", m_window->App());
 
 			// create a texture 
 			MaterialComponent text;
@@ -192,7 +193,11 @@ struct GameScene : public IGameScene
 			for (int i = 0; i < mesh.mesh->GetSubMeshesCount(); ++i)
 			{
 				Material mat;
-				mat.baseColor = &TextureLoader::Load("Textures/putain_de_feuilles_pr_patate.png", m_window->App());
+				mat.baseColor = &TextureLoader::Load("Textures/Bloc_H1_lambert2_BaseColor.png", m_window->App());
+				mat.emissive = &TextureLoader::Load("Textures/Bloc_H1_lambert2_Emissive.png", m_window->App());
+				mat.normalMap = &TextureLoader::Load("Textures/test_mat_nm.png", m_window->App());
+				mat.pbrMap = &TextureLoader::Load("Textures/Bloc_H1_lambert2_OcclusionRoughnessMetallic.png", m_window->App());
+
 
 				text.materials[i] = mat;
 			}
@@ -200,7 +205,7 @@ struct GameScene : public IGameScene
 			// create the transform and set all the data
 			TransformComponent transform;
 			transform.SetPosition({ 0,0,0 });
-			transform.SetScale({ 2.0f, 1.0f,3.0f });
+			transform.SetScale({ 3.0f, 3.0f,3.0f });
 			// same create an entity / id
 			auto e = m_ecs.CreateEntity();
 			// fill the component
@@ -208,46 +213,17 @@ struct GameScene : public IGameScene
 		}
 
 
-		// mesh
-		{
-			// a mesh need a meshComponent a transform and a texture 
-
-			// create a mesh and load it with the cash loader
-			MeshComponent mesh;
-			mesh.mesh = &MeshLoader::Load("Models/cube.obj", m_window->App());
-
-			// create a texture 
-			MaterialComponent text;
-			// allocate the size of the texture must be the same as the number of submeshes 
-			text.materials.resize(mesh.mesh->GetSubMeshesCount());
-			// then fill the texture ( this system need to be refact but for now you need to do it like that
-			for (int i = 0; i < mesh.mesh->GetSubMeshesCount(); ++i)
-			{
-				Material mat;
-				mat.baseColor = &TextureLoader::Load("Textures/putain_de_feuilles_pr_patate.png", m_window->App());
-
-				text.materials[i] = mat;
-			}
-
-			// create the transform and set all the data
-			TransformComponent transform;
-			transform.SetPosition({ 0,0,2 });
-			transform.SetScale({ 2.0f, 1.0f,3.0f });
-			// same create an entity / id
-			auto e = m_ecs.CreateEntity();
-			// fill the component
-			m_ecs.AddComponents(e, std::move(mesh), std::move(text), std::move(transform));
-		}
+		
 
 
 		// light
 		{
 			// the light need transform component and light component
 			// all lights type have their own system to create them go in the file to understand
-			LightComponent<LightData::Type::Spot> lc = LightComponent<LightData::Type::Spot>::Create({ 1, 1,1 }, { 1,1,1 }, 10.0f, 100.0f, glm::radians(15.0f), 0.15f);
+			LightComponent<LightData::Type::Directional> lc = LightComponent<LightData::Type::Directional>::Create({ 1, 1,1 }, { 1,1,1 }, 10.0f);
 			// set the transform but certain light need dir some position or both so just use what necessary 
 			TransformComponent transform;
-			transform.SetPosition({ 0,5,0 });
+			transform.SetPosition({ 0,0,0 });
 			transform.LookAtDir({ 0,-1,0 });
 			// same 
 			auto e = m_ecs.CreateEntity();
