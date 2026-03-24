@@ -40,8 +40,8 @@ struct GameSceneManager : public SceneManager
 		m_window = std::make_unique<KGR::RenderWindow>(glm::vec2{ 1920,800 }, "My_Super_Mega_Duper_Projet_De_La_Mort_Qui_Tue_!!", path);
 		KGR::Audio::WavComponent::Init();
 		KGR::Audio::WavStreamComponent::Init();
-	/*	KGR::EventBus<ChangeSceneEvent>::AddListener(this);
-		KGR::EventBus<ChangeSceneEvent>::AddCallBack<GameSceneManager>(&GameSceneManager::ChangeScene);*/
+		KGR::EventBus<ChangeSceneEvent>::AddListener(this);
+		KGR::EventBus<ChangeSceneEvent>::AddCallBack<GameSceneManager>(&GameSceneManager::ChangeScene);
 	}
 	~GameSceneManager() override
 	{
@@ -183,7 +183,7 @@ struct GameScene : public IGameScene
 
 			// create a mesh and load it with the cash loader
 			MeshComponent mesh;
-			mesh.mesh = &MeshLoader::Load("Models/Bloc_H1.obj", m_window->App());
+			mesh.mesh = &MeshLoader::Load("Models/bloc.obj", m_window->App());
 
 			// create a texture 
 			MaterialComponent text;
@@ -193,10 +193,13 @@ struct GameScene : public IGameScene
 			for (int i = 0; i < mesh.mesh->GetSubMeshesCount(); ++i)
 			{
 				Material mat;
-				mat.baseColor = &TextureLoader::Load("Textures/Bloc_H1_lambert2_BaseColor.png", m_window->App());
-				mat.emissive = &TextureLoader::Load("Textures/Bloc_H1_lambert2_Emissive.png", m_window->App());
-				mat.normalMap = &TextureLoader::Load("Textures/test_mat_nm.png", m_window->App());
-				mat.pbrMap = &TextureLoader::Load("Textures/Bloc_H1_lambert2_OcclusionRoughnessMetallic.png", m_window->App());
+				mat.baseColor = &TextureLoader::Load("Textures/bloc_BaseColor_Emissive.png", m_window->App());
+				mat.emissive = &TextureLoader::Load("Textures/bloc_BaseColor_Emissive.png", m_window->App());
+				mat.normalMap = &TextureLoader::Load("Textures/bloc_Normal.png", m_window->App());
+				mat.pbrMap = &TextureLoader::Load("Textures/bloc_ORM.png", m_window->App());
+
+
+
 
 
 				text.materials[i] = mat;
@@ -366,14 +369,14 @@ struct MenuScene : public IGameScene
 			auto e = m_ecs.CreateEntity();
 			TextComp text;
 			//text.text.font = &FontLoader::Load("Fonts/arial.ttf", m_window->App());
-			text.text.SetText( "je pense donc je suis !");
+			text.text.SetText( "je pense donc je suis !  \ntoto le rigolo \nje mange des arbres ");
+			text.text.SetAlign(Text::Align::Center);
 
 
 
 			m_ecs.AddComponents(e, std::move(transform), std::move(ui), std::move(texture), std::move(CollisionComp2d{}),std::move(comp),std::move(text));
 
 		}
-		// TODO create backGround
 	}
 	void Update(float dt) override
 	{
