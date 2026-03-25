@@ -23,7 +23,7 @@ KGR::_Vulkan::CommandBuffers::vkCommandBuffer& KGR::_Vulkan::CommandBuffers::Acq
 {
 	for (auto& [_, cb] : m_commandBuffers)
 	{
-		if (cb.isCpuFree && (cb.isGpuFree.getStatus() == vk::Result::eSuccess))
+		if (cb.isCpuFree && (cb.isGpuFree.getStatus() == vk::Result::eNotReady))
 		{
 			cb.isCpuFree = false;
 			return cb.commandBuffer;
