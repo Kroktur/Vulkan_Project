@@ -36,19 +36,23 @@ void SceneManager::Run(const KGR::Tools::Chrono<float>::Time& fixedTime)
 	Init();
 	while (LoopCondition())
 	{
-		float now = clock.GetElapsedTime().AsSeconds();
-		float dt = now - previous;
-		previous = now;
-
+		const float startFrameTime = clock.GetElapsedTime().AsMilliSeconds();
+		const auto elapsed = startFrameTime - previous;
+		previous = startFrameTime;
+		lag += elapsed;
 		auto* Scene = GetCurrentScene();
-		if (count > 60)
+		while (lag >= fixTick)
 		{
-			std::cout << (dt * 0.001f) << std::endl;
-			count = 0;
+			Scene->Update(fixedTime.AsSeconds());
+			lag -= fixTick;
 		}
-		Scene->Update(dt);
-		count++;
-		Scene->Render();
+		const float startFrameTimeRender = clock.GetElapsedTime().AsMilliSeconds();
+		const float elapsedRender = startFrameTimeRender - renderFrameDt;
+		if (elapsedRender >= Scene->GetTime().AsMilliSeconds())
+		{
+			renderFrameDt = startFrameTimeRender;
+			Scene->Render();
+		}
 	}
 	Destroy();
 }
