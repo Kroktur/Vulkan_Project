@@ -1,4 +1,7 @@
 #include "Core/SceneManager.h"
+// TODO remove
+#include <iostream>
+
 #include "Hasher.h"
 #include "Core/Scene.h"
 
@@ -19,31 +22,33 @@ void SceneManager::AddScene(std::unique_ptr<Scene> scene, const std::string& nam
 void SceneManager::Run(const KGR::Tools::Chrono<float>::Time& fixedTime)
 {
 	const KGR::Tools::Chrono clock;
-	float previous = clock.GetElapsedTime().AsMilliSeconds();
+	float previous = clock.GetElapsedTime().AsSeconds();
 
 	float renderFrameDt = clock.GetElapsedTime().AsMilliSeconds();
 
 	const float fixTick = fixedTime.AsMilliSeconds();
 
 	auto lag = 0.0f;
+
+	//TODO remove
+	int count = 0;
+
 	Init();
 	while (LoopCondition())
 	{
-		const float startFrameTime = clock.GetElapsedTime().AsMilliSeconds();
-		const auto elapsed = startFrameTime - previous;
-		previous = startFrameTime;
-		lag += elapsed;
+		float now = clock.GetElapsedTime().AsSeconds();
+		float dt = now - previous;
+		previous = now;
+
 		auto* Scene = GetCurrentScene();
-		while (lag >= fixTick)
+		if (count > 60)
 		{
-			Scene->Update(fixedTime.AsSeconds());
-			lag -= fixTick;
+			std::cout << (dt * 0.001f) << std::endl;
+			count = 0;
 		}
-		if (clock.GetElapsedTime().AsMilliSeconds() - renderFrameDt >= Scene->GetTime().AsMilliSeconds())
-		{
-			Scene->Render();
-			renderFrameDt = clock.GetElapsedTime().AsMilliSeconds();
-		}
+		Scene->Update(dt);
+		count++;
+		Scene->Render();
 	}
 	Destroy();
 }
