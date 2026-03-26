@@ -80,7 +80,7 @@ namespace KGR
 
 			static Pipeline CreateUiPipeline(const ShaderInfo& shaderInfo, Device* device, SwapChain* swapChain, DescriptorLayouts* layouts, PhysicalDevice* phDevice,
 				const vk::VertexInputBindingDescription& vInput,
-				const std::vector<vk::VertexInputAttributeDescription>& attributes);
+				const std::vector<vk::VertexInputAttributeDescription>& attributes,size_t pushConstantSize);
 
 
 			/**

@@ -2,7 +2,6 @@
 
 KGR::Audio::WavComponent::WavComponent()
 {
-	
 }
 
 KGR::Audio::WavComponent::WavComponent(SoLoud::Wav& wav): m_wav(&wav)
@@ -93,10 +92,9 @@ void KGR::Audio::WavComponent::ErrorMusicNotPlay() const
 		throw std::out_of_range("music not play");
 }
 
-void KGR::Audio::WavComponent::Init(const std::filesystem::path& globFilePath)
+void KGR::Audio::WavComponent::Init()
 {
 	m_music.init();
-	WavManager::SetGlobalFIlePath(globFilePath);
 }
 
 std::unique_ptr<SoLoud::Wav> KGR::Audio::LoadWav(const std::string& path)
@@ -202,10 +200,9 @@ void KGR::Audio::WavStreamComponent::ErrorMusicNotPlay() const
 		throw std::out_of_range("music not play");
 }
 
-void KGR::Audio::WavStreamComponent::Init(const std::filesystem::path& globFilePath)
+void KGR::Audio::WavStreamComponent::Init()
 {
 	m_music.init();
-	WavStreamManager::SetGlobalFIlePath(globFilePath);
 }
 
 std::unique_ptr<SoLoud::WavStream> KGR::Audio::LoadWavStream(const std::string& path)

@@ -1,7 +1,9 @@
 #include "Core/Window.h"
 
+#include "Audio/SoundComponent.h"
 #include "Core/InputManager.h"
 #include "Core/CameraComponent.h"
+#include "Core/Font.h"
 
 KGR::RenderWindow::RenderWindow(glm::ivec2 size, const char* name, const std::filesystem::path& GlobResourcesPath)
 {
@@ -9,6 +11,9 @@ KGR::RenderWindow::RenderWindow(glm::ivec2 size, const char* name, const std::fi
 	MeshLoader::SetGlobalFIlePath(GlobResourcesPath);
 	TextureLoader::SetGlobalFIlePath(GlobResourcesPath);
 	FileManager::SetGlobalFIlePath(GlobResourcesPath);
+	FontLoader::SetGlobalFIlePath(GlobResourcesPath);
+	Audio::WavManager::SetGlobalFIlePath(GlobResourcesPath);
+	Audio::WavStreamManager::SetGlobalFIlePath(GlobResourcesPath);
 
 
 	m_window.CreateMyWindow(size, name, nullptr, nullptr);
@@ -31,6 +36,9 @@ void KGR::RenderWindow::Destroy()
 	MeshLoader::UnloadAll();
 	TextureLoader::UnloadAll();
 	FileManager::UnloadAll();
+	Audio::WavManager::UnloadAll();
+	FontLoader::UnloadAll();
+	Audio::WavStreamManager::UnloadAll();
 }
 
 bool KGR::RenderWindow::ShouldClose() const
@@ -96,7 +104,21 @@ void KGR::RenderWindow::RegisterUi(UiComponent& component, TransformComponent2d&
 	if (!texture.texture)
 		texture.texture = &TextureLoader::Load("Textures/Base/base_color.png", App());
 
-	m_core.RegisterUi(UiData{ component.GetColor(),transform.GetFullTransform() }, texture.texture, GetSize());
+	m_core.RegisterUi(UiData{ component.GetColor(),transform.GetFullTransform() }, texture.texture, GetSize(),&TextureLoader::Load("Textures/Base/white.png", &m_core));
+}
+
+void KGR::RenderWindow::RegisterText(UiComponent& component, TransformComponent2d& transform, TextComp& texture)
+{
+	float aspectRatio = static_cast<float>(GetSize().x) / static_cast<float>(GetSize().y);
+	transform.SetPosition(component.GetPosNdc(aspectRatio));
+	transform.SetScale(component.GetScaleNdc(aspectRatio));
+
+	if (!texture.text.font)
+		texture.text.font = &FontLoader::Load("Fonts/arial.ttf", App(),1);
+	if (!texture.text.textTexture)
+		texture.text.textTexture = &TextureLoader::Load("Textures/Base/white.png", &m_core);
+
+	m_core.RegisterText(&texture.text,texture.text.font->GetTexture(),UiData{ component.GetColor(),transform.GetFullTransform() }, GetSize());
 }
 
 void KGR::RenderWindow::Render(const glm::vec4& clearColor, ImDrawData* imguiDraw)

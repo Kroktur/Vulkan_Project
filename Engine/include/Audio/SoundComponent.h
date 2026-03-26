@@ -105,7 +105,7 @@ namespace KGR
              * @brief Initializes the global SoLoud engine for WAV playback.
              * @param path Path to the audio configuration or assets directory.
              */
-            static void Init(const std::filesystem::path&);
+            static void Init();
 
         private:
             /**
@@ -229,7 +229,7 @@ namespace KGR
              * @brief Initializes the global SoLoud engine for WAV streaming.
              * @param globFilePath Path to the audio configuration or assets directory.
              */
-            static void Init(const std::filesystem::path& globFilePath);
+            static void Init();
 
         private:
             /**

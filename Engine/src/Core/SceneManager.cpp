@@ -1,8 +1,9 @@
 #include "Core/SceneManager.h"
+// TODO remove
+#include <iostream>
 
 #include "Hasher.h"
 #include "Core/Scene.h"
-
 
 
 void SceneManager::AddScene(std::unique_ptr<Scene> scene, const std::string& name, bool isActive)
@@ -21,13 +22,18 @@ void SceneManager::AddScene(std::unique_ptr<Scene> scene, const std::string& nam
 void SceneManager::Run(const KGR::Tools::Chrono<float>::Time& fixedTime)
 {
 	const KGR::Tools::Chrono clock;
-	float previous = clock.GetElapsedTime().AsMilliSeconds();
+	float previous = clock.GetElapsedTime().AsSeconds();
 
 	float renderFrameDt = clock.GetElapsedTime().AsMilliSeconds();
 
 	const float fixTick = fixedTime.AsMilliSeconds();
 
 	auto lag = 0.0f;
+
+	//TODO remove
+	int count = 0;
+
+	Init();
 	while (LoopCondition())
 	{
 		const float startFrameTime = clock.GetElapsedTime().AsMilliSeconds();
@@ -40,12 +46,15 @@ void SceneManager::Run(const KGR::Tools::Chrono<float>::Time& fixedTime)
 			Scene->Update(fixedTime.AsSeconds());
 			lag -= fixTick;
 		}
-		if (clock.GetElapsedTime().AsMilliSeconds() - renderFrameDt >= Scene->GetTime().AsMilliSeconds())
+		const float startFrameTimeRender = clock.GetElapsedTime().AsMilliSeconds();
+		const float elapsedRender = startFrameTimeRender - renderFrameDt;
+		if (elapsedRender >= Scene->GetTime().AsMilliSeconds())
 		{
-			renderFrameDt = clock.GetElapsedTime().AsMilliSeconds();
+			renderFrameDt = startFrameTimeRender;
 			Scene->Render();
 		}
 	}
+	Destroy();
 }
 
 void SceneManager::SetCurrentScene(const std::string& name)
@@ -55,7 +64,7 @@ void SceneManager::SetCurrentScene(const std::string& name)
 		throw std::out_of_range("invalid scene name not register");
 }
 
-Scene* SceneManager::GetCurrentScene() 
+Scene* SceneManager::GetCurrentScene()
 {
 	if (!m_currentIndex.has_value())
 		throw std::out_of_range("index not valid");

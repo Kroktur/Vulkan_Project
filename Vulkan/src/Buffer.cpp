@@ -56,8 +56,10 @@ void KGR::_Vulkan::Buffer::CopyImage( Image* image, Device* device, Queue* queue
 	commandBuffer.copyBufferToImage(m_buffer, image->Get(), vk::ImageLayout::eTransferDstOptimal, { region });
 	commandBuffer.end();
 	vk::SubmitInfo submitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandBuffer };
-	queue->Get().submit(submitInfo, nullptr);
-	queue->Get().waitIdle();
+	device->Get().resetFences(*buffers->GetFence(commandBuffer));
+	queue->Get().submit(submitInfo, buffers->GetFence(commandBuffer));
+	auto fenceResult = device->Get().waitForFences({ buffers->GetFence(commandBuffer) }, vk::True, UINT64_MAX);
+	device->Get().resetFences(*buffers->GetFence(commandBuffer));
 	buffers->ReleaseCommandBuffer(commandBuffer);
 }
 
@@ -79,8 +81,10 @@ void KGR::_Vulkan::Buffer::createBuffer(vk::DeviceSize size, vk::BufferUsageFlag
 	 commandBuffer.begin(vk::CommandBufferBeginInfo{ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
 	commandBuffer.copyBuffer(*srcBuffer, *dstBuffer, vk::BufferCopy(0, 0, size));
 	commandBuffer.end();
-	queue->Get().submit(vk::SubmitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandBuffer }, nullptr);
-	queue->Get().waitIdle();
+	device->Get().resetFences(*buffers->GetFence(commandBuffer));
+	queue->Get().submit(vk::SubmitInfo{ .commandBufferCount = 1, .pCommandBuffers = &*commandBuffer }, buffers->GetFence(commandBuffer));
+	auto fenceResult = device->Get().waitForFences({ buffers->GetFence(commandBuffer) }, vk::True, UINT64_MAX);
+	device->Get().resetFences(*buffers->GetFence(commandBuffer));
 	buffers->ReleaseCommandBuffer(commandBuffer);
 }
 

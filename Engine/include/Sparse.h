@@ -3,165 +3,106 @@
 #include <vector>
 #include <ranges>
 #include <algorithm>
-#include <stdexcept>
 
-/**
- * @brief Sparse set–style storage for arithmetic entity types.
- *
- * This container implements a classic sparse set structure:
- * - `m_entities` stores all active entities densely.
- * - `m_sparse` maps an entity value to its index in `m_entities`.
- *
- * It provides O(1) insertion, removal, lookup, and index retrieval.
- *
- * @tparam Type   Entity type (must be arithmetic).
- * @tparam offset Growth offset used when resizing the sparse array.
- */
-template<typename Type,size_t offset = 100> requires (std::is_arithmetic_v<Type>)
-struct Sparse_Storage
+namespace KGR
 {
-	using type = Type;
-	using signed_type = std::make_signed_t<Type>;
+	namespace ECS
+	{
+		template<typename Type, size_t allocatorSize = 1> requires (std::is_arithmetic_v<Type>)
+			struct Sparse_Set
+		{
+			using type = Type;
+			using signed_type = std::make_signed_t<Type>;
+			using unsigned_type = std::make_unsigned_t<Type>;
+			static constexpr signed_type invalidValue = static_cast<signed_type>(-1);
 
-	/**
-	 * @brief the invalid value for the sparse
-	 */
-	static constexpr signed_type invalidValue = static_cast<signed_type>(-1);
+			Sparse_Set() = default;
+			bool Has(const type& e) const;
+			void Add(const type& e);
+			void Remove(const type& e);
 
-	Sparse_Storage() = default;
-	/**
-	 * 
-	 * @param size the starting size of the sparse to avoid multiple reserve
-	 */
-	Sparse_Storage(type size);
+			const std::vector<type>& GetEntities() const;
+			unsigned_type Size() const;
+			type AvailableSize() const;
+			signed_type GetIndex(const type& e) const;
 
-	/**
-	 * @brief this function verify if the entity is in the sparse 
-	 * @param e the entity
-	 * @return boolean
-	 */
-	bool Has(const type& e) const;
+		private:
+			void Resize(const type& index);
+			void Reserve();
+			std::vector<type> m_dense;
+			std::vector<signed_type> m_sparse;
+		};
 
-	/**
-	 * @brief this function add an entity and throw if already added
-	 * @param e the entity
-	 * 
-	 */
-	void Add(const type& e);
 
-	/**
-	 * @brief this function remove an entity and throw if not added
-	 * @param e the entity
-	 */
-	void Remove(const type& e);
+		template <typename Type, size_t allocatorSize> requires (std::is_arithmetic_v<Type>)
+			bool Sparse_Set<Type, allocatorSize>::Has(const type& e) const
+		{
+			return m_sparse.size() > e && m_sparse[e] != invalidValue;
+		}
 
-	/**
-	 * @brief this function return all the entities
-	 * @return const vector of type& 
-	 */
-	const std::vector<type>& GetEntities() const;
+		template <typename Type, size_t allocatorSize> requires (std::is_arithmetic_v<Type>)
+			void Sparse_Set<Type, allocatorSize>::Add(const type& e)
+		{
+			if (m_sparse.size() <= e)
+				Resize(e);
+			m_sparse[e] = static_cast<signed_type>(m_dense.size());
 
-	/**
-	 * @brief this function return the size of the entity vector
-	 * @return size_t
-	 */
-	size_t Size() const;
+			if (m_dense.capacity() <= m_dense.size())
+				Reserve();
 
-	/**
-	 * @brief return the sparse index for an entity and throw if not added
-	 * @param e the entity
- 	 * @return signed type of entity
-	 */
-	signed_type GetIndex(const type& e) const;
+			m_dense.push_back(e);
+		}
 
-	/**
-	 * @brief get the size of the sparse size 
-	 * @return type of entity
-	 */
-	type AvailableSize() const;
-private:
-	/**
-	 * @brief this function resize an
-	 * @param index index 
-	 */
-	void Resize(const type& index);
+		template <typename Type, size_t allocatorSize> requires (std::is_arithmetic_v<Type>)
+			void Sparse_Set<Type, allocatorSize>::Remove(const type& e)
+		{
 
-	std::vector<type> m_entities;
-	std::vector<signed_type> m_sparse;
-};
+			signed_type index = m_sparse[e];
+			type lastEntity = std::move(m_dense.back());
 
-template <typename Type, size_t offset> requires (std::is_arithmetic_v<Type>)
-Sparse_Storage<Type, offset>::Sparse_Storage(type size)
-{
-	m_sparse.resize(size);
-	std::ranges::fill(m_sparse,invalidValue);
-}
+			m_dense[index] = lastEntity;
+			m_dense.pop_back();
 
-template <typename Type, size_t offset> requires (std::is_arithmetic_v<Type>)
-bool Sparse_Storage<Type, offset>::Has(const type& e) const
-{
-	return m_sparse.size() > e && m_sparse[e] != invalidValue;
-}
+			m_sparse[lastEntity] = index;
+			m_sparse[e] = invalidValue;
+		}
 
-template <typename Type, size_t offset> requires (std::is_arithmetic_v<Type>)
-void Sparse_Storage<Type, offset>::Add(const type& e)
-{
-	if (Has(e))
-		throw std::out_of_range("entity already store");
+		template <typename Type, size_t allocatorSize> requires (std::is_arithmetic_v<Type>)
+			const std::vector<typename Sparse_Set<Type, allocatorSize>::type>& Sparse_Set<Type, allocatorSize>::GetEntities() const
+		{
+			return m_dense;
+		}
 
-	if (m_sparse.size() <= e)
-		Resize(e);
+		template <typename Type, size_t allocatorSize> requires (std::is_arithmetic_v<Type>)
+			typename Sparse_Set<Type, allocatorSize>::unsigned_type Sparse_Set<Type, allocatorSize>::Size() const
+		{
+			return m_dense.size();
+		}
 
-	m_sparse[e] = static_cast<signed_type>(m_entities.size());
-	m_entities.push_back(e);
-}
+		template <typename Type, size_t allocatorSize> requires (std::is_arithmetic_v<Type>)
+			typename Sparse_Set<Type, allocatorSize>::signed_type Sparse_Set<Type, allocatorSize>::GetIndex(const type& e) const
+		{
+			return m_sparse[e];
+		}
 
-template <typename Type, size_t offset> requires (std::is_arithmetic_v<Type>)
-void Sparse_Storage<Type, offset>::Remove(const type& e)
-{
-	if (!Has(e))
-		throw std::out_of_range("entity not stored");
+		template <typename Type, size_t allocatorSize> requires (std::is_arithmetic_v<Type>)
+			typename Sparse_Set<Type, allocatorSize>::type Sparse_Set<Type, allocatorSize>::AvailableSize() const
+		{
+			return m_sparse.size();
+		}
 
-	signed_type index = m_sparse[e];
-	type lastEntity = std::move(m_entities.back());
+		template <typename Type, size_t allocatorSize> requires (std::is_arithmetic_v<Type>)
+			void Sparse_Set<Type, allocatorSize>::Resize(const type& index)
+		{
+			size_t lastSize = m_sparse.size();
+			m_sparse.resize(lastSize + index + allocatorSize);
+			std::ranges::fill(m_sparse | std::views::drop(lastSize) | std::views::take(index + allocatorSize), invalidValue);
+		}
 
-	m_entities[index] = lastEntity;
-	m_entities.pop_back();
-
-	m_sparse[lastEntity] = index;
-	m_sparse[e] = invalidValue;
-}
-
-template <typename Type, size_t offset> requires (std::is_arithmetic_v<Type>)
-const std::vector<typename Sparse_Storage<Type, offset>::type>& Sparse_Storage<Type, offset>::GetEntities() const
-{
-	return m_entities;
-}
-
-template <typename Type, size_t offset> requires (std::is_arithmetic_v<Type>)
-typename size_t Sparse_Storage<Type, offset>::Size() const
-{
-	return m_entities.size();
-}
-
-template <typename Type, size_t offset> requires (std::is_arithmetic_v<Type>)
-typename Sparse_Storage<Type, offset>::signed_type Sparse_Storage<Type, offset>::GetIndex(const type& e) const
-{
-	if (!Has(e))
-		throw std::out_of_range("entity not store");
-	return m_sparse[e];
-}
-
-template <typename Type, size_t offset> requires (std::is_arithmetic_v<Type>)
-typename Sparse_Storage<Type, offset>::type Sparse_Storage<Type, offset>::AvailableSize() const
-{
-	return m_sparse.size();
-}
-
-template <typename Type, size_t offset> requires (std::is_arithmetic_v<Type>)
-void Sparse_Storage<Type, offset>::Resize(const type& index)
-{
-	size_t lastSize = m_sparse.size();
-	m_sparse.resize(lastSize + index + offset);
-	std::ranges::fill(m_sparse | std::views::drop(lastSize) | std::views::take(index + offset), invalidValue);
+		template <typename Type, size_t allocatorSize> requires (std::is_arithmetic_v<Type>)
+			void Sparse_Set<Type, allocatorSize>::Reserve()
+		{
+			m_dense.reserve(std::min(m_dense.capacity() * allocatorSize, m_dense.max_size()));
+		}
+	}
 }
