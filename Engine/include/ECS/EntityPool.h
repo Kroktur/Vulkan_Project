@@ -61,7 +61,7 @@ namespace KGR
 		};
 
 		template <typename Type, size_t offset> requires std::is_arithmetic_v<Type>
-		EntityPool<Type, offset>::EntityPool() : m_lastEntityCreated(static_cast<type>(0))
+		EntityPool<Type, offset>::EntityPool() : m_lastEntityCreated(static_cast<type>(-1))
 		{
 		}
 
@@ -106,7 +106,7 @@ namespace KGR
 		void EntityPool<Type, offset>::FillWithId()
 		{
 			m_freeEntities.resize(offset);
-			m_lastEntityCreated  += offset - 1;
+			m_lastEntityCreated  += offset;
 			type currentEntity = m_lastEntityCreated;
 			for (size_t i = 0; i < offset; ++i)
 			{
