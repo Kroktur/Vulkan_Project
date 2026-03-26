@@ -2,166 +2,140 @@
 #include <atomic>
 #include <type_traits>
 #include "Sparse.h"
-/**
- * @brief Concept verifying a Component.
- * 
- *  do not have custom constructor 
- */
-template<typename Type>
-concept CompType = requires
-{
-	//TODO temporar
-	std::is_base_of_v<Type, Type>;
-};
+
 
 namespace KGR
 {
 	namespace ECS
 	{
-		/**
-		 * @brief a custom rtti for components
-		 */
 		struct CompId
 		{
 		public:
-			/**
-			 * @brief get the unique type id of a component
-			 * @tparam Component the component you want to verify
-			 * @return size_t
-			 */
-			template<CompType Component>
+			template<typename Component>
 			static size_t GetId();
 		private:
 			static std::atomic_size_t m_id;
 		};
 		inline std::atomic_size_t CompId::m_id = 0;
-
-		template <CompType Component>
+		template <typename Component>
 		size_t CompId::GetId()
 		{
 			static size_t id = m_id++;
 			return id;
 		}
 
-		/**
-		 * @brief the base of component container must have an implementation that use sparse to optimise
-		 * @tparam Type the type entity for the sparse must be arithmetic 
-		 * @tparam offset same as sparse parameter
-		 */
-		template<typename Type, size_t offset = 100> requires std::is_arithmetic_v<Type>
-		struct Component_Container_Base
+		template<typename Type, size_t allocatorSize = 1> requires std::is_arithmetic_v<Type>
+		struct Com_Container_Base
 		{
 			using type = Type;
-			using storage = Sparse_Storage<Type, offset>;
-			/**
-			 * @brief virtual destructor
-			 */
-			virtual ~Component_Container_Base() = default;
+			using storage = Sparse_Set<Type, allocatorSize>;
+			using unsigned_type = typename storage::unsigned_type;
+			Com_Container_Base() = default;
+			virtual ~Com_Container_Base() = default;
 
-			/**
-			 * @brief verify if this container have the component for this entity
-			 * @param e the entity
-			 * @return boolean
-			 */
 			bool HasComponent(const type& e) const;
-
-			/**
-			 * @brief remove the component of an entity throw if not added
-			 * @param e the entity
-			 */
 			virtual void Remove(const type& e) = 0;
+			unsigned_type Size() const;
+			const std::vector<type>& GetEntities() const;
 		protected:
 			storage m_storage;
 		};
 
-		template <typename Type, size_t offset> requires std::is_arithmetic_v<Type>
-		bool Component_Container_Base<Type, offset>::HasComponent(const type& e) const
+
+
+
+		template <typename Type, size_t allocatorSize> requires std::is_arithmetic_v<Type>
+		bool Com_Container_Base<Type, allocatorSize>::HasComponent(const type& e) const
 		{
 			return m_storage.Has(e);
 		}
 
-		/**
-		 * @brief  implementation of the container base that handle one type of component
-		 * @tparam Component the type of component stored
-		 * @tparam Type same as container base
-		 * @tparam offset same as container base
-		 */
-		template<CompType Component, typename Type, size_t offset = 100> requires std::is_arithmetic_v<Type>
-		struct Component_Container : public Component_Container_Base<Type, offset>
+		template <typename Type, size_t allocatorSize> requires std::is_arithmetic_v<Type>
+		typename Com_Container_Base<Type, allocatorSize>::unsigned_type Com_Container_Base<Type, allocatorSize>::
+			Size() const
+		{
+			return m_storage.Size();
+		}
+
+		template <typename Type, size_t allocatorSize> requires std::is_arithmetic_v<Type>
+		const std::vector<typename Com_Container_Base<Type, allocatorSize>::type>& Com_Container_Base<Type,
+			allocatorSize>::GetEntities() const
+		{
+			return m_storage.GetEntities();
+		}
+
+		template<typename  Component, typename Type, size_t allocatorSize = 1> requires std::is_arithmetic_v<Type>
+		struct Com_Container_Derived : public Com_Container_Base<Type, allocatorSize>
 		{
 			using type = Type;
-
-			/**
-			 * @brief this function add a component by calling the sparse add 
-			 * @param e the entity
-			 */
-			void AddComponent(const type& e);
-
-			/**
-			 * @brief this function add a component with an r value of the component by calling the sparse add
-			 * @param e the entity
-			 * @param c r value to component
-			 */
-			void AddComponent(const type& e,Component&& c);
-
-			/**
-			 * @brief this function remove a component by calling the sparse remove 
-			 * @param e the entity
-			 */
+			Com_Container_Derived();
+			void Add(const type& e);
+			void Add(const type& e, Component&& c);
 			void Remove(const type& e) override;
-
-			/**
-			 * @brief this function return the right component by calling the sparse GetIndex 
-			 * @param e the entity
-			 * @return the &Component link to the entity
-			 */
 			Component& GetComponent(const type& e);
-
-			/**
-			 * @brief this function is the const version 
-			 * @param e the entity
-			 * @return the &Component link to the entity
-			 */
 			const Component& GetComponent(const type& e) const;
-
+			const std::vector<Component>& GetAllComponents()const;
 		private:
+			void Reserve();
 			std::vector<Component> m_components;
 
 		};
 
-		template <CompType Component, typename Type, size_t offset> requires std::is_arithmetic_v<Type>
-		void Component_Container<Component, Type, offset>::AddComponent(const type& e)
+		template <typename Component, typename Type, size_t allocatorSize> requires std::is_arithmetic_v<Type>
+		Com_Container_Derived<Component, Type, allocatorSize>::Com_Container_Derived() = default;
+
+		template <typename Component, typename Type, size_t allocatorSize> requires std::is_arithmetic_v<Type>
+		void Com_Container_Derived<Component, Type, allocatorSize>::Add(const type& e)
 		{
-			this->m_storage.Add(e);
-			m_components.push_back(Component{});
+			Add(e, std::move(Component{}));
 		}
 
-		template <CompType Component, typename Type, size_t offset> requires std::is_arithmetic_v<Type>
-		void Component_Container<Component, Type, offset>::AddComponent(const type& e, Component&& c)
+		template <typename Component, typename Type, size_t allocatorSize> requires std::is_arithmetic_v<Type>
+		void Com_Container_Derived<Component, Type, allocatorSize>::Add(const type& e, Component&& c)
 		{
+			if (this->HasComponent(e))
+				throw std::out_of_range("component already store");
+
 			this->m_storage.Add(e);
+			if (m_components.capacity() < m_components.size())
+				Reserve();
 			m_components.push_back(std::move(c));
 		}
 
-		template <CompType Component, typename Type, size_t offset> requires std::is_arithmetic_v<Type>
-		void Component_Container<Component, Type, offset>::Remove(const type& e)
+		template <typename Component, typename Type, size_t allocatorSize> requires std::is_arithmetic_v<Type>
+		void Com_Container_Derived<Component, Type, allocatorSize>::Remove(const type& e)
 		{
+			if (!this->HasComponent(e))
+				throw std::out_of_range("component not store");
+
 			auto index = this->m_storage.GetIndex(e);
 			this->m_storage.Remove(e);
 			m_components[index] = std::move(m_components.back());
 			m_components.pop_back();
 		}
 
-		template <CompType Component, typename Type, size_t offset> requires std::is_arithmetic_v<Type>
-		Component& Component_Container<Component, Type, offset>::GetComponent(const type& e)
+		template <typename Component, typename Type, size_t allocatorSize> requires std::is_arithmetic_v<Type>
+		Component& Com_Container_Derived<Component, Type, allocatorSize>::GetComponent(const type& e)
 		{
 			return m_components[this->m_storage.GetIndex(e)];
 		}
 
-		template <CompType Component, typename Type, size_t offset> requires std::is_arithmetic_v<Type>
-		const Component& Component_Container<Component, Type, offset>::GetComponent(const type& e) const
+		template <typename Component, typename Type, size_t allocatorSize> requires std::is_arithmetic_v<Type>
+		const Component& Com_Container_Derived<Component, Type, allocatorSize>::GetComponent(const type& e) const
 		{
 			return m_components[this->m_storage.GetIndex(e)];
+		}
+
+		template <typename Component, typename Type, size_t allocatorSize> requires std::is_arithmetic_v<Type>
+		const std::vector<Component>& Com_Container_Derived<Component, Type, allocatorSize>::GetAllComponents() const
+		{
+			return m_components;
+		}
+
+		template <typename Component, typename Type, size_t allocatorSize> requires std::is_arithmetic_v<Type>
+		void Com_Container_Derived<Component, Type, allocatorSize>::Reserve()
+		{
+			m_components.reserve(std::min(m_components.capacity() * allocatorSize, m_components.max_size()));
 		}
 	}
 }

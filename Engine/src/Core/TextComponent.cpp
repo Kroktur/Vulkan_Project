@@ -115,7 +115,6 @@ void Text::Upload(KGR::_Vulkan::VulkanCore* core)
 	// so with that info we now that we need to calculate the bottom of the first line to start the text 
 	float startY = 0.5f - (lineNumber - 1) * lineOffset;
 
-
 	for (size_t row = 0; row < static_cast<size_t>(lineNumber); ++row)
 	{
 		// the x start to the left of the square 
@@ -136,12 +135,12 @@ void Text::Upload(KGR::_Vulkan::VulkanCore* core)
 			// same for y
 			float maxY = minY + glyph.size.y * scaleY;
 
-
+			
 			// add the vertices 
-			vertices.push_back({ {minX, minY},     {glyph.min.x, glyph.min.y} });
-			vertices.push_back({ {maxX, minY},     {glyph.max.x, glyph.min.y} });
-			vertices.push_back({ {maxX, maxY}, {glyph.max.x, glyph.max.y} });
-			vertices.push_back({ {minX, maxY}, {glyph.min.x, glyph.max.y} });
+			vertices.push_back({ {minX, minY},     {glyph.min.x, glyph.min.y} ,{minX + 0.5f, minY + 0.5f}});
+			vertices.push_back({ {maxX, minY},     {glyph.max.x, glyph.min.y},{maxX + 0.5f, minY + 0.5f} });
+			vertices.push_back({ {maxX, maxY}, {glyph.max.x, glyph.max.y} ,{maxX + 0.5f, maxY + 0.5f} });
+			vertices.push_back({ {minX, maxY}, {glyph.min.x, glyph.max.y} ,{minX + 0.5f, maxY + 0.5f} });
 
 			// add the index 
 			indices.push_back(indexOffset + 0);

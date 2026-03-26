@@ -1,6 +1,7 @@
 struct VSInput {
     float2 inPosition;
     float2 inTexCoord;
+    float2 inTexCoord2;
 };
 
 struct Transform
@@ -21,6 +22,9 @@ struct PushData
 [[vk::binding(0, 0)]]
 ConstantBuffer<Sampler2D> texture;
 
+[[vk::binding(0, 1)]]
+ConstantBuffer<Sampler2D> texture2;
+
 [[vk::push_constant()]]
 ConstantBuffer<PushData> pushConstantData;
 
@@ -28,6 +32,7 @@ struct VSOutput
 {
     float4 pos : SV_Position;
     float2 fragTexCoord;
+    float2 fragTexCoord2;
     float4 fragColor;
 };
 
@@ -45,11 +50,13 @@ VSOutput vertMain(VSInput input) {
     output.pos = float4(pos,0.0f,1.0f);
     output.fragColor = pushConstantData.inColor;
     output.fragTexCoord = input.inTexCoord;
+    output.fragTexCoord2 = input.inTexCoord2;
     return output;
 }
 
 [shader("fragment")]
 float4 fragMain(VSOutput vertIn) : SV_TARGET {
-    float4 color = pow(texture.Sample(vertIn.fragTexCoord).rgba, 2.2f.xxxx);;
-    return color*vertIn.fragColor;
+    float4 color = pow(texture.Sample(vertIn.fragTexCoord).rgba, 2.2f.xxxx);
+    float4 color2 = pow(texture2.Sample(vertIn.fragTexCoord2).rgba, 2.2f.xxxx);
+    return color2*color*vertIn.fragColor;
 }

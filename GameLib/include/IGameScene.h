@@ -86,7 +86,7 @@ struct IGameScene : public Scene
 	{
 		{
 			auto es = m_ecs.GetAllComponentsView<CameraComponent, TransformComponent>();
-			if (es.Size() != 1)
+			if (es.size() != 1)
 				throw std::runtime_error("need one and one cam");
 			for (auto& e : es)
 			{
@@ -155,8 +155,10 @@ struct control
 	
 };
 
+
 struct GameScene : public IGameScene
 {
+	
 	GameScene(const KGR::Tools::Chrono<float>::Time& time) :IGameScene(time){}
 	void Init(SceneManager* manager) override
 	{
@@ -179,48 +181,7 @@ struct GameScene : public IGameScene
 			// now move the component into the ecs
 			m_ecs.AddComponents(e, std::move(cam), std::move(transform));
 		}
-
-
-		// mesh
-		for (int i = 0 ; i < 00; ++i)
-		{
-			// a mesh need a meshComponent a transform and a texture 
-
-			// create a mesh and load it with the cash loader
-			MeshComponent mesh;
-			mesh.mesh = &MeshLoader::Load("Models/CUBE.obj", m_window->App());
-
-			// create a texture 
-			MaterialComponent text;
-			// allocate the size of the texture must be the same as the number of submeshes 
-			text.materials.resize(mesh.mesh->GetSubMeshesCount());
-			// then fill the texture ( this system need to be refact but for now you need to do it like that
-			for (int i = 0; i < mesh.mesh->GetSubMeshesCount(); ++i)
-			{
-				Material mat;
-				mat.baseColor = &TextureLoader::Load("Textures/bloc_BaseColor_Emissive.png", m_window->App());
-				mat.emissive = &TextureLoader::Load("Textures/bloc_BaseColor_Emissive.png", m_window->App());
-				mat.normalMap = &TextureLoader::Load("Textures/bloc_Normal.png", m_window->App());
-				mat.pbrMap = &TextureLoader::Load("Textures/bloc_ORM.png", m_window->App());
-
-
-
-
-
-				text.materials[i] = mat;
-			}
-
-			// create the transform and set all the data
-			TransformComponent transform;
-			transform.SetPosition({ 0,0,0 });
-			transform.SetScale({ 3.0f, 3.0f,3.0f });
-			// same create an entity / id
-			auto e = m_ecs.CreateEntity();
-			// fill the component
-			m_ecs.AddComponents(e, std::move(mesh), std::move(text), std::move(transform));
-		}
-
-
+		
 		{
 			// a mesh need a meshComponent a transform and a texture 
 
@@ -333,7 +294,7 @@ struct GameScene : public IGameScene
 			if (input->IsKeyDown(KGR::Key::P))
 				KGR::EventBus<ChangeSceneEvent>::Notify(ChangeSceneEvent{"Menu"});
 		}
-		/*{
+		{
 
 			auto mousePos = m_window->GetInputManager()->GetMousePosition();
 			float aspectRatio = static_cast<float>(m_window->GetSize().x) / static_cast<float>(m_window->GetSize().y);
@@ -351,11 +312,12 @@ struct GameScene : public IGameScene
 				else
 					u.SetColor({ 0,1,0,1 });
 			}
-		}*/
+		}
 
 	}
 	void Render() override
 	{
+		
 		IGameScene::Render();
 	}
 };
@@ -410,7 +372,8 @@ struct MenuScene : public IGameScene
 			auto e = m_ecs.CreateEntity();
 			TextComp text;
 			//text.text.font = &FontLoader::Load("Fonts/arial.ttf", m_window->App());
-			text.text.SetText( "je pense donc je suis !  \ntoto le rigolo \nje mange des arbres ");
+			text.text.SetText( "je pense donc je suis !\nje mange des arbres ");
+			text.text.textTexture = &TextureLoader::Load("Textures/viking_room.png", m_window->App());
 			text.text.SetAlign(Text::Align::Center);
 
 

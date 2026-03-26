@@ -23,6 +23,7 @@ struct Text
 	friend KGR::_Vulkan::VulkanCore;
 	Text() = default;
 	AtlasFont* font = nullptr;
+	Texture* textTexture = nullptr;
 	void SetText(const std::string& text);
 	void SetAlign(const Align& align);
 	std::string GetText() const;

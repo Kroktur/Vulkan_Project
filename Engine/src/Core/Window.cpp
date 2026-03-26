@@ -104,7 +104,7 @@ void KGR::RenderWindow::RegisterUi(UiComponent& component, TransformComponent2d&
 	if (!texture.texture)
 		texture.texture = &TextureLoader::Load("Textures/Base/base_color.png", App());
 
-	m_core.RegisterUi(UiData{ component.GetColor(),transform.GetFullTransform() }, texture.texture, GetSize());
+	m_core.RegisterUi(UiData{ component.GetColor(),transform.GetFullTransform() }, texture.texture, GetSize(),&TextureLoader::Load("Textures/Base/white.png", &m_core));
 }
 
 void KGR::RenderWindow::RegisterText(UiComponent& component, TransformComponent2d& transform, TextComp& texture)
@@ -115,7 +115,8 @@ void KGR::RenderWindow::RegisterText(UiComponent& component, TransformComponent2
 
 	if (!texture.text.font)
 		texture.text.font = &FontLoader::Load("Fonts/arial.ttf", App(),1);
-	
+	if (!texture.text.textTexture)
+		texture.text.textTexture = &TextureLoader::Load("Textures/Base/white.png", &m_core);
 
 	m_core.RegisterText(&texture.text,texture.text.font->GetTexture(),UiData{ component.GetColor(),transform.GetFullTransform() }, GetSize());
 }

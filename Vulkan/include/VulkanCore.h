@@ -79,6 +79,13 @@ struct TextData
 	UiData::UiValidData data;
 };
 
+struct UiDataGPU
+{
+	Texture* texture;
+	UiData::UiValidData data;
+	Texture* whiteTexture;
+ };
+
 
 namespace KGR
 {
@@ -203,7 +210,7 @@ namespace KGR
 			 * @param texture Vector of textures for the mesh
 			 */
 			void RegisterRender(Mesh& mesh, const glm::mat4& model,const  std::vector<Material>& texture);
-			void RegisterUi(const UiData& data, Texture* texture,const glm::vec2& screenSize);
+			void RegisterUi(const UiData& data, Texture* texture,const glm::vec2& screenSize, Texture* whiteTexture);
 			void RegisterText(Text* text,Texture* texture,const UiData& data, const glm::vec2& screenSize);
 			/**
 			 * @brief Performs rendering of registered meshes, lights, and optionally ImGui data.
@@ -278,7 +285,7 @@ namespace KGR
 			Buffer m_lightCount;
 			std::optional<UniformBufferObject> m_ubo;
 			std::vector<MeshData> m_toRenderObject;
-			std::vector<std::pair<Texture*, UiData::UiValidData>> uIRender;
+			std::vector<UiDataGPU> uIRender;
 			std::vector<TextData> m_textData;
 
 

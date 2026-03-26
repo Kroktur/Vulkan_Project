@@ -90,17 +90,22 @@ void KGR::_Vulkan::VulkanCore::initVulkan(GLFWwindow* window)
 	std::vector<vk::DescriptorSetLayoutBinding> bindings6 = {
 				vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, nullptr)
 	};
+	std::vector<vk::DescriptorSetLayoutBinding> bindings7 = {
+				vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment, nullptr)
+	};
 	auto layout3 = DescriptorLayout(bindings3, &device);
 	auto layout4 = DescriptorLayout(bindings3, &device);
 	auto layout5 = DescriptorLayout(bindings4, &device);
 	auto layout6 = DescriptorLayout(bindings5, &device);
 	auto layout7 = DescriptorLayout(bindings6, &device);
+	auto layout8 = DescriptorLayout(bindings7, &device);
 	descriptorSetLayout.Add(std::move(layout3));
 	descriptorSetLayout.Add(std::move(layout5));
 	descriptorSetLayout.Add(std::move(layout6));
 	descriptorSetLayout.Add(std::move(layout7));
 
 	uiLayout.Add(std::move(layout4));
+	uiLayout.Add(std::move(layout8));
 
 	graphicsPipeline = _Vulkan::Pipeline(info, &device, &swapChain,&descriptorSetLayout,&physicalDevice,vk::PolygonMode::eFill,Vertex::getBindingDescription(), Vertex::getAttributeDescriptions());
 	linePipeLine = _Vulkan::Pipeline(info2, &device, &swapChain, &descriptorSetLayout, &physicalDevice, vk::PolygonMode::eFill, SegmentVertex::getBindingDescription(), SegmentVertex::getAttributeDescriptions());
@@ -209,10 +214,10 @@ void KGR::_Vulkan::VulkanCore::initVulkan(GLFWwindow* window)
 
 		std::vector<Vertex2D> vertices =
 		{
-			{{-0.5f, -0.5f}, {0.0f, 0.0f}}, 
-			{{ 0.5f, -0.5f}, {1.0f, 0.0f}}, 
-			{{ 0.5f,  0.5f}, {1.0f, 1.0f}}, 
-			{{-0.5f,  0.5f}, {0.0f, 1.0f}}, 
+			{{-0.5f, -0.5f}, {0.0f, 0.0f},{0.0f, 0.0f}},
+			{{ 0.5f, -0.5f}, {1.0f, 0.0f},{1.0f, 0.0f}},
+			{{ 0.5f,  0.5f}, {1.0f, 1.0f},{1.0f, 1.0f}},
+			{{-0.5f,  0.5f}, {0.0f, 1.0f},{0.0f, 1.0f}},
 		};
 	std::vector<std::uint32_t> indices =
 	{
@@ -779,12 +784,12 @@ void KGR::_Vulkan::VulkanCore::RegisterRender(Mesh& mesh, const  glm::mat4& mode
 	m_toRenderObject.push_back(MeshData{ model ,&mesh,texture });
 }
 
-void KGR::_Vulkan::VulkanCore::RegisterUi(const UiData& data, Texture* texture,const glm::vec2& screenSize)
+void KGR::_Vulkan::VulkanCore::RegisterUi(const UiData& data, Texture* texture,const glm::vec2& screenSize, Texture* whiteTexture)
 {
 	auto valid = data.GetValid();
 	valid.raw1[3] = screenSize.x;
 	valid.raw2[3] = screenSize.y;
-	uIRender.emplace_back( texture, valid);
+	uIRender.emplace_back( texture, valid,whiteTexture);
 }
 
 void KGR::_Vulkan::VulkanCore::RegisterText(Text* text, Texture* texture, const UiData& data,
@@ -876,8 +881,9 @@ void KGR::_Vulkan::VulkanCore::Render(GLFWwindow* window, const glm::vec4& color
 		// bind the vertex and indexBuffer
 		currentBuffer->bindVertexBuffers(0, *uiVertexBuffer.Get(), {0});
 		currentBuffer->bindIndexBuffer(*uiIndexBuffer.Get(), 0, vk::IndexType::eUint32);
-		currentBuffer->pushConstants<UiData::UiValidData>(uiPipeline.GetLayout(), vk::ShaderStageFlagBits::eVertex, 0,ui.second);
-		ui.first->Bind(currentBuffer, &uiPipeline.GetLayout(), 0);
+		currentBuffer->pushConstants<UiData::UiValidData>(uiPipeline.GetLayout(), vk::ShaderStageFlagBits::eVertex, 0,ui.data);
+		ui.texture->Bind(currentBuffer, &uiPipeline.GetLayout(), 0);
+		ui.whiteTexture->Bind(currentBuffer, &uiPipeline.GetLayout(), 1);
 		currentBuffer->drawIndexed(static_cast<std::uint32_t>(uiIndexBuffer.GetSize() / sizeof(std::uint32_t)), 1, 0, 0, 0);
 	}
 
@@ -887,6 +893,7 @@ void KGR::_Vulkan::VulkanCore::Render(GLFWwindow* window, const glm::vec4& color
 		ui.text->Bind(currentBuffer);
 		currentBuffer->pushConstants<UiData::UiValidData>(uiPipeline.GetLayout(), vk::ShaderStageFlagBits::eVertex, 0,ui.data);
 		ui.texture->Bind(currentBuffer, &uiPipeline.GetLayout(), 0);
+		ui.text->textTexture->Bind(currentBuffer, &uiPipeline.GetLayout(), 1);
 		currentBuffer->drawIndexed(static_cast<std::uint32_t>(ui.text->GetIndexSize()), 1, 0, 0, 0);
 	}
 
