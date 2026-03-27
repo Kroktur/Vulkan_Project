@@ -6,7 +6,6 @@ namespace KGR
 {
 	namespace ECS
 	{
-
 		template<typename Type, size_t allocatorSize, size_t entityPool = 10 * allocatorSize> requires (std::is_arithmetic_v<Type>)
 			struct Registry
 		{
@@ -223,16 +222,16 @@ namespace KGR
 			template <typename ... Components>
 		typename Registry<Type, allocatorSize, entityPool>::view Registry<Type, allocatorSize, entityPool>::GetAnyComponentsView()
 		{
-			std::vector<type> biggestEntity;
+			const std::vector<type>* biggestEntity;
 			(..., [&]()
 				{
-					auto entities = m_pool.template GetAndAdd<Components>().GetEntities();
-					if (biggestEntity.empty() || entities.size() > biggestEntity.size())
-						biggestEntity = entities;
+					auto& entities = m_pool.template GetAndAdd<Components>().GetEntities();
+					if ( !biggestEntity|| entities.size() > biggestEntity->size())
+						biggestEntity = &entities;
 				}());
 			view result;
 			result.reserve(biggestEntity->size());
-			for (auto& e : biggestEntity)
+			for (auto& e : *biggestEntity)
 			{
 				if (HasAnyComponents<Components...>(e))
 					result.push_back(e);
