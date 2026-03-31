@@ -705,6 +705,59 @@ KGR::_Vulkan::Image KGR::_Vulkan::VulkanCore::CreateImage(const std::string& fil
 	return textureImage;
 }
 
+KGR::_Vulkan::Image KGR::_Vulkan::VulkanCore::CreateImageFromMemory(const unsigned char* data, size_t size)
+{
+	int texWidth, texHeight, texChannels;
+
+	stbi_uc* pixels = stbi_load_from_memory(
+		data,
+		static_cast<int>(size),
+		&texWidth,
+		&texHeight,
+		&texChannels,
+		STBI_rgb_alpha
+	);
+
+	if (!pixels)
+		throw std::runtime_error("[VulkanCore] CreateImageFromMemory : stbi decode failed");
+
+	vk::DeviceSize imageSize = texWidth * texHeight * 4;
+
+	KGR::_Vulkan::Buffer buffer(
+		&device, &physicalDevice,
+		vk::BufferUsageFlagBits::eTransferSrc,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
+		imageSize
+	);
+
+	buffer.MapMemory(imageSize);
+	buffer.Upload(pixels, imageSize);
+	buffer.UnMapMemory();
+
+	stbi_image_free(pixels);
+
+	uint32_t mipLevel = static_cast<uint32_t>(
+		std::floor(std::log2(std::max(texWidth, texHeight)))
+		) + 1;
+
+	KGR::_Vulkan::Image textureImage(
+		texWidth, texHeight, mipLevel,
+		vk::Format::eR8G8B8A8Unorm,
+		vk::ImageTiling::eOptimal,
+		vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+		vk::MemoryPropertyFlagBits::eDeviceLocal,
+		&device, &physicalDevice
+	);
+
+	transitionImageLayout(textureImage.Get(), vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, textureImage.GetMimMap());
+	buffer.CopyImage(&textureImage, &device, &queue, &commandBuffers);
+	textureImage.CreateView(vk::Format::eR8G8B8A8Unorm, vk::ImageAspectFlagBits::eColor, &device);
+	generateMipmaps(textureImage.Get(), vk::Format::eR8G8B8A8Unorm, textureImage.GetWidth(), textureImage.GetHeight(), textureImage.GetMimMap());
+
+	return textureImage;
+}
+
+
 KGR::_Vulkan::DescriptorSet KGR::_Vulkan::VulkanCore::CreateSetForImage(Image* image)
 {
 	DescriptorSet set = DescriptorSet(&device, &descriptorPool, &descriptorSetLayout.Get(2));
