@@ -21,6 +21,7 @@
 #include "Core/Texture.h"
 #include "Math/Collision2d.h"
 
+#include "Core/Materials.h"
 #include "EventBus.h"
 #include "Core/Font.h"
 using ecsType = KGR::ECS::Registry<KGR::ECS::Entity::_64, 100>;
@@ -56,6 +57,7 @@ struct GameSceneManager : public SceneManager
 	}
 	void Destroy() override
 	{
+		SceneManager::Destroy();
 		m_window->Destroy();
 		KGR::RenderWindow::End();
 	}
@@ -84,7 +86,7 @@ struct IGameScene : public Scene
 	{
 		{
 			auto es = m_ecs.GetAllComponentsView<CameraComponent, TransformComponent>();
-			if (es.Size() != 1)
+			if (es.size() != 1)
 				throw std::runtime_error("need one and one cam");
 			for (auto& e : es)
 			{
@@ -131,6 +133,16 @@ struct IGameScene : public Scene
 				m_window->RegisterUi(ui, transform, texture);
 			}
 		}
+		{
+			auto es = m_ecs.GetAllComponentsView < TextComp, TransformComponent2d, UiComponent >();
+			for (auto& e : es)
+			{
+				auto& transform = m_ecs.GetComponent<TransformComponent2d>(e);
+				auto& ui = m_ecs.GetComponent<UiComponent>(e);
+				auto& text = m_ecs.GetComponent<TextComp>(e);
+				m_window->RegisterText(ui, transform, text);
+			}
+		}
 		m_window->Render({ 0.53f, 0.81f, 0.92f, 1.0f });
 	}
 protected:
@@ -138,23 +150,27 @@ protected:
 	KGR::RenderWindow* m_window;
 };
 
+struct control
+{
+	
+};
+
 
 struct GameScene : public IGameScene
 {
+	
 	GameScene(const KGR::Tools::Chrono<float>::Time& time) :IGameScene(time){}
 	void Init(SceneManager* manager) override
 	{
 		
 
 		IGameScene::Init(manager);
-		auto& font = FontLoader::Load("Fonts/arial.ttf", m_window->App());
-		font.GetGlyph('A');
 		// camera 
 		{
 			// a calera need a cameraComponent that can be orthographic or perspective and a transform
 
 			// create the camera with the fov , the size of the window (must be updated ) and the far and near rendering and the mode 
-			CameraComponent cam = CameraComponent::Create(glm::radians(45.0f), m_window->GetSize().x, m_window->GetSize().y, 0.01f, 100.0f, CameraComponent::Type::Perspective);
+			CameraComponent cam = CameraComponent::Create(glm::radians(45.0f), m_window->GetSize().x, m_window->GetSize().y, 0.01f, 100000.0f, CameraComponent::Type::Perspective);
 			TransformComponent transform;
 			// create a transform and set pos and dir 
 			transform.SetPosition({ 0,3,5 });
@@ -165,15 +181,13 @@ struct GameScene : public IGameScene
 			// now move the component into the ecs
 			m_ecs.AddComponents(e, std::move(cam), std::move(transform));
 		}
-
-
-		// mesh
+		
 		{
 			// a mesh need a meshComponent a transform and a texture 
 
 			// create a mesh and load it with the cash loader
 			MeshComponent mesh;
-			mesh.mesh = &MeshLoader::Load("Models/cube.obj", m_window->App());
+			mesh.mesh = &MeshLoader::Load("Models/bloc.obj", m_window->App());
 
 			// create a texture 
 			MaterialComponent text;
@@ -183,7 +197,14 @@ struct GameScene : public IGameScene
 			for (int i = 0; i < mesh.mesh->GetSubMeshesCount(); ++i)
 			{
 				Material mat;
-				mat.baseColor = &TextureLoader::Load("Textures/test_mat_bc.png", m_window->App());
+				mat.baseColor = &TextureLoader::Load("Textures/bloc_BaseColor_Emissive.png", m_window->App());
+				mat.emissive = &TextureLoader::Load("Textures/bloc_BaseColor_Emissive.png", m_window->App());
+				mat.normalMap = &TextureLoader::Load("Textures/bloc_Normal.png", m_window->App());
+				mat.pbrMap = &TextureLoader::Load("Textures/bloc_ORM.png", m_window->App());
+
+
+
+
 
 				text.materials[i] = mat;
 			}
@@ -191,21 +212,23 @@ struct GameScene : public IGameScene
 			// create the transform and set all the data
 			TransformComponent transform;
 			transform.SetPosition({ 0,0,0 });
-			transform.SetScale({ 2.0f, 1.0f,3.0f });
+			transform.SetScale({ 3.0f, 3.0f,3.0f });
 			// same create an entity / id
 			auto e = m_ecs.CreateEntity();
 			// fill the component
-			m_ecs.AddComponents(e, std::move(mesh), std::move(text), std::move(transform));
+			m_ecs.AddComponents(e, std::move(mesh), std::move(text), std::move(transform),std::move(control{}));
 		}
+
+
 
 		// light
 		{
 			// the light need transform component and light component
 			// all lights type have their own system to create them go in the file to understand
-			LightComponent<LightData::Type::Spot> lc = LightComponent<LightData::Type::Spot>::Create({ 1, 1,1 }, { 1,1,1 }, 10.0f, 100.0f, glm::radians(15.0f), 0.15f);
+			LightComponent<LightData::Type::Directional> lc = LightComponent<LightData::Type::Directional>::Create({ 1, 1,1 }, { 1,1,1 }, 10.0f);
 			// set the transform but certain light need dir some position or both so just use what necessary 
 			TransformComponent transform;
-			transform.SetPosition({ 0,5,0 });
+			transform.SetPosition({ 0,0,0 });
 			transform.LookAtDir({ 0,-1,0 });
 			// same 
 			auto e = m_ecs.CreateEntity();
@@ -241,7 +264,7 @@ struct GameScene : public IGameScene
 		IGameScene::Update(dt);
 
 		{
-			auto es = m_ecs.GetAllComponentsView<MeshComponent, TransformComponent>();
+			auto es = m_ecs.GetAllComponentsView<MeshComponent, TransformComponent, control>();
 			for (auto& e : es)
 			{
 				auto input = m_window->GetInputManager();
@@ -294,6 +317,7 @@ struct GameScene : public IGameScene
 	}
 	void Render() override
 	{
+		
 		IGameScene::Render();
 	}
 };
@@ -338,7 +362,7 @@ struct MenuScene : public IGameScene
 			// here set the position in the virtual resolution
 			ui.SetPos({ 1920.0f/2.0f, 1080.0f/2.0f });
 			// here the scale
-			ui.SetScale({ 500,500 });
+			ui.SetScale({ 1000,500 });
 			// create a texture but be aware that only the first texture in the component will be use 
 			TextureComponent texture;
 			texture.texture = &TextureLoader::Load("Textures/texture.jpg", m_window->App());
@@ -346,10 +370,17 @@ struct MenuScene : public IGameScene
 			comp.targetScene = "Game";
 			// same as always 
 			auto e = m_ecs.CreateEntity();
-			m_ecs.AddComponents(e, std::move(transform), std::move(ui), std::move(texture), std::move(CollisionComp2d{}),std::move(comp));
+			TextComp text;
+			//text.text.font = &FontLoader::Load("Fonts/arial.ttf", m_window->App());
+			text.text.SetText( "je pense donc je suis !\nje mange des arbres ");
+			text.text.textTexture = &TextureLoader::Load("Textures/viking_room.png", m_window->App());
+			text.text.SetAlign(Text::Align::Center);
+
+
+
+			m_ecs.AddComponents(e, std::move(transform), std::move(ui), std::move(texture), std::move(CollisionComp2d{}),std::move(comp),std::move(text));
 
 		}
-		// TODO create backGround
 	}
 	void Update(float dt) override
 	{

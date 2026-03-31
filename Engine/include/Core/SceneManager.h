@@ -18,7 +18,10 @@
 		void SetCurrentScene(const std::string& name);
 		virtual bool LoopCondition()const = 0;
 		virtual void Init(){}
-		virtual void Destroy(){}
+		virtual void Destroy()
+		{
+			m_scenes.clear();
+		}
 	private:
 		Scene* GetCurrentScene();
 		std::optional<std::uint64_t> m_currentIndex;

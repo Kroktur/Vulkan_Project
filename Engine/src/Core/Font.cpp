@@ -30,7 +30,7 @@ char Ascii::ToChar() const
 
 
 AtlasFont::AtlasFont(KGR::_Vulkan::Image&& image, KGR::_Vulkan::DescriptorSet&& set,
-    const std::array<Glyph, 95>& glyphs, int pixelSize) : m_texture(std::move(image),std::move(set)) , m_glyphs(glyphs), m_pixelSize(pixelSize)
+    const std::array<Glyph, 95>& glyphs, int pixelSize, float ascent, float descent) : m_texture(std::move(image),std::move(set)) , m_glyphs(glyphs), m_pixelSize(pixelSize),m_ascent(ascent),m_descent(descent)
 {
 
 }
@@ -53,6 +53,16 @@ int AtlasFont::pixSize() const
     return m_pixelSize;
 }
 
+float AtlasFont::GetAscent() const
+{
+	return m_ascent;
+}
+
+float AtlasFont::GetDescent() const
+{
+	return m_descent;
+}
+
 void AtlasFont::Bind(const vk::raii::CommandBuffer* buffer, const vk::raii::PipelineLayout* layout, int set)
 {
     m_texture.Bind(buffer, layout, set);
@@ -63,11 +73,11 @@ Texture* AtlasFont::GetTexture()
     return &m_texture;
 }
 
-std::unique_ptr<AtlasFont> loadFont(const std::string& filePath, KGR::_Vulkan::VulkanCore* core)
+std::unique_ptr<AtlasFont> loadFont(const std::string& filePath, KGR::_Vulkan::VulkanCore* core,float res)
 {
     std::vector<unsigned char> fontBuffer;
-   auto size = glm::ivec2{512,512};
-   auto pixelSize = 32;
+   auto size = glm::ivec2{512 * res,512* res };
+   auto pixelSize = 32 * res;
 
     std::ifstream file(filePath, std::ios::binary | std::ios::ate);
     if (!file.is_open())
@@ -82,7 +92,7 @@ std::unique_ptr<AtlasFont> loadFont(const std::string& filePath, KGR::_Vulkan::V
 
     stbtt_bakedchar cdata[95];
 
-    int res = stbtt_BakeFontBitmap(
+    int res2 = stbtt_BakeFontBitmap(
         fontBuffer.data(),
         0,
         static_cast<float>(pixelSize),
@@ -97,6 +107,10 @@ std::unique_ptr<AtlasFont> loadFont(const std::string& filePath, KGR::_Vulkan::V
     if (res <= 0)
         throw std::runtime_error("Failed to bake font bitmap.");
     std::array<Glyph, 95> glyphs = {};
+
+    float ascent = std::numeric_limits<float>::max();
+    float descent = std::numeric_limits<float>::lowest();
+
     for (int i = 0; i < 95; ++i)
     {
         Glyph& g = glyphs[i];
@@ -106,9 +120,12 @@ std::unique_ptr<AtlasFont> loadFont(const std::string& filePath, KGR::_Vulkan::V
         g.size = glm::vec2(bc.x1 - bc.x0, bc.y1 - bc.y0);
         g.offset = glm::vec2(bc.xoff, bc.yoff);
         g.advance = bc.xadvance;
-
+        
         g.min = glm::vec2(static_cast<float>(bc.x0) / static_cast<float>(size.x), static_cast<float>(bc.y0) / static_cast<float>(size.y));
         g.max = glm::vec2(static_cast<float>(bc.x1) / static_cast<float>(size.x), static_cast<float>(bc.y1) / static_cast<float>(size.y));
+
+        ascent = std::min(ascent, g.offset.y);
+        descent = std::max(descent, (g.offset.y + g.size.y));
     }
 
     std::vector<unsigned char> rgbaAtlas(size.x * size.y * 4);
@@ -126,7 +143,7 @@ std::unique_ptr<AtlasFont> loadFont(const std::string& filePath, KGR::_Vulkan::V
     auto image = core->CreateImageFromData(rgbaAtlas.data(), size.x, size.y);
     auto set = core->CreateSetForImage(&image);
 
-    return  std::make_unique<AtlasFont>(std::move(image), std::move(set), glyphs, pixelSize);
+    return  std::make_unique<AtlasFont>(std::move(image), std::move(set), glyphs, pixelSize,ascent,descent);
 }
 
 constexpr int Ascii::ToInt(char c)

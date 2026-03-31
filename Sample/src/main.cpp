@@ -21,8 +21,7 @@
 #include "Core/Scene.h"
 #include "IGameScene.h"
 
-// make you ecs type with entity 8 / 16 / 32 / 64 and the size of allocation between 1 and infinity
-using ecsType = KGR::ECS::Registry<KGR::ECS::Entity::_64, 100>;
+
 
 int main(int argc, char** argv)
 {
@@ -31,6 +30,6 @@ int main(int argc, char** argv)
 	std::filesystem::path projectRoot = exePath.parent_path().parent_path().parent_path().parent_path().parent_path();
 	GameSceneManager manager(projectRoot / "Ressources");
 	manager.AddScene(std::make_unique<MenuScene>(KGR::Tools::Chrono<float>::Time::CreateFromValue(1.0f / 60.0f)), "Menu", true);
-	manager.AddScene(std::make_unique<GameScene>(KGR::Tools::Chrono<float>::Time::CreateFromValue(1.0f/144.0f)),"Game",false);
+	manager.AddScene(std::make_unique<GameScene>(KGR::Tools::Chrono<float>::Time::CreateFromValue(1.0f/1000.0f)),"Game",false);
 	manager.Run(KGR::Tools::Chrono<float>::Time::CreateFromValue(1.0f / 60.0f));
 }

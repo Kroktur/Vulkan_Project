@@ -111,6 +111,7 @@ namespace KGR
         
     	
         void RegisterUi(UiComponent& component, TransformComponent2d& transform, TextureComponent& texture);
+        void RegisterText(UiComponent& component, TransformComponent2d& transform, TextComp& texture);
     	/**
          * @brief Renders the current frame.
          *
