@@ -207,7 +207,7 @@ struct GameScene : public IGameScene
 			// now move the component into the ecs
 			m_ecs.AddComponents(e, std::move(cam), std::move(transform));
 		}
-		for (int i = 0 ; i < 1; ++i)
+		for (int i = 0 ; i < 3000; ++i)
 		{
 			// a mesh need a meshComponent a transform and a texture 
 
