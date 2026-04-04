@@ -2,66 +2,89 @@
 
 #include "Animation.h"
 #include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace KGR
 {
 	namespace Animation
 	{
-		/*
-		* @brief AnimationComponent is responsible for managing the state of an animation instance, 
-		* including the current time, skeleton, animation clip, 
-		* and calculating the global transformation matrices for each joint based on the animation data.
-		*/
+		/**
+		 * @brief Manages the runtime playback state of a single skeletal animation instance.
+		 */
 		class AnimationComponent
 		{
 		public:
 			AnimationComponent() = default;
 			~AnimationComponent() = default;
 
-			/*
-			* @brief Initializes the animation component with a given skeleton and animation clip.
-			* @param skeleton Pointer to the skeleton that defines the joint hierarchy and inverse bind matrices.
-			* @param clip Pointer to the animation clip that contains the keyframe data for animating the skeleton.
-			*/
-			void Init(const Skeleton* skeleton, const AnimationClip* clip);
+			/**
+			 * @brief Binds a skeleton and its clip library to this component and activates the first valid clip.
+			 * @param skeleton  pointer to the joint hierarchy and inverse bind matrices.
+			 * @param clips     all animation clips available for this skeleton.
+			 */
+			void Init(const Skeleton* skeleton, const std::vector<AnimationClip>* clips);
 
-			/*
-			* @brief Updates the animation state by advancing the current time based on the delta time 
-			* and recalculating the global transformation matrices for each joint.
-			* @param deltaTime The time elapsed since the last update, used to advance the animation time.
-			*/
+			/**
+			 * @brief Switches to the clip at @p index and resets playback time to zero.
+			 */
+			void SetClip(size_t index);
+
+			/**
+			 * @brief Steps the animation forward and recomputes all joint matrices.
+			 * @param deltaTime seconds elapsed since the last frame.
+			 */
 			void Update(float deltaTime);
 
-			/*
-			* @brief Returns the current global transformation matrices for each joint, which can be used for skinning in the vertex shader.
-			*/
+			/** @brief Skinning matrices (globalTransform * inverseBindMatrix) indexed by joint ID. */
 			const std::vector<glm::mat4>& GetLastBoneMatrices() const;
+
+			/** @brief Number of clips available on this component. */
+			size_t GetClipCount() const;
 
 		private:
 			const Skeleton* m_skeleton = nullptr;
+			const std::vector<AnimationClip>* m_clips = nullptr;
 			const AnimationClip* m_clip = nullptr;
-			float m_currentTime = 0.0f;
 
-			std::vector<glm::mat4> m_globalMAtrices;
+			size_t m_currentClipIdx = 0;
+			float  m_currentTime = 0.0f;
+
+			std::vector<int> m_rootJointIds;
+			std::unordered_map<int, const Joint*> m_jointById;
+			std::unordered_map<int, const Track*> m_trackByJointId;
+
+			std::vector<glm::mat4> m_globalMatrices;
 			std::vector<glm::mat4> m_lastBoneMatrices;
 
-			/*
-			* @brief Recursively calculates the global transformation matrix for each joint 
-			* based on the current animation time and the parent transformation.
-			* @param joint The current joint for which to calculate the transformation.
-			* @param parentTransform The global transformation matrix of the parent joint, used to compute the current joint's global transform.
-			*/
+			/** @brief Rebuilds m_trackByJointId and m_clip from the current clip index. */
+			void RebuildClipData();
+
+			/** @brief Recursively computes the global transform for a joint and all its descendants. */
 			void CalculateBoneTransform(const Joint& joint, const glm::mat4& parentTransform);
 
-			/*
-			* @brief Interpolates the position, rotation, and scale for a given time based on the keyframes in the animation track.
-			* @param time The current animation time for which to interpolate the transformation.
-			* @param track The animation track containing the keyframes for the joint being animated.
-			* @return The interpolated position, rotation, and scale as a tuple.
-			*/
-			glm::vec3 InterpolatePosition(float time, const Track& track);
-			glm::quat InterpolateRotation(float time, const Track& track);
-			glm::vec3 InterpolateScale(float time, const Track& track);
+			glm::vec3 InterpolatePosition(float time, const Track& track) const;
+			glm::quat InterpolateRotation(float time, const Track& track) const;
+			glm::vec3 InterpolateScale(float time, const Track& track) const;
 		};
+
+		template<typename KF, typename LerpFn>
+		auto InterpolateKeyframes(float time, const std::vector<KF>& keys, LerpFn lerp)
+			-> decltype(keys[0].m_value)
+		{
+			if (keys.size() == 1 || time <= keys.front().time)
+				return keys.front().m_value;
+
+			if (time >= keys.back().time)
+				return keys.back().m_value;
+
+			auto it = std::lower_bound(keys.begin(), keys.end(), time,
+				[](const KF& k, float t) { return k.time < t; });
+
+			const auto& k0 = *(it - 1);
+			const auto& k1 = *it;
+			const float f = glm::clamp((time - k0.time) / (k1.time - k0.time), 0.0f, 1.0f);
+			return lerp(k0.m_value, k1.m_value, f);
+		}
 	}
 }

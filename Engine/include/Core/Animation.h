@@ -10,11 +10,9 @@ namespace KGR
 {
 	namespace Animation
 	{
-		/*
-		* @brief Represents a single joint in a skeleton, 
-		* containing its name, ID, inverse bind matrix, 
-		* local transformation (translation, rotation, scale), and child joint indices.
-		*/
+		/**
+		 * @brief Single joint in a skeleton — name, ID, inverse bind matrix, local TRS, and child IDs.
+		 */
 		struct Joint
 		{
 			std::string name;
@@ -26,40 +24,36 @@ namespace KGR
 			std::vector<int> m_children;
 		};
 
-		/*
-		* @brief Represents a skeleton, which is a hierarchical structure of joints used for skeletal animation.
-		*/
+		/**
+		 * @brief Hierarchical collection of joints used for skeletal animation.
+		 */
 		struct Skeleton
 		{
 			std::string name;
 			std::vector<Joint> m_joints;
 		};
 
-		/*
-		* @brief Represents a keyframe for vector properties (position or scale) in an animation track.
-		* Contains the time of the keyframe and the corresponding vector value.
-		*/
+		/**
+		 * @brief Keyframe for vec3 channels (position or scale).
+		 */
 		struct VectorKeyFrame
 		{
 			float time;
 			glm::vec3 m_value;
 		};
 
-		/*
-		* @brief Represents a keyframe for rotation properties in an animation track.
-		*/
+		/**
+		 * @brief Keyframe for rotation channels.
+		 */
 		struct QuaternionKeyFrame
 		{
 			float time;
 			glm::quat m_value;
 		};
 
-		/*
-		* @brief Represents an animation track for a specific joint/node, 
-		* containing keyframes for position, rotation, and scale.
-		* Each track corresponds to a single joint 
-		* and defines how that joint transforms over time in an animation clip.
-		*/
+		/**
+		 * @brief Animation data for one joint — position, rotation, and scale keyframes over time.
+		 */
 		struct Track
 		{
 			int nodeId;
@@ -68,10 +62,9 @@ namespace KGR
 			std::vector<VectorKeyFrame> m_scales;
 		};
 
-		/*
-		* @brief Represents an animation clip, 
-		* which is a collection of animation tracks for various joints/nodes, along with the clip's name and duration.
-		*/
+		/**
+		 * @brief Named collection of tracks that defines one animation sequence and its duration.
+		 */
 		struct AnimationClip
 		{
 			std::string name;

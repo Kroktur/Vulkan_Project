@@ -5,6 +5,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <stb_image.h>
 #include <optional>
+#include <memory>
+#include <algorithm>
 
 #include "Buffer.h"
 #include "Global.h"
@@ -57,6 +59,8 @@ struct MeshData
 	 * @brief Pointer to vector of textures.
 	 */
 	std::vector<Material> texture;
+
+	int boneOffset = -1;
 };
 
 /**
@@ -68,6 +72,24 @@ struct Segment
 	glm::vec3 pos2;   ///< End position of the segment
 	float  thickness; ///< Line thickness
 	glm::vec4 color;  ///< Line color
+};
+
+struct StbiCleaner
+{
+	void operator()(stbi_uc* pixels) const
+	{ 
+		stbi_image_free(pixels);
+	}
+};
+
+/*
+* @brief Struct containing data for UI rendering.
+*/
+struct alignas(16) PushConstantData
+{
+	glm::mat4 model;
+	int boneOffset;
+	int pad1, pad2, pad3;
 };
 
 namespace KGR
@@ -111,11 +133,21 @@ namespace KGR
 			Image CreateImage(const std::string& filePath);
 
 			/**
-			* @brief
-			* @param
-			* @return
+			* @brief Creates a Vulkan image from encoded image data in memory (e.g., PNG, JPEG).
+			* @param data Pointer to the encoded image bytes.
+			* @param size Size of the encoded image data in bytes.
+			* @return Vulkan Image object created from the decoded image data.
 			*/
 			Image CreateImageFromMemory(const unsigned char* data, size_t size);
+
+			/**
+			 * @brief creates a GPU image from a raw RGBA pixel buffer without stbi decoding.
+			 * @param rgbaPixels pointer to contiguous RGBA bytes, 4 bytes per pixel.
+			 * @param width image width in pixels.
+			 * @param height image height in pixels.
+			 * @return uploaded Vulkan image with view and mipmaps.
+			 */
+			Image CreateImageRaw(const uint8_t* rgbaPixels, uint32_t width, uint32_t height);
 
 			/**
 			 * @brief Creates a descriptor set for a given image.
@@ -123,6 +155,7 @@ namespace KGR
 			 * @return Descriptor set associated with the image.
 			 */
 			DescriptorSet CreateSetForImage(Image* image);
+
 			/*DescriptorSet CreateSetForImageUi(Image* image);*/
 			/**
 			 * @brief Creates a vertex buffer from a vector of vertices.
@@ -193,7 +226,8 @@ namespace KGR
 			 * @param model Model transformation
 			 * @param texture Vector of textures for the mesh
 			 */
-			void RegisterRender(Mesh& mesh, const glm::mat4& model,const  std::vector<Material>& texture);
+			void RegisterRender(Mesh& mesh, const glm::mat4& model, const  std::vector<Material>& texture, int boneOffset = -1);
+
 			void RegisterUi(const UiData& data, Texture* texture,const glm::vec2& screenSize);
 			/**
 			 * @brief Performs rendering of registered meshes, lights, and optionally ImGui data.
@@ -202,6 +236,13 @@ namespace KGR
 			 * @param imguiDraw Optional ImGui draw data
 			 */
 			void Render(GLFWwindow* window, const glm::vec4& clearColor = { 0,0,0,1 }, ImDrawData* imguiDraw = nullptr, KGR::Editor::Offscreen* offscreen = nullptr);
+
+			/*
+			* @brief Registers bone transformation matrices for skeletal animation.
+			* @param boneMatrices Vector of bone transformation matrices to register.
+			* @return Offset index in the bone buffer where the matrices were registered, or -1 on failure (e.g., if capacity is exceeded).
+			*/
+			int RegisterBoneMatrices(const std::vector<glm::mat4>& boneMatrices);
 
 		private:
 
@@ -260,8 +301,10 @@ namespace KGR
 			Buffer vertexBuffer;
 			Buffer stagingIndexBuffer;
 			Buffer indexBuffer;
-
+			Buffer m_boneBuffer;
 			Buffer uniformBuffers;
+
+			std::vector<glm::mat4> m_frameBones;
 			std::vector<LightData> m_lights;
 			DescriptorSet m_LightSet;
 			Buffer m_lightBuffer;

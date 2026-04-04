@@ -73,7 +73,7 @@ struct Material
      *
      * @return A copy of the internal material array.
      */
-    std::vector<Material> GetAllMaterials() const
+    const std::vector<Material>& GetAllMaterials() const
     {
         return m_materials;
     }

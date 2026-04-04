@@ -9,6 +9,7 @@ KGR::RenderWindow::RenderWindow(glm::ivec2 size, const char* name, const std::fi
 	MeshLoader::SetGlobalFIlePath(GlobResourcesPath);
 	TextureLoader::SetGlobalFIlePath(GlobResourcesPath);
 	FileManager::SetGlobalFIlePath(GlobResourcesPath);
+	GLB::GLB_Loader::SetGlobalFilePath(GlobResourcesPath);
 
 
 	m_window.CreateMyWindow(size, name, nullptr, nullptr);
@@ -68,10 +69,10 @@ void KGR::RenderWindow::RegisterCam(CameraComponent& cam, TransformComponent& tr
 	m_core.RegisterCam(transform.GetFullTransform(),cam.GetView(),cam.GetProj());
 }
 
-void KGR::RenderWindow::RegisterRender(MeshComponent& mesh, TransformComponent& transform, MaterialComponent& material)
+void KGR::RenderWindow::RegisterRender(MeshComponent& mesh, TransformComponent& transform, MaterialComponent& material, int boneOffset = -1)
 {
 	// TODO default value here
-	m_core.RegisterRender(*mesh.mesh, transform.GetFullTransform(), material.GetAllMaterials());
+	m_core.RegisterRender(*mesh.mesh, transform.GetFullTransform(), material.GetAllMaterials(), boneOffset);
 }
 
 void KGR::RenderWindow::RegisterUi(UiComponent& component, TransformComponent2d& transform, TextureComponent& texture)

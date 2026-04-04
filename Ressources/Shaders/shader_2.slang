@@ -4,6 +4,8 @@ struct VSInput {
     float4 inColor;
     float2 inTexCoord;
 	float4 Tangeant;
+    int4   inJoints;
+    float4 inWeights;
 };
 
 struct UniformBuffer {
@@ -12,22 +14,23 @@ struct UniformBuffer {
     float4x4 proj;
 };
 
+[[vk::binding(0, 0)]]
+ConstantBuffer<UniformBuffer> CamUbo;
 
+[[vk::binding(1, 0)]]
+StructuredBuffer<float4x4> boneData;
 
-struct Transform
+struct PushConstantData
 {
     float4x4 model;
-}
-
-struct Data
-{
-    UniformBuffer CamUbo;
-    Sampler2D texture;
-}
-ParameterBlock<Data> data;
+    int boneOffset;
+    int pad1;
+    int pad2;
+    int pad3;
+};
 
 [[vk::push_constant()]]
-ConstantBuffer<Transform> pushConstantData;
+ConstantBuffer<PushConstantData> pushConstantData;
 
 struct VSOutput
 {
@@ -43,23 +46,37 @@ struct VSOutput
 
 
 [shader("vertex")]
-VSOutput vertMain(VSInput input) {
-    VSOutput output;
+VSOutput vertMain(VSInput input) 
+{
+VSOutput output;
 
-    float4 wsPos = mul(pushConstantData.model, float4(input.inPosition, 1.0f));
-    output.pos = mul(data.CamUbo.proj, mul(data.CamUbo.view, wsPos));
+    float weightSum = dot(input.inWeights, float4(1.0));
+    float4 w = (weightSum > 0.0) ? (input.inWeights / weightSum) : float4(1.0, 0.0, 0.0, 0.0);
+
+    int4 j = clamp(input.inJoints + int4(pushConstantData.boneOffset), int4(0), int4(9999));
+
+    float4x4 skinMat = 
+        boneData[j.x] * w.x +
+        boneData[j.y] * w.y +
+        boneData[j.z] * w.z +
+        boneData[j.w] * w.w;
+
+    float4 localPos = mul(skinMat, float4(input.inPosition, 1.0f));
+    float3 localNormal = mul((float3x3)skinMat, input.normal);
+    float3 localTangent = mul((float3x3)skinMat, input.Tangeant.xyz);
+
+    float4 wsPos = mul(pushConstantData.model, localPos);
+    output.pos = mul(CamUbo.proj, mul(CamUbo.view, wsPos));
     output.worldspacePosition = wsPos.xyz;
-    output.eyePos = mul(data.CamUbo.InverseView, float4(0.0f.xxx, 1.0f)).xyz;
+    output.eyePos = mul(CamUbo.InverseView, float4(0, 0, 0, 1)).xyz;
+    
     output.fragTexCoord = input.inTexCoord;
     output.fragColor = input.inColor;
-    //output.normal =  mul(pushConstantData.model, float4(input.normal, 0.0f)).xyz;
 
-    // normal to ws 
-    float3 N = normalize(mul(pushConstantData.model, float4(input.normal, 0.0f)).xyz);
-    // tangeant to ws 
-    float3 T = normalize(mul(pushConstantData.model, float4(input.Tangeant.xyz, 0.0f)).xyz);
-    // prosses bi tengeant * 1.0f
-    float3 B = cross(N, T) * input.Tangeant.w;
+    float3 N = normalize(mul((float3x3)pushConstantData.model, localNormal));
+    float3 T = normalize(mul((float3x3)pushConstantData.model, localTangent));
+    T = normalize(T - N * dot(N, T));
+    float3 B = normalize(cross(N, T) * input.Tangeant.w);
 
     output.normal = N;
     output.tangent = T;

@@ -19,7 +19,7 @@ SubMeshes::~SubMeshes()
 
 }
 
-SubMeshes::SubMeshes(std::vector<Vertex> vertices, std::vector<uint32_t> indices, const std::string tag, KGR::_Vulkan::VulkanCore* core) : m_vertices(vertices),m_indices(indices),m_id(Hash::FNV1aHash(tag.c_str(),tag.size()))
+SubMeshes::SubMeshes(std::vector<Vertex> vertices, std::vector<uint32_t> indices, const std::string tag, KGR::_Vulkan::VulkanCore* core) : m_vertices(vertices), m_indices(indices), m_id(Hash::FNV1aHash(tag.c_str(), tag.size()))
 {
 	m_vertexBuffer = core->CreateVertexBuffer(vertices);
 	m_indexBuffer = core->CreateIndexBuffer(indices);
@@ -68,7 +68,7 @@ uint32_t Mesh::GetSubMeshesCount() const
 	return m_subMeshes.size();
 }
 
-const SubMeshes& Mesh::GetSubMesh(const std::string& name) const 
+const SubMeshes& Mesh::GetSubMesh(const std::string& name) const
 {
 	uint64_t hash = Hash::FNV1aHash(name.c_str(), name.size());
 	auto it = std::find_if(m_subMeshes.begin(), m_subMeshes.end(), [hash](const std::unique_ptr<SubMeshes>& sub)
@@ -139,7 +139,7 @@ std::vector<glm::vec3> s_ComputeTangents(
 			float tx = deltaUV1.y;
 			float ty = deltaUV2.y;
 
-			
+
 			tangents[i0] = tangent;
 			tangents[i1] = tangent;
 			tangents[i2] = tangent;
@@ -177,7 +177,7 @@ std::unique_ptr<Mesh> LoadMesh(const std::string& filePath, KGR::_Vulkan::Vulkan
 	std::vector<tinyobj::material_t> materials;
 	std::string                      warn, err;
 
-	if (!LoadObj(&attrib, &shapes, &materials, &warn, &err, filePath.c_str(),nullptr,true))
+	if (!LoadObj(&attrib, &shapes, &materials, &warn, &err, filePath.c_str(), nullptr, true))
 	{
 		throw std::runtime_error(warn + err);
 	}
@@ -215,7 +215,7 @@ std::unique_ptr<Mesh> LoadMesh(const std::string& filePath, KGR::_Vulkan::Vulkan
 					1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
 				};
 			}
-			vertex.color = glm::vec4{ 1,1,1,1};
+			vertex.color = glm::vec4{ 1,1,1,1 };
 
 			if (!uniqueVertices.contains(vertex))
 			{
@@ -228,7 +228,7 @@ std::unique_ptr<Mesh> LoadMesh(const std::string& filePath, KGR::_Vulkan::Vulkan
 		std::vector<glm::vec3> posS;
 		std::vector<glm::vec3> normalS;
 		std::vector<glm::vec2> uvS;
-		for (auto& v :allVertices)
+		for (auto& v : allVertices)
 		{
 			posS.push_back(v.pos);
 			normalS.push_back(v.normal);
@@ -236,13 +236,36 @@ std::unique_ptr<Mesh> LoadMesh(const std::string& filePath, KGR::_Vulkan::Vulkan
 		}
 		auto tangent = s_ComputeTangents(posS, normalS, uvS, indices);
 
-		for (int i = 0 ; i < tangent.size(); ++i)
+		for (int i = 0; i < tangent.size(); ++i)
 		{
 			auto t = tangent[i];
 			allVertices[i].tangent = { t.x,t.y,t.z,1 };
 		}
-		result->AddSubMesh(std::make_unique<SubMeshes>(allVertices, indices,shape.name, core));
+		result->AddSubMesh(std::make_unique<SubMeshes>(allVertices, indices, shape.name, core));
 	}
 	return std::move(result);
 }
 
+std::unique_ptr<Mesh> LoadMeshFromGLB(KGR::GLB::GLB_Loader& loader, KGR::_Vulkan::VulkanCore* vkCore)
+{
+	std::unique_ptr<Mesh> result = std::make_unique<Mesh>();
+
+	const auto& primitives = loader.GetPrimitives();
+	if (primitives.empty())
+		throw std::runtime_error("[LoadMeshFromGLB] GLB_Loader has no primitive.");
+
+	for (size_t i = 0; i < primitives.size(); ++i)
+	{
+		const auto& prim = primitives[i];
+		if (prim.vertices.empty())
+			continue;
+
+		std::string tag = "GLB_SubMesh_" + std::to_string(i);
+		result->AddSubMesh(std::make_unique<SubMeshes>(prim.vertices, prim.indices, tag, vkCore));
+	}
+
+	if (result->GetSubMeshesCount() == 0)
+		throw std::runtime_error("[LoadMeshFromGLB] all primitives were empty.");
+
+	return result;
+}
