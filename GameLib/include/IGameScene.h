@@ -92,8 +92,9 @@ struct GameSceneManager : public SceneManager
 	}
 	void Destroy() override
 	{
-		SceneManager::Destroy();
+		
 		m_window->Destroy();
+		SceneManager::Destroy();
 		KGR::RenderWindow::End();
 	}
 	void ChangeScene(const ChangeSceneEvent& event)
