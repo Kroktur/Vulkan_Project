@@ -65,7 +65,7 @@ int main(int argc, char** argv)
 
 	// GLB entities
 	{
-		const KGR::GLB::GLBAsset* foxAsset = glbCache.Get("Models/Fox.glb", window->App());
+		const KGR::GLB::GLBAsset* foxAsset = glbCache.Get("Models/CesiumMan.glb", window->App());
 		if (foxAsset)
 			KGR::GLB::CreateGLBEntity(registry, *foxAsset,
 				glm::vec3{0.0f, 0.0f, 2.0f}, glm::vec3(0.0f), glm::vec3(0.02f), neutrals);
@@ -89,6 +89,11 @@ int main(int argc, char** argv)
 				glm::vec3{ 2.0f, 0.0f, 0.0f }, glm::vec3{ 90.0f, 0.0f, 0.0f }, glm::vec3(1.0f),
 				neutrals, KGR::GLB::GLBSkinOverride{ .baseColor = &skinOrange });
 		}
+
+		//const KGR::GLB::GLBAsset* mapAsset = glbCache.Get("Models/Map.glb", window->App());
+		//if (mapAsset)
+		//	KGR::GLB::CreateGLBEntity(registry, *mapAsset, glm::vec3{ 0.0f, 0.0f, 0.0f }, 
+		//		glm::vec3{ 90.0f, 0.0f, 0.0f }, glm::vec3{ 5.f, 5.f, 0.04f }, neutrals);
 	}
 
 	// light
